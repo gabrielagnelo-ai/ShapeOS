@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
@@ -28,7 +28,7 @@ export function AuthCard({
             Calcule metas, salve seu perfil e acompanhe os ajustes com o Coach IA sem perder o controle.
           </p>
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
-            {["BMR", "TDEE", "Macros"].map((item) => (
+            {["Calorias", "Metas", "Dieta"].map((item) => (
               <div key={item} className="rounded-3xl border border-white/10 bg-white/[0.05] p-4 text-sm text-zinc-300 backdrop-blur-xl">
                 {item}
               </div>

@@ -1,4 +1,4 @@
-import { activityFactors, type ActivityLevel, type Goal, type MacroTargets, type Sex } from "./types";
+﻿import { activityFactors, type ActivityLevel, type Goal, type MacroTargets, type Sex } from "./types";
 
 export function calculateBmr(input: { sex: Sex; weightKg: number; heightCm: number; age: number }) {
   const base = 10 * input.weightKg + 6.25 * input.heightCm - 5 * input.age;

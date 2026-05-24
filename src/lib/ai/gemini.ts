@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+﻿import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import type { CoachContext } from "@/lib/coach";
 import { generateCoachInsights } from "@/lib/coach";

@@ -1,4 +1,4 @@
-import { BookOpen, Plus, Trash2, Utensils } from "lucide-react";
+﻿import { BookOpen, Plus, Trash2, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
@@ -34,7 +34,7 @@ export default async function ReceitasPage() {
           <p className="text-sm text-lime-300">Receitas</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Minhas receitas</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Monte receitas com alimentos da TACO, calcule macros por porção e lance no diário ou no plano alimentar.
+            Monte receitas com alimentos da TACO, calcule calorias e nutrientes por porção e lance no diário ou no plano alimentar.
           </p>
         </div>
         <div className="rounded-3xl bg-white/10 px-5 py-4 text-right">

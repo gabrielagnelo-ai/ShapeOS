@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { assessDeficitRisk } from "@/lib/nutrition";
@@ -26,8 +26,8 @@ export function DeficitAdvisor({ name, className, defaultValue = 400 }: { name: 
         <option value="300">300 kcal - moderado baixo</option>
         <option value="400">400 kcal - padrão guiado</option>
         <option value="500">500 kcal - moderado</option>
-        <option value="750">750 kcal - agressivo</option>
-        <option value="1000">1000 kcal - muito agressivo</option>
+        <option value="750">750 kcal - redução alta</option>
+        <option value="1000">1000 kcal - redução muito alta</option>
       </select>
       <p className={messageClass(assessment.level)}>{assessment.message}</p>
     </div>

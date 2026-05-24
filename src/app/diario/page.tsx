@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/shell/app-shell";
+﻿import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
@@ -59,7 +59,7 @@ export default async function DiarioPage() {
   return (
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Diário alimentar</h1>
-      <p className="mt-3 text-zinc-400">Registro real vs meta diária de kcal, macros, fibra e sódio.</p>
+      <p className="mt-3 text-zinc-400">Registro real vs meta diária de calorias, proteínas, carboidratos, gorduras, fibra e sódio.</p>
       <div className="mt-8 grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
         <GlassCard>
           <h2 className="text-xl font-semibold">Registrar alimento</h2>
@@ -89,9 +89,10 @@ export default async function DiarioPage() {
       </div>
       <GlassCard className="mt-4">
         <h2 className="text-xl font-semibold">Micronutrientes</h2>
-        <p className="mt-2 text-sm text-zinc-500">Metas sugeridas automaticamente. Valores aparecem conforme a base de alimentos tiver dados.</p>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {microBars.map(([label, value, target, unit]) => {
+        <p className="mt-2 text-sm text-zinc-500">Vitaminas e minerais aparecem conforme os alimentos registrados tiverem dados na base.</p>
+        {log?.items.length ? (
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {microBars.map(([label, value, target, unit]) => {
             const pct = target ? Math.round((value / target) * 100) : 0;
             return (
               <div key={label}>
@@ -102,8 +103,13 @@ export default async function DiarioPage() {
                 <div className="h-3 rounded-full bg-white/10"><div className="h-3 rounded-full bg-sky-300" style={{ width: `${Math.min(100, pct)}%` }} /></div>
               </div>
             );
-          })}
-        </div>
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-3xl border border-dashed border-white/10 bg-black/20 p-5 text-sm leading-6 text-zinc-400">
+            Registre os alimentos consumidos hoje para ver seu progresso de micronutrientes.
+          </div>
+        )}
       </GlassCard>
       <GlassCard className="mt-4">
         <h2 className="text-xl font-semibold">Itens registrados</h2>

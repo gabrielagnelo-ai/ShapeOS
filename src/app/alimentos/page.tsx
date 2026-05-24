@@ -1,4 +1,4 @@
-import { Ban, BookOpen, Plus, Search, Star } from "lucide-react";
+﻿import { Ban, BookOpen, Plus, Search, Star } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";

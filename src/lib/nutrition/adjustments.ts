@@ -1,4 +1,4 @@
-import type { Goal } from "./types";
+﻿import type { Goal } from "./types";
 
 export type WeeklySignal = {
   averageWeightKg: number;
@@ -28,7 +28,7 @@ export function suggestCalorieAdjustment(input: {
       return { delta, reason: "Peso estabilizado por 2 semanas com boa aderência.", severity: "action" as const };
     }
     if (change <= -1 || highFatigue) {
-      return { delta: 150, reason: "Ritmo de queda, fome ou fadiga sugerem déficit agressivo.", severity: "warning" as const };
+      return { delta: 150, reason: "Ritmo de queda, fome ou fadiga sugerem redução calórica alta.", severity: "warning" as const };
     }
   }
 
@@ -66,7 +66,7 @@ export function assessDeficitRisk(input: { weightKg: number; deficitKcal: number
   if (kcalPerKg <= 8) {
     return {
       level: "warning" as const,
-      message: "Déficit mais agressivo. Monitore fome, energia, treino e proteína para reduzir risco de perder massa muscular.",
+      message: "Redução mais alta de calorias. Monitore fome, energia, treino e proteína para reduzir risco de perder massa muscular.",
     };
   }
 

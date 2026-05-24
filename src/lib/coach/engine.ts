@@ -1,4 +1,4 @@
-import type { CoachContext, CoachInsight } from "./types";
+﻿import type { CoachContext, CoachInsight } from "./types";
 
 type Trigger = {
   id: string;
@@ -42,7 +42,7 @@ export const coachTriggers: Trigger[] = [
     priority: 90,
     category: "nutrition",
     when: (ctx) => ctx.goal === "fat_loss" && ctx.currentDeficitPct >= 25,
-    message: "Seu déficit atual pode estar agressivo demais.",
+    message: "Sua redução de calorias parece alta. Vale revisar antes de continuar assim.",
   },
   {
     id: "training_low",

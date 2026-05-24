@@ -1,4 +1,4 @@
-# ShapeOS
+﻿# ShapeOS
 
 MVP fitness premium em português do Brasil, inspirado em Apple Health/Fitness e iOS widgets. O app calcula BMR, TDEE, IMC, percentual de gordura estimado, metas de macros, sugestões de dieta, acompanhamento semanal e insights contextuais do ShapeOS Coach.
 

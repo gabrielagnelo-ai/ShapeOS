@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -80,7 +80,7 @@ export default async function CoachPage() {
         <GlassCard>
           <h2 className="text-xl font-semibold">Leitura atual</h2>
           <div className="mt-5 grid gap-3">
-            <Signal icon={<Activity size={18} />} label="Déficit estimado" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal TDEE`} />
+            <Signal icon={<Activity size={18} />} label="Redução de calorias" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal gasto estimado`} />
             <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
             <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estavel nas ultimas 2 semanas" : "sem plato detectado"} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
@@ -139,7 +139,7 @@ export default async function CoachPage() {
               </div>
             </div>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
-              Projeções usam histórico de composição e check-ins. Cada alteração de peso, cintura, pescoço ou quadril salva um BF estimado novo.
+              Projeções usam seus check-ins. Registre peso e cintura semanalmente para ver tendências mais confiáveis.
             </p>
           </div>
           <Link href="/acompanhamento" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
@@ -192,6 +192,9 @@ export default async function CoachPage() {
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               Faça pelo menos dois check-ins semanais com peso médio. Para cintura e massa magra estimada, informe cintura e medidas de BF nas configurações.
             </p>
+            <Link href="/acompanhamento" className="mt-4 inline-flex rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">
+              Registrar peso e medidas
+            </Link>
           </div>
         )}
 
@@ -240,7 +243,7 @@ function insightTitle(trigger: string) {
     weight_plateau_14d: "Peso em plato",
     adherence_streak_5d: "Consistencia forte",
     sleep_decline: "Sono em queda",
-    aggressive_deficit: "Déficit agressivo",
+    aggressive_deficit: "Redução calórica alta",
     training_low: "Treino baixo",
     micros_low: "Micronutrientes baixos",
   };
@@ -253,7 +256,7 @@ function insightExplanation(trigger: string, context: ReturnType<typeof buildCoa
     weight_plateau_14d: "O peso médio mudou menos que 0,2 kg entre os dois últimos check-ins. Se a aderência estiver boa, pode ser hora de revisar calorias.",
     adherence_streak_5d: "Quando calorias e proteína ficam dentro da faixa por vários dias, o melhor ajuste geralmente é manter o plano antes de mexer.",
     sleep_decline: "Sono menor costuma aumentar fome, reduzir recuperação e piorar treino. Antes de cortar calorias, vale corrigir rotina.",
-    aggressive_deficit: `Seu déficit estimado está em ${context.currentDeficitPct}% do TDEE. Acima de 25%, o risco de fome, queda de performance e perda de massa magra aumenta.`,
+    aggressive_deficit: `Sua meta está cerca de ${context.currentDeficitPct}% abaixo do seu gasto diário estimado. Para muita gente, isso pode aumentar fome, cansaço no treino e risco de perder massa magra.`,
     training_low: "Pouco treino reduz o sinal para manter ou ganhar massa. Ajustar agenda pode ser mais importante do que mexer na dieta.",
     micros_low: "Variedade baixa no diário pode deixar vitaminas e minerais para trás. Frutas, verduras, leguminosas e laticínios ajudam a fechar lacunas.",
   };
@@ -266,7 +269,7 @@ function insightActions(trigger: string) {
     weight_plateau_14d: [{ label: "Ajustar metas", href: "/configuracoes" }, { label: "Novo check-in", href: "/acompanhamento" }],
     adherence_streak_5d: [{ label: "Manter plano", href: "/dashboard" }, { label: "Ver progresso", href: "/acompanhamento" }],
     sleep_decline: [{ label: "Registrar check-in", href: "/acompanhamento" }, { label: "Ver dashboard", href: "/dashboard" }],
-    aggressive_deficit: [{ label: "Reduzir déficit", href: "/configuracoes" }, { label: "Conferir dieta", href: "/dieta" }],
+    aggressive_deficit: [{ label: "Ajustar calorias", href: "/configuracoes" }, { label: "Conferir dieta", href: "/dieta" }],
     training_low: [{ label: "Check-in semanal", href: "/acompanhamento" }],
     micros_low: [{ label: "Buscar alimentos", href: "/alimentos" }, { label: "Ajustar dieta", href: "/dieta" }],
   };
@@ -409,7 +412,7 @@ function projectionTone(weightLossPctPerWeek: number) {
 }
 
 function projectionLabel(weightLossPctPerWeek: number) {
-  if (weightLossPctPerWeek > 1) return "agressivo";
+  if (weightLossPctPerWeek > 1) return "muito rápido";
   if (weightLossPctPerWeek >= 0.5) return "boa faixa";
   if (weightLossPctPerWeek > 0) return "conservador";
   return "sem perda";
@@ -417,7 +420,7 @@ function projectionLabel(weightLossPctPerWeek: number) {
 
 function projectionMessage(projections: ReturnType<typeof buildProjections>) {
   if (!projections.ready) return "faltam check-ins";
-  if (projections.weightLossPctPerWeek > 1) return "risco maior de perder performance/massa magra";
+  if (projections.weightLossPctPerWeek > 1) return "ritmo rápido; acompanhe fome, treino e medidas";
   if (projections.weightLossPctPerWeek >= 0.5) return "ritmo coerente para cutting";
   if (projections.weightLossPctPerWeek > 0) return "perda lenta, boa se aderência estiver difícil";
   if ((projections.waistChangePerWeekCm ?? 0) < 0) return "peso estavel com cintura caindo pode indicar recomposicao";

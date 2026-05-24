@@ -1,4 +1,4 @@
-type Point = {
+﻿type Point = {
   label: string;
   value: number;
 };

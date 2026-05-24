@@ -1,4 +1,4 @@
-import { Plus, ShoppingBag, Trash2 } from "lucide-react";
+﻿import { Plus, ShoppingBag, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -106,15 +106,15 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
           </form>
           {plan && totals ? (
             <div className="mt-5 rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4">
-              <p className="text-sm font-medium text-lime-200">Auditoria do plano</p>
+              <p className="text-sm font-medium text-lime-200">Resumo do plano</p>
               <div className="mt-3 grid gap-2 text-sm text-zinc-300 sm:grid-cols-4">
-                <span>Kcal {Math.round(totals.kcal)} / {metrics.targets.calories}</span>
-                <span>P {Math.round(totals.protein)} / {metrics.targets.proteinG}g</span>
-                <span>C {Math.round(totals.carbs)} / {metrics.targets.carbsG}g</span>
-                <span>G {Math.round(totals.fat)} / {metrics.targets.fatG}g</span>
+                <span>Planejado: {Math.round(totals.kcal)} kcal</span>
+                <span>Meta: {metrics.targets.calories} kcal</span>
+                <span>Proteína: {Math.round(totals.protein)} / {metrics.targets.proteinG}g</span>
+                <span>Gordura: {Math.round(totals.fat)} / {metrics.targets.fatG}g</span>
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-400">
-                Plano gerado por IA/algoritmo usando dados do banco de alimentos. Confira alimentos, marcas, modo de preparo e gramas antes de seguir.
+                Planejado é o total da dieta montada. Meta é o alvo calculado para seu objetivo. Confira alimentos, marcas, modo de preparo e gramas antes de seguir.
               </p>
             </div>
           ) : null}
@@ -196,7 +196,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 </div>
                 {item.unitLabel === "cru" ? (
                   <p className="mt-1 text-xs text-zinc-500">
-                    Comprar cru. Plano usa {formatShoppingWeight(item.plannedReadyGrams)} pronto; fator de cocção aplicado.
+                    Comprar cru. O plano mostra {formatShoppingWeight(item.plannedReadyGrams)} já pronto para comer.
                   </p>
                 ) : null}
                 {item.pricePerKg ? <p className="mt-1 text-xs text-zinc-500">Estimado: R$ {((item.buyGrams / 1000) * item.pricePerKg).toFixed(2)}</p> : null}

@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-html-link-for-pages */
+﻿/* eslint-disable @next/next/no-html-link-for-pages */
 import Image from "next/image";
 import { Activity, Apple, BarChart3, Calculator, ChefHat, Home, Settings, Sparkles, Utensils } from "lucide-react";
 
