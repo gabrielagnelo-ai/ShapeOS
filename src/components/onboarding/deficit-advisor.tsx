@@ -35,7 +35,7 @@ export function DeficitAdvisor({ name, className, defaultValue = 400 }: { name: 
 }
 
 function readWeight() {
-  const input = document.querySelector<HTMLInputElement>('input[name="weight"]');
+  const input = document.querySelector<HTMLInputElement>('input[name="weight"], input[name="weightKg"]');
   return Number(input?.value.replace(",", ".") ?? 0);
 }
 

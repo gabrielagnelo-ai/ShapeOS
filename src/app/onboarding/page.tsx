@@ -27,7 +27,7 @@ const fieldNames: Record<string, string> = {
   alergias: "allergies",
   "alimentos que não gosta": "dislikedFoods",
   "condições médicas": "medicalConditions",
-  "preferencia alimentar": "dietPreference",
+  "preferência alimentar": "dietPreference",
 };
 
 export default async function OnboardingPage() {
@@ -70,7 +70,7 @@ export default async function OnboardingPage() {
 
             <FieldSection icon={<Activity size={18} />} title="2. Objetivo e rotina" text="Escolha o cenário mais parecido com sua semana. Não precisa acertar perfeito agora.">
               <div className="grid gap-4 md:grid-cols-2">
-                {["objetivo", "nível de atividade", "experiência", "preferencia alimentar"].map((field) => <Field key={field} field={field} />)}
+                {["objetivo", "nível de atividade", "experiência", "preferência alimentar"].map((field) => <Field key={field} field={field} />)}
               </div>
             </FieldSection>
 
@@ -170,7 +170,7 @@ function renderField(field: string, name: string, defaultValue?: string) {
     return <select name={name} className={className} defaultValue="" required><option value="" disabled>Selecione se algo se aplica a você</option><option value="none">Nenhuma condição relevante</option><option value="diabetes">Diabetes ou glicemia alterada</option><option value="kidney">Doença renal ou restrição de proteína</option><option value="heart">Doença cardíaca ou pressão alta</option><option value="pregnancy">Gestação ou amamentação</option><option value="eating_disorder">Histórico de transtorno alimentar</option><option value="medication">Uso de medicamentos que afetam peso/apetite</option><option value="other">Outra condição - quero informar depois</option></select>;
   }
 
-  if (field === "preferencia alimentar") {
+  if (field === "preferência alimentar") {
     return (
       <select name={name} className={className} defaultValue="balanced">
         <option value="balanced">Equilibrado - saciedade e prazer</option>

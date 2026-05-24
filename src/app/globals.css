@@ -17,10 +17,41 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color-scheme: dark;
+  min-height: 100vh;
 }
 
 * {
   letter-spacing: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(184, 255, 0, 0.13), transparent 34%),
+    radial-gradient(circle at 78% 8%, rgba(56, 189, 248, 0.08), transparent 30%),
+    linear-gradient(180deg, #0a0a0a 0%, #060606 48%, #090909 100%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at 50% 0%, black, transparent 72%);
 }
 
 ::selection {
@@ -35,6 +66,39 @@ select {
 select option {
   background: #111111;
   color: #f5f5f7;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border: 3px solid #080808;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
 }
 
 input:-webkit-autofill,
@@ -68,6 +132,26 @@ input:-webkit-autofill:focus {
   }
 }
 
+@keyframes fadeScale {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes floatSubtle {
   0%,
   100% {
@@ -88,4 +172,8 @@ input:-webkit-autofill:focus {
 
 .animate-float-subtle {
   animation: floatSubtle 4s ease-in-out infinite;
+}
+
+.animate-fade-scale {
+  animation: fadeScale 500ms ease-out both;
 }

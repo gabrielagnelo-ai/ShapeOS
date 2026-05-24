@@ -51,8 +51,8 @@ export default async function DiarioPage() {
   const microBars = [
     ["Cálcio", consumed.calciumMg, metrics.micronutrientTargets.calciumMg, "mg"],
     ["Ferro", consumed.ironMg, metrics.micronutrientTargets.ironMg, "mg"],
-    ["Magnesio", consumed.magnesiumMg, metrics.micronutrientTargets.magnesiumMg, "mg"],
-    ["Potassio", consumed.potassiumMg, metrics.micronutrientTargets.potassiumMg, "mg"],
+    ["Magnésio", consumed.magnesiumMg, metrics.micronutrientTargets.magnesiumMg, "mg"],
+    ["Potássio", consumed.potassiumMg, metrics.micronutrientTargets.potassiumMg, "mg"],
     ["Zinco", consumed.zincMg, metrics.micronutrientTargets.zincMg, "mg"],
     ["Vitamina C", consumed.vitaminCMg, metrics.micronutrientTargets.vitaminCMg, "mg"],
     ["Vitamina D", consumed.vitaminDMcg, metrics.micronutrientTargets.vitaminDMcg, "mcg"],

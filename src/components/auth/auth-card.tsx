@@ -16,27 +16,32 @@ export function AuthCard({
   footer: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#0a0a0a] px-5 py-8 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(184,255,0,.12),transparent_30%),radial-gradient(circle_at_80%_35%,rgba(10,132,255,.10),transparent_26%)]" />
+    <main className="min-h-screen overflow-hidden px-5 py-8 text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(184,255,0,.16),transparent_30%),radial-gradient(circle_at_80%_35%,rgba(10,132,255,.10),transparent_28%)]" />
       <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1fr_460px]">
         <section className="hidden lg:block">
           <Link href="/" className="inline-flex">
             <Image src="/shapeos-logo.png" alt="ShapeOS" width={1105} height={285} className="h-auto w-[480px]" priority />
           </Link>
-          <h2 className="mt-10 max-w-xl text-5xl font-semibold tracking-tight">Sua dieta e evolução em um sistema limpo.</h2>
+          <h2 className="mt-10 max-w-xl text-5xl font-semibold tracking-tight">Sua dieta e evolução em um sistema inteligente.</h2>
           <p className="mt-5 max-w-lg text-lg leading-8 text-zinc-400">
-            Calcule metas, salve seu perfil e acompanhe os ajustes com o Coach IA sem perder o controle.
+            Metas claras, dieta editável, evolução semanal e um Coach IA que sugere ajustes sem virar um chatbot invasivo.
           </p>
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
-            {["Calorias", "Metas", "Dieta"].map((item) => (
-              <div key={item} className="rounded-3xl border border-white/10 bg-white/[0.05] p-4 text-sm text-zinc-300 backdrop-blur-xl">
-                {item}
+            {[
+              ["BMR", "gasto basal"],
+              ["Macros", "meta diária"],
+              ["Coach", "alertas úteis"],
+            ].map(([title, detail]) => (
+              <div key={title} className="rounded-3xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
+                <p className="font-semibold text-zinc-100">{title}</p>
+                <p className="mt-1 text-xs text-zinc-500">{detail}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/10 bg-[#111]/80 p-6 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:p-8">
+        <section className="relative overflow-hidden rounded-[34px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(255,255,255,.085),rgba(255,255,255,.035))] p-6 shadow-[0_28px_120px_rgba(0,0,0,.55)] backdrop-blur-2xl before:absolute before:inset-x-8 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-lime-300/50 before:to-transparent sm:p-8">
           <Link href="/" className="mb-8 flex justify-center lg:hidden">
             <Image src="/shapeos-logo.png" alt="ShapeOS" width={480} height={124} className="h-auto w-72" priority />
           </Link>
