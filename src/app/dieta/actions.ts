@@ -24,9 +24,9 @@ export async function generateDietPlanAction() {
   });
   const byName = new Map(foods.map((food) => [food.name, food]));
   const meals = [
-    { name: "Cafe da manha", items: [["Aveia em flocos", 60], ["Banana prata", 100], ["Ovo de galinha inteiro", 100]] },
-    { name: "Almoco", items: [["Arroz branco cozido", 180], ["Feijao carioca cozido", 120], ["Peito de frango grelhado", 180]] },
-    { name: "Pre-treino", items: [["Banana prata", 120], ["Aveia em flocos", 30]] },
+    { name: "Café da manhã", items: [["Aveia em flocos", 60], ["Banana prata", 100], ["Ovo de galinha inteiro", 100]] },
+    { name: "Almoço", items: [["Arroz branco cozido", 180], ["Feijao carioca cozido", 120], ["Peito de frango grelhado", 180]] },
+    { name: "Pré-treino", items: [["Banana prata", 120], ["Aveia em flocos", 30]] },
     { name: "Jantar", items: [["Tilapia grelhada", 180], ["Batata doce cozida", 220]] },
   ];
 
@@ -118,7 +118,7 @@ export async function createManualDietPlanAction(formData: FormData) {
 
   const metrics = computeProfileMetrics(profile);
   const name = String(formData.get("name") ?? "").trim() || `Plano manual ${new Date().toLocaleDateString("pt-BR")}`;
-  const mealNames = ["Cafe da manha", "Almoco", "Pre-treino", "Jantar"];
+  const mealNames = ["Café da manhã", "Almoço", "Pré-treino", "Jantar"];
 
   await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
   await prisma.dietPlan.create({
@@ -245,16 +245,16 @@ async function generateMealsWithGemini(input: {
           text: [
             "Monte uma dieta diaria em portugues do Brasil usando SOMENTE os alimentos da lista.",
             "Responda apenas JSON valido, sem markdown.",
-            "Formato: {\"meals\":[{\"name\":\"Cafe da manha\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}]}",
+            "Formato: {\"meals\":[{\"name\":\"Café da manhã\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}]}",
             "Use nomes de alimentos exatamente como aparecem na lista.",
-            "Crie 4 refeicoes: Cafe da manha, Almoco, Pre-treino, Jantar.",
-            "Meta: ficar proximo das calorias e macros. Carboidrato deve ser o restante das calorias depois de proteina e gordura.",
+            "Crie 4 refeições: Café da manhã, Almoço, Pré-treino, Jantar.",
+            "Meta: ficar próximo das calorias e macros. Carboidrato deve ser o restante das calorias depois de proteína e gordura.",
             `Calorias: ${input.targets.calories}`,
-            `Proteina: ${input.targets.proteinG}g`,
+            `Proteína: ${input.targets.proteinG}g`,
             `Carboidrato: ${input.targets.carbsG}g`,
             `Gordura: ${input.targets.fatG}g`,
-            "Tambem tente favorecer micronutrientes quando possivel: calcio, ferro, magnesio, potassio, zinco, vitamina C, vitamina D e B12.",
-            `Evitar alimentos nao gostados: ${input.dislikedFoods.join(", ") || "nenhum"}`,
+            "Também tente favorecer micronutrientes quando possível: cálcio, ferro, magnésio, potássio, zinco, vitamina C, vitamina D e B12.",
+            `Evitar alimentos não gostados: ${input.dislikedFoods.join(", ") || "nenhum"}`,
             `Restricoes: ${input.restrictions.join(", ") || "nenhuma"}`,
             `Preferencia alimentar: ${describeDietPreference(input.dietPreference)}`,
             input.monthlyBudget ? `Orcamento mensal aproximado: R$ ${input.monthlyBudget}. Priorize alimentos baratos e repetiveis. Considere cerca de R$ ${(input.monthlyBudget / 30).toFixed(2)} por dia.` : "Sem orcamento informado.",
@@ -273,10 +273,10 @@ async function generateMealsWithGemini(input: {
 
 function describeDietPreference(value: string) {
   const descriptions: Record<string, string> = {
-    balanced: "equilibrar saciedade, prazer e aderencia",
-    satiety: "priorizar saciedade com alimentos volumosos, ricos em proteina, fibra, legumes e frutas; evitar calorias liquidas e alimentos muito densos",
-    pleasure: "incluir alimentos mais prazerosos em porcoes controladas sem ultrapassar macros; preservar aderencia psicologica",
-    low_meal_volume: "preferir refeicoes menores e mais densas, sem volume excessivo; util para quem nao gosta de comer muito",
+    balanced: "equilibrar saciedade, prazer e aderência",
+    satiety: "priorizar saciedade com alimentos volumosos, ricos em proteína, fibra, legumes e frutas; evitar calorias liquidas e alimentos muito densos",
+    pleasure: "incluir alimentos mais prazerosos em porções controladas sem ultrapassar macros; preservar aderência psicológica",
+    low_meal_volume: "preferir refeições menores e mais densas, sem volume excessivo; util para quem não gosta de comer muito",
     simple_repetitive: "usar poucos alimentos, preparo simples e repeticao para facilitar rotina",
   };
   return descriptions[value] ?? descriptions.balanced;
@@ -321,9 +321,9 @@ async function saveDietPlan(input: {
 
 function fallbackMeals(): AiMeal[] {
   return [
-    { name: "Cafe da manha", items: [{ foodName: "Aveia em flocos", grams: 60 }, { foodName: "Banana prata", grams: 100 }, { foodName: "Ovo de galinha inteiro", grams: 100 }] },
-    { name: "Almoco", items: [{ foodName: "Arroz branco cozido", grams: 180 }, { foodName: "Feijao carioca cozido", grams: 120 }, { foodName: "Peito de frango grelhado", grams: 180 }] },
-    { name: "Pre-treino", items: [{ foodName: "Banana prata", grams: 120 }, { foodName: "Aveia em flocos", grams: 30 }] },
+    { name: "Café da manhã", items: [{ foodName: "Aveia em flocos", grams: 60 }, { foodName: "Banana prata", grams: 100 }, { foodName: "Ovo de galinha inteiro", grams: 100 }] },
+    { name: "Almoço", items: [{ foodName: "Arroz branco cozido", grams: 180 }, { foodName: "Feijao carioca cozido", grams: 120 }, { foodName: "Peito de frango grelhado", grams: 180 }] },
+    { name: "Pré-treino", items: [{ foodName: "Banana prata", grams: 120 }, { foodName: "Aveia em flocos", grams: 30 }] },
     { name: "Jantar", items: [{ foodName: "Tilapia grelhada", grams: 180 }, { foodName: "Batata doce cozida", grams: 220 }] },
   ];
 }

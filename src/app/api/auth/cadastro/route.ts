@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSessionRecord, hashPassword, sessionCookieName, sessionCookieOptions } from "@/lib/auth";
+import { createSessionCookieValue, hashPassword, sessionCookieName, sessionCookieOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: { name, email, passwordHash: await hashPassword(password) },
     });
-    const { token, expiresAt } = await createSessionRecord(user.id);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const token = createSessionCookieValue(user.id, expiresAt);
     const response = redirectTo(request, "/onboarding");
     response.cookies.set(sessionCookieName, token, sessionCookieOptions(expiresAt));
     return response;

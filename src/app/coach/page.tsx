@@ -41,7 +41,7 @@ export default async function CoachPage() {
           <p className="text-sm text-lime-300">Coach IA</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">ShapeOS Coach</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Um painel silencioso de sinais. Ele cruza diario, check-ins, deficit e metas para sugerir o proximo ajuste.
+            Um painel silencioso de sinais. Ele cruza diário, check-ins, déficit e metas para sugerir o próximo ajuste.
           </p>
         </div>
         <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-right">
@@ -57,15 +57,15 @@ export default async function CoachPage() {
               <Sparkles size={22} />
             </div>
             <div>
-              <p className="text-sm text-zinc-500">Recomendacao principal</p>
+              <p className="text-sm text-zinc-500">Recomendação principal</p>
               <h2 className="text-xl font-semibold">{topInsight ? insightTitle(topInsight.trigger) : "Sem ajuste urgente"}</h2>
             </div>
           </div>
           <p className="mt-6 text-2xl font-semibold leading-9">
-            {topInsight?.message ?? "Continue registrando refeicoes e check-ins. O Coach precisa de dados reais antes de sugerir ajustes."}
+            {topInsight?.message ?? "Continue registrando refeições e check-ins. O Coach precisa de dados reais antes de sugerir ajustes."}
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
-            {topInsight ? insightExplanation(topInsight.trigger, context) : "Com pelo menos alguns dias de diario e dois check-ins semanais, os alertas passam a refletir tendencia, nao chute."}
+            {topInsight ? insightExplanation(topInsight.trigger, context) : "Com pelo menos alguns dias de diário e dois check-ins semanais, os alertas passam a refletir tendência, não chute."}
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             {(topInsight ? insightActions(topInsight.trigger) : defaultActions()).map((action) => (
@@ -80,8 +80,8 @@ export default async function CoachPage() {
         <GlassCard>
           <h2 className="text-xl font-semibold">Leitura atual</h2>
           <div className="mt-5 grid gap-3">
-            <Signal icon={<Activity size={18} />} label="Deficit estimado" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal TDEE`} />
-            <Signal icon={<Utensils size={18} />} label="Proteina alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
+            <Signal icon={<Activity size={18} />} label="Déficit estimado" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal TDEE`} />
+            <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
             <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estavel nas ultimas 2 semanas" : "sem plato detectado"} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
           </div>
@@ -120,7 +120,7 @@ export default async function CoachPage() {
               <h2 className="text-xl font-semibold">Sem alertas agora</h2>
             </div>
             <p className="mt-4 text-sm leading-6 text-zinc-400">
-              Registre alimentos por alguns dias e faca check-ins semanais para o Coach avaliar proteina, deficit, sono, peso e aderencia.
+              Registre alimentos por alguns dias e faça check-ins semanais para o Coach avaliar proteína, déficit, sono, peso e aderência.
             </p>
           </GlassCard>
         )}
@@ -190,14 +190,14 @@ export default async function CoachPage() {
           <div className="mt-6 rounded-3xl bg-black/25 p-5">
             <p className="font-semibold">Ainda falta histórico.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Faca pelo menos dois check-ins semanais com peso medio. Para cintura e massa magra estimada, informe cintura e medidas de BF nas configuracoes.
+              Faça pelo menos dois check-ins semanais com peso médio. Para cintura e massa magra estimada, informe cintura e medidas de BF nas configurações.
             </p>
           </div>
         )}
 
         {bodySnapshots.length ? (
           <div className="mt-6">
-            <p className="text-sm font-medium text-zinc-300">Historico recente de BF</p>
+            <p className="text-sm font-medium text-zinc-300">Histórico recente de BF</p>
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               {bodySnapshots.slice(0, 6).map((snapshot) => (
                 <div key={snapshot.id} className="rounded-2xl bg-black/25 px-4 py-3 text-sm">
@@ -236,11 +236,11 @@ function Signal({ icon, label, value, detail }: { icon: React.ReactNode; label: 
 
 function insightTitle(trigger: string) {
   const titles: Record<string, string> = {
-    protein_drop_3d: "Proteina abaixo da meta",
+    protein_drop_3d: "Proteína abaixo da meta",
     weight_plateau_14d: "Peso em plato",
     adherence_streak_5d: "Consistencia forte",
     sleep_decline: "Sono em queda",
-    aggressive_deficit: "Deficit agressivo",
+    aggressive_deficit: "Déficit agressivo",
     training_low: "Treino baixo",
     micros_low: "Micronutrientes baixos",
   };
@@ -249,24 +249,24 @@ function insightTitle(trigger: string) {
 
 function insightExplanation(trigger: string, context: ReturnType<typeof buildCoachContext>) {
   const explanations: Record<string, string> = {
-    protein_drop_3d: `Nos ultimos registros, a proteina ficou em ${context.proteinLast3DaysPct.join("%, ")}% da meta. Ajustar isso ajuda saciedade e preservacao de massa magra.`,
-    weight_plateau_14d: "O peso medio mudou menos que 0,2 kg entre os dois ultimos check-ins. Se a aderencia estiver boa, pode ser hora de revisar calorias.",
-    adherence_streak_5d: "Quando calorias e proteina ficam dentro da faixa por varios dias, o melhor ajuste geralmente e manter o plano antes de mexer.",
-    sleep_decline: "Sono menor costuma aumentar fome, reduzir recuperacao e piorar treino. Antes de cortar calorias, vale corrigir rotina.",
-    aggressive_deficit: `Seu deficit estimado esta em ${context.currentDeficitPct}% do TDEE. Acima de 25%, o risco de fome, queda de performance e perda de massa magra aumenta.`,
+    protein_drop_3d: `Nos últimos registros, a proteína ficou em ${context.proteinLast3DaysPct.join("%, ")}% da meta. Ajustar isso ajuda saciedade e preservação de massa magra.`,
+    weight_plateau_14d: "O peso médio mudou menos que 0,2 kg entre os dois últimos check-ins. Se a aderência estiver boa, pode ser hora de revisar calorias.",
+    adherence_streak_5d: "Quando calorias e proteína ficam dentro da faixa por vários dias, o melhor ajuste geralmente é manter o plano antes de mexer.",
+    sleep_decline: "Sono menor costuma aumentar fome, reduzir recuperação e piorar treino. Antes de cortar calorias, vale corrigir rotina.",
+    aggressive_deficit: `Seu déficit estimado está em ${context.currentDeficitPct}% do TDEE. Acima de 25%, o risco de fome, queda de performance e perda de massa magra aumenta.`,
     training_low: "Pouco treino reduz o sinal para manter ou ganhar massa. Ajustar agenda pode ser mais importante do que mexer na dieta.",
-    micros_low: "Variedade baixa no diario pode deixar vitaminas e minerais para tras. Frutas, verduras, leguminosas e laticinios ajudam a fechar lacunas.",
+    micros_low: "Variedade baixa no diário pode deixar vitaminas e minerais para trás. Frutas, verduras, leguminosas e laticínios ajudam a fechar lacunas.",
   };
   return explanations[trigger] ?? "Sinal calculado a partir dos dados registrados no app.";
 }
 
 function insightActions(trigger: string) {
   const actions: Record<string, Array<{ label: string; href: string }>> = {
-    protein_drop_3d: [{ label: "Ajustar dieta", href: "/dieta" }, { label: "Ver diario", href: "/diario" }],
+    protein_drop_3d: [{ label: "Ajustar dieta", href: "/dieta" }, { label: "Ver diário", href: "/diario" }],
     weight_plateau_14d: [{ label: "Ajustar metas", href: "/configuracoes" }, { label: "Novo check-in", href: "/acompanhamento" }],
     adherence_streak_5d: [{ label: "Manter plano", href: "/dashboard" }, { label: "Ver progresso", href: "/acompanhamento" }],
     sleep_decline: [{ label: "Registrar check-in", href: "/acompanhamento" }, { label: "Ver dashboard", href: "/dashboard" }],
-    aggressive_deficit: [{ label: "Reduzir deficit", href: "/configuracoes" }, { label: "Conferir dieta", href: "/dieta" }],
+    aggressive_deficit: [{ label: "Reduzir déficit", href: "/configuracoes" }, { label: "Conferir dieta", href: "/dieta" }],
     training_low: [{ label: "Check-in semanal", href: "/acompanhamento" }],
     micros_low: [{ label: "Buscar alimentos", href: "/alimentos" }, { label: "Ajustar dieta", href: "/dieta" }],
   };
@@ -274,7 +274,7 @@ function insightActions(trigger: string) {
 }
 
 function defaultActions() {
-  return [{ label: "Registrar diario", href: "/diario" }, { label: "Fazer check-in", href: "/acompanhamento" }];
+  return [{ label: "Registrar diário", href: "/diario" }, { label: "Fazer check-in", href: "/acompanhamento" }];
 }
 
 function categoryLabel(category: string) {
@@ -282,7 +282,7 @@ function categoryLabel(category: string) {
     nutrition: "nutricao",
     weight: "peso",
     sleep: "sono",
-    adherence: "aderencia",
+    adherence: "aderência",
     training: "treino",
   };
   return labels[category] ?? category;
@@ -298,7 +298,7 @@ function categoryIcon(category: string) {
 
 function proteinDetail(values: number[]) {
   if (!values.length) return "registre 3 dias para avaliar";
-  return `${values.join("%, ")}% nos ultimos dias`;
+  return `${values.join("%, ")}% nos últimos dias`;
 }
 
 function ProjectionCard({
@@ -419,9 +419,9 @@ function projectionMessage(projections: ReturnType<typeof buildProjections>) {
   if (!projections.ready) return "faltam check-ins";
   if (projections.weightLossPctPerWeek > 1) return "risco maior de perder performance/massa magra";
   if (projections.weightLossPctPerWeek >= 0.5) return "ritmo coerente para cutting";
-  if (projections.weightLossPctPerWeek > 0) return "perda lenta, boa se aderencia estiver dificil";
+  if (projections.weightLossPctPerWeek > 0) return "perda lenta, boa se aderência estiver difícil";
   if ((projections.waistChangePerWeekCm ?? 0) < 0) return "peso estavel com cintura caindo pode indicar recomposicao";
-  return "se o objetivo e perda, revise aderencia e calorias";
+  return "se o objetivo é perda, revise aderência e calorias";
 }
 
 function leanMassTone(value: number | null) {

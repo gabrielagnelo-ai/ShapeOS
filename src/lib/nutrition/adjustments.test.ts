@@ -38,7 +38,7 @@ describe("automatic adjustments", () => {
     expect(result.delta).toBe(200);
   });
 
-  it("assesses deficit risk by body weight", () => {
+  it("assesses déficit risk by body weight", () => {
     expect(assessDeficitRisk({ weightKg: 117, deficitKcal: 200 }).level).toBe("info");
     expect(assessDeficitRisk({ weightKg: 117, deficitKcal: 500 }).level).toBe("good");
     expect(assessDeficitRisk({ weightKg: 70, deficitKcal: 500 }).level).toBe("warning");

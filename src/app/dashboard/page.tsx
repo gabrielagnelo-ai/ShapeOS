@@ -18,7 +18,7 @@ const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN:
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login?erro=Sessao nao encontrada. Entre novamente.");
+  if (!user) redirect("/login?erro=Sessão não encontrada. Entre novamente.");
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
               <ProgressRing value={dayPct} label="dia" />
             </div>
             <div className="mt-5 grid gap-3">
-              <MacroBar label="Proteina" consumed={Math.round(consumed.proteinG)} target={targets.proteinG} pct={macroPcts.protein} color="#7dd3fc" />
+              <MacroBar label="Proteína" consumed={Math.round(consumed.proteinG)} target={targets.proteinG} pct={macroPcts.protein} color="#7dd3fc" />
               <MacroBar label="Carbo" consumed={Math.round(consumed.carbsG)} target={targets.carbsG} pct={macroPcts.carbs} color="#b8ff00" />
               <MacroBar label="Gordura" consumed={Math.round(consumed.fatG)} target={targets.fatG} pct={macroPcts.fat} color="#fbbf24" />
             </div>
@@ -214,7 +214,7 @@ export default async function DashboardPage() {
               return <MealRow key={meal.id} name={meal.name} items={meal.items.map((item) => `${item.food.name} ${Math.round(item.grams)}g`)} totals={totals} />;
             }) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5">
-                <p className="text-sm leading-6 text-zinc-400">Gere um plano em Dieta para ver suas refeicoes reais aqui.</p>
+                <p className="text-sm leading-6 text-zinc-400">Gere um plano em Dieta para ver suas refeições reais aqui.</p>
                 <Link href="/dieta" className="mt-4 inline-flex rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Ir para Dieta</Link>
               </div>
             )}
@@ -259,7 +259,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <ActionPanel icon={<Apple size={18} />} title="Diario alimentar" text="Lance alimentos consumidos hoje e veja meta real contra plano." href="/diario" />
+        <ActionPanel icon={<Apple size={18} />} title="Diário alimentar" text="Lance alimentos consumidos hoje e veja meta real contra plano." href="/diario" />
         <ActionPanel icon={<Activity size={18} />} title="Biblioteca" text="Consulte alimentos da TACO, favorite ou bloqueie para a IA." href="/alimentos" />
         <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderência para melhorar as projeções." href="/acompanhamento" />
       </div>

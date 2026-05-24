@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSessionRecord, sessionCookieName, sessionCookieOptions, verifyPassword } from "@/lib/auth";
+import { createSessionCookieValue, sessionCookieName, sessionCookieOptions, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
       return redirectTo(request, "/login", "Email ou senha inválidos.");
     }
 
-    const { token, expiresAt } = await createSessionRecord(user.id);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const token = createSessionCookieValue(user.id, expiresAt);
     const response = redirectTo(request, "/dashboard");
     response.cookies.set(sessionCookieName, token, sessionCookieOptions(expiresAt));
     return response;

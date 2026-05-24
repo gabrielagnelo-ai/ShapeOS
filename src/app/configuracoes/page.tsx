@@ -10,7 +10,7 @@ const inputClass = "mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black
 
 export default async function ConfiguracoesPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login?erro=Sessao nao encontrada. Entre novamente.");
+  if (!user) redirect("/login?erro=Sessão não encontrada. Entre novamente.");
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");
@@ -21,7 +21,7 @@ export default async function ConfiguracoesPage() {
         <p className="text-sm text-lime-300">Metas</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-tight">Ajustar calculos</h1>
         <p className="mt-3 max-w-2xl text-zinc-400">
-          Ajuste deficit, fator de atividade, proteina e gordura sem refazer o onboarding. Carboidrato fica automatico com as calorias restantes.
+          Ajuste déficit, fator de atividade, proteína e gordura sem refazer o onboarding. Carboidrato fica automático com as calorias restantes.
         </p>
       </div>
 
@@ -34,7 +34,7 @@ export default async function ConfiguracoesPage() {
           </label>
 
           <label className="block">
-            <span className="text-sm text-zinc-400">Deficit calorico</span>
+            <span className="text-sm text-zinc-400">Déficit calorico</span>
             <DeficitAdvisor name="calorieDeficitKcal" className={inputClass} defaultValue={profile.calorieDeficitKcal ?? 400} />
           </label>
 
@@ -45,7 +45,7 @@ export default async function ConfiguracoesPage() {
           </label>
 
           <label className="block">
-            <span className="text-sm text-zinc-400">Proteina por kg</span>
+            <span className="text-sm text-zinc-400">Proteína por kg</span>
             <input name="proteinPerKg" defaultValue={String(profile.proteinPerKg ?? 1.8).replace(".", ",")} inputMode="decimal" className={inputClass} />
             <p className="mt-2 text-xs leading-5 text-zinc-500">Faixa aceita: 1,2 a 3,0 g/kg.</p>
           </label>
@@ -77,7 +77,7 @@ export default async function ConfiguracoesPage() {
                 required
               />
               <p className="mt-2 text-xs leading-5 text-zinc-500">
-                Obrigatorio para calcular BF feminino pelo metodo da Marinha.
+                Obrigatório para calcular BF feminino pelo método da Marinha.
               </p>
             </label>
           ) : null}
@@ -86,10 +86,10 @@ export default async function ConfiguracoesPage() {
             <span className="text-sm text-zinc-400">Preferencia alimentar para IA</span>
             <select name="dietPreference" defaultValue={profile.dietPreference ?? "balanced"} className={inputClass}>
               <option value="balanced">Equilibrado - saciedade e prazer</option>
-              <option value="satiety">Mais saciedade - volume, fibra e proteina</option>
+              <option value="satiety">Mais saciedade - volume, fibra e proteína</option>
               <option value="pleasure">Mais prazer - encaixar alimentos gostosos com controle</option>
-              <option value="low_meal_volume">Comer menos volume - refeicoes menores e densas</option>
-              <option value="simple_repetitive">Simples e repetitivo - praticidade maxima</option>
+              <option value="low_meal_volume">Comer menos volume - refeições menores e densas</option>
+              <option value="simple_repetitive">Simples e repetitivo - praticidade máxima</option>
             </select>
           </label>
 

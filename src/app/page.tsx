@@ -8,12 +8,12 @@ const features: Array<[LucideIcon, string, string]> = [
   [Brain, "Coach silencioso", "Sinais contextuais aparecem quando existe algo para ajustar, sem conversa desnecessaria."],
   [Utensils, "Dieta por macros", "IA ou plano manual com TACO, receitas, lista de compras e auditoria de gramas."],
   [LineChart, "Projeções", "Peso, cintura, BF e massa magra estimada evoluem com histórico real de check-ins."],
-  [ShieldCheck, "Seguro por design", "Sem promessas, diagnosticos ou dieta clinica. Alertas claros para procurar profissional."],
+  [ShieldCheck, "Seguro por design", "Sem promessas, diagnósticos ou dieta clínica. Alertas claros para procurar profissional."],
 ];
 
 const steps = [
-  ["01", "Informe seu perfil", "Altura, peso, medidas, objetivo, atividade e preferencias alimentares."],
-  ["02", "Defina a estrategia", "Guidado ou avancado, deficit, proteina, gordura e coeficiente de atividade."],
+  ["01", "Informe seu perfil", "Altura, peso, medidas, objetivo, atividade e preferências alimentares."],
+  ["02", "Defina a estratégia", "Guiado ou avançado, déficit, proteína, gordura e coeficiente de atividade."],
   ["03", "Execute e ajuste", "Registre diário, check-ins e deixe o Coach apontar tendências antes de mexer no plano."],
 ];
 
@@ -65,7 +65,7 @@ export default function LandingPage() {
                 <ArrowRight size={18} />
               </Link>
               <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
-                Ja tenho conta
+                Já tenho conta
               </Link>
             </div>
             <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
@@ -100,7 +100,7 @@ export default function LandingPage() {
           <p className="text-sm text-lime-300">Sem achismo</p>
           <h2 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">O app sabe quando manter, ajustar ou investigar.</h2>
           <p className="mt-5 text-lg leading-8 text-zinc-400">
-            Se o peso trava, a cintura cai, a proteina desanda ou o sono piora, o Coach traduz o padrao em uma acao simples.
+            Se o peso trava, a cintura cai, a proteína desanda ou o sono piora, o Coach traduz o padrão em uma ação simples.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -118,13 +118,13 @@ export default function LandingPage() {
         <div className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.05]">
           <div className="grid gap-0 lg:grid-cols-2">
             <div className="p-6 md:p-10">
-              <p className="text-sm text-lime-300">Para usuario real</p>
+              <p className="text-sm text-lime-300">Para usuário real</p>
               <h2 className="mt-3 text-4xl font-semibold tracking-tight">Manual quando tem nutri. IA quando precisa montar do zero.</h2>
               <p className="mt-5 text-lg leading-8 text-zinc-400">
-                O ShapeOS respeita dieta prescrita, permite montar refeicoes por alimento e ainda gera lista de compras quinzenal ou mensal.
+                O ShapeOS respeita dieta prescrita, permite montar refeições por alimento e ainda gera lista de compras quinzenal ou mensal.
               </p>
               <div className="mt-7 grid gap-3">
-                {["Montador manual com busca tipo Ctrl+F", "Receitas com macros por porcao", "Lista de compras com fator de coccao", "Favoritos e bloqueios para personalizar a IA"].map((item) => (
+                {["Montador manual com busca tipo Ctrl+F", "Receitas com macros por porção", "Lista de compras com fator de cocção", "Favoritos e bloqueios para personalizar a IA"].map((item) => (
                   <div key={item} className="flex items-center gap-3 text-zinc-200">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-lime-300 text-black"><Check size={14} /></span>
                     {item}
@@ -146,7 +146,7 @@ export default function LandingPage() {
             Comece com calculos. Continue com acompanhamento.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
-            O ShapeOS nao substitui medico ou nutricionista. Em diabetes, doenca renal, gestacao, transtornos alimentares, doenca cardiaca ou uso de medicamentos, procure um profissional.
+            O ShapeOS não substitui médico ou nutricionista. Em diabetes, doença renal, gestação, transtornos alimentares, doença cardíaca ou uso de medicamentos, procure um profissional.
           </p>
           <Link href="/cadastro" className="mt-8 inline-flex items-center gap-2 rounded-full bg-lime-300 px-7 py-3 font-semibold text-black transition hover:bg-lime-200">
             Criar minha conta
@@ -179,7 +179,7 @@ function DashboardPreview() {
             <p className="text-sm text-zinc-500">Calorias restantes</p>
             <p className="mt-2 text-5xl font-semibold">1.842</p>
             <div className="mt-5 grid gap-3">
-              <MiniBar label="Proteina" value="138/210g" pct={66} color="#7dd3fc" />
+              <MiniBar label="Proteína" value="138/210g" pct={66} color="#7dd3fc" />
               <MiniBar label="Carbo" value="180/260g" pct={69} color="#b8ff00" />
               <MiniBar label="Gordura" value="52/94g" pct={55} color="#fbbf24" />
             </div>
@@ -188,7 +188,7 @@ function DashboardPreview() {
         </div>
         <div className="mt-5 grid gap-3">
           <InsightCard icon={Sparkles} title="Coach" text="Seu peso estabilizou. Confira cintura antes de reduzir calorias." />
-          <InsightCard icon={Scale} title="Projecao" text="-0,6 kg/semana se a tendencia atual continuar." />
+          <InsightCard icon={Scale} title="Projeção" text="-0,6 kg/semana se a tendência atual continuar." />
         </div>
       </div>
     </div>
@@ -197,9 +197,9 @@ function DashboardPreview() {
 
 function MealMock() {
   const meals = [
-    ["Cafe da manha", "Aveia + banana + ovos", "520 kcal"],
-    ["Almoco", "Arroz + feijao + frango", "780 kcal"],
-    ["Pre-treino", "Whey + banana", "310 kcal"],
+    ["Café da manhã", "Aveia + banana + ovos", "520 kcal"],
+    ["Almoço", "Arroz + feijão + frango", "780 kcal"],
+    ["Pré-treino", "Whey + banana", "310 kcal"],
     ["Jantar", "Tilapia + batata doce", "610 kcal"],
   ];
   return (

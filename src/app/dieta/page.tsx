@@ -82,7 +82,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 <input name="monthlyBudget" inputMode="decimal" className="h-9 w-36 rounded-full bg-white/10 px-4 text-sm outline-none" placeholder="R$/mes" />
                 <button className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Gerar com IA</button>
               </form>
-              <form action={generateDietPlanAction}><button className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">Gerar basico</button></form>
+              <form action={generateDietPlanAction}><button className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">Gerar básico</button></form>
             </div>
           </div>
           <form action={createManualDietPlanAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
@@ -196,7 +196,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 </div>
                 {item.unitLabel === "cru" ? (
                   <p className="mt-1 text-xs text-zinc-500">
-                    Comprar cru. Plano usa {formatShoppingWeight(item.plannedReadyGrams)} pronto; fator de coccao aplicado.
+                    Comprar cru. Plano usa {formatShoppingWeight(item.plannedReadyGrams)} pronto; fator de cocção aplicado.
                   </p>
                 ) : null}
                 {item.pricePerKg ? <p className="mt-1 text-xs text-zinc-500">Estimado: R$ {((item.buyGrams / 1000) * item.pricePerKg).toFixed(2)}</p> : null}

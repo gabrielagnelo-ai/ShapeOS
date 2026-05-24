@@ -34,7 +34,7 @@ export default async function ReceitasPage() {
           <p className="text-sm text-lime-300">Receitas</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Minhas receitas</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Monte receitas com alimentos da TACO, calcule macros por porcao e lance no diario ou no plano alimentar.
+            Monte receitas com alimentos da TACO, calcule macros por porção e lance no diário ou no plano alimentar.
           </p>
         </div>
         <div className="rounded-3xl bg-white/10 px-5 py-4 text-right">
@@ -128,7 +128,7 @@ export default async function ReceitasPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xl font-semibold">{recipe.name}</p>
-                  <p className="mt-1 text-sm text-zinc-500">{recipe.servings} porcoes - {Math.round(totals.kcal)} kcal na receita inteira</p>
+                  <p className="mt-1 text-sm text-zinc-500">{recipe.servings} porções - {Math.round(totals.kcal)} kcal na receita inteira</p>
                 </div>
                 {recipe.userId === user.id ? (
                   <form action={deleteRecipeAction}>
@@ -167,11 +167,11 @@ export default async function ReceitasPage() {
                   <div className="grid gap-2 sm:grid-cols-[80px_1fr_auto]">
                     <input name="portions" defaultValue="1" inputMode="decimal" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
                     <select name="mealName" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
-                      {["Cafe da manha", "Almoco", "Pre-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
+                      {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
                     </select>
                     <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
                       <Plus size={15} />
-                      Diario
+                      Diário
                     </button>
                   </div>
                 </form>
@@ -197,7 +197,7 @@ export default async function ReceitasPage() {
         })}
         {!recipes.length ? (
           <GlassCard>
-            <p className="text-zinc-300">Salve sua primeira receita para usar no diario e no plano alimentar.</p>
+            <p className="text-zinc-300">Salve sua primeira receita para usar no diário e no plano alimentar.</p>
           </GlassCard>
         ) : null}
       </div>

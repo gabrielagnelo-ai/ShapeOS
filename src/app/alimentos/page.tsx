@@ -63,7 +63,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
           <p className="text-sm text-lime-300">Biblioteca</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Alimentos</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Consulte a TACO, calcule por gramas, favorite, bloqueie para a IA e adicione direto no diario ou no plano.
+            Consulte a TACO, calcule por gramas, favorite, bloqueie para a IA e adicione direto no diário ou no plano.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center text-sm">
@@ -132,7 +132,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
           }, grams);
           const proteinDensity = food.kcalPer100g > 0 ? (food.proteinPer100g * 4) / food.kcalPer100g : 0;
           const tags = [
-            proteinDensity >= 0.3 ? "boa proteina" : null,
+            proteinDensity >= 0.3 ? "boa proteína" : null,
             (food.fiberPer100g ?? 0) >= 3 ? "fibra" : null,
             food.kcalPer100g <= 80 ? "baixo kcal" : null,
             preference?.isBlocked ? "bloqueado" : null,
@@ -158,7 +158,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
                   </div>
                   <div className="mt-4 grid gap-2 sm:grid-cols-5">
                     <Nutrient label={`${grams}g`} value={`${nutrients.kcal} kcal`} />
-                    <Nutrient label="proteina" value={`${round(nutrients.proteinG)}g`} />
+                    <Nutrient label="proteína" value={`${round(nutrients.proteinG)}g`} />
                     <Nutrient label="carbo" value={`${round(nutrients.carbsG)}g`} />
                     <Nutrient label="gordura" value={`${round(nutrients.fatG)}g`} />
                     <Nutrient label="fibra" value={`${round(nutrients.fiberG ?? 0)}g`} />
@@ -178,11 +178,11 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
                     <input type="hidden" name="grams" value={grams} />
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <select name="mealName" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
-                        {["Cafe da manha", "Almoco", "Pre-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
+                        {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
                       </select>
                       <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
                         <Plus size={15} />
-                        Diario
+                        Diário
                       </button>
                     </div>
                   </form>

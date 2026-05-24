@@ -35,7 +35,7 @@ export function estimateBodyFat(input: {
     return {
       percentage: null,
       limitation:
-        "Informe cintura, pescoco e, para mulheres, quadril para calcular pelo metodo da Marinha Americana.",
+        "Informe cintura, pescoço e, para mulheres, quadril para calcular pelo método da Marinha Americana.",
     };
   }
 
@@ -47,7 +47,7 @@ export function estimateBodyFat(input: {
   return {
     percentage: Number(Math.max(3, value).toFixed(1)),
     limitation:
-      "Estimativa pelo metodo da Marinha Americana; depende de medidas bem tiradas e nao substitui avaliacao profissional.",
+      "Estimativa pelo método da Marinha Americana; depende de medidas bem tiradas e não substitui avaliação profissional.",
   };
 }
 

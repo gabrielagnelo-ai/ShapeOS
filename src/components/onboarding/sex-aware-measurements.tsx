@@ -42,7 +42,7 @@ export function SexAwareMeasurements({ className }: { className: string }) {
             required
           />
           <p className="mt-2 text-xs leading-5 text-zinc-500">
-            Usado no metodo da Marinha para mulheres.
+            Usado no método da Marinha para mulheres.
           </p>
         </label>
       ) : null}

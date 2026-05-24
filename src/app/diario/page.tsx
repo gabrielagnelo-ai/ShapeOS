@@ -39,14 +39,14 @@ export default async function DiarioPage() {
   const progress = macroProgress(consumed, metrics.targets);
   const bars = [
     ["Calorias", progress.calories],
-    ["Proteina", progress.protein],
+    ["Proteína", progress.protein],
     ["Carboidrato", progress.carbs],
     ["Gordura", progress.fat],
     ["Fibra", progress.fiber ?? 0],
-    ["Sodio", progress.sodium ?? 0],
+    ["Sódio", progress.sodium ?? 0],
   ];
   const microBars = [
-    ["Calcio", consumed.calciumMg, metrics.micronutrientTargets.calciumMg, "mg"],
+    ["Cálcio", consumed.calciumMg, metrics.micronutrientTargets.calciumMg, "mg"],
     ["Ferro", consumed.ironMg, metrics.micronutrientTargets.ironMg, "mg"],
     ["Magnesio", consumed.magnesiumMg, metrics.micronutrientTargets.magnesiumMg, "mg"],
     ["Potassio", consumed.potassiumMg, metrics.micronutrientTargets.potassiumMg, "mg"],
@@ -58,8 +58,8 @@ export default async function DiarioPage() {
 
   return (
     <AppShell>
-      <h1 className="text-4xl font-semibold tracking-tight">Diario alimentar</h1>
-      <p className="mt-3 text-zinc-400">Registro real vs meta diaria de kcal, macros, fibra e sodio.</p>
+      <h1 className="text-4xl font-semibold tracking-tight">Diário alimentar</h1>
+      <p className="mt-3 text-zinc-400">Registro real vs meta diária de kcal, macros, fibra e sódio.</p>
       <div className="mt-8 grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
         <GlassCard>
           <h2 className="text-xl font-semibold">Registrar alimento</h2>
@@ -70,7 +70,7 @@ export default async function DiarioPage() {
             </select>
             <input name="grams" inputMode="decimal" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none" placeholder="Gramas. Ex: 150" required />
             <select name="mealName" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none">
-              {["Cafe da manha", "Almoco", "Pre-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
+              {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
             </select>
             <button className="rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Adicionar ao dia</button>
           </form>

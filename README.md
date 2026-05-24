@@ -1,6 +1,6 @@
 # ShapeOS
 
-MVP fitness premium em portugues do Brasil, inspirado em Apple Health/Fitness e iOS widgets. O app calcula BMR, TDEE, IMC, percentual de gordura estimado, metas de macros, sugestoes de dieta, acompanhamento semanal e insights contextuais do ShapeOS Coach.
+MVP fitness premium em português do Brasil, inspirado em Apple Health/Fitness e iOS widgets. O app calcula BMR, TDEE, IMC, percentual de gordura estimado, metas de macros, sugestões de dieta, acompanhamento semanal e insights contextuais do ShapeOS Coach.
 
 ## Stack
 
@@ -9,7 +9,7 @@ MVP fitness premium em portugues do Brasil, inspirado em Apple Health/Fitness e 
 - PostgreSQL + Prisma ORM
 - Zod
 - Auth base com email/senha e bcrypt
-- Vitest para testes unitarios
+- Vitest para testes unitários
 
 ## Rodando localmente
 
@@ -21,7 +21,7 @@ npm run dev
 
 Abra `http://localhost:3000`.
 
-Para Supabase, copie as strings em Project Settings > Database. Use a connection string Postgres, nao a API key do projeto:
+Para Supabase, copie as strings em Project Settings > Database. Use a connection string Postgres, não a API key do projeto:
 
 ```bash
 npm run prisma:generate
@@ -38,28 +38,28 @@ npm run prisma:seed
 ## Rotas
 
 - `/` landing page
-- `/onboarding` cadastro inicial e selecao de modo guiado/avancado
-- `/dashboard` tela Hoje com briefing, macros, refeicoes e Coach
-- `/calculadoras` BMR, TDEE, IMC, gordura estimada e meta calorica
+- `/onboarding` cadastro inicial e seleção de modo guiado/avançado
+- `/dashboard` tela Hoje com briefing, macros, refeições e Coach
+- `/calculadoras` BMR, TDEE, IMC, gordura estimada e meta calórica
 - `/alimentos` estrutura TACO e amostra de alimentos
 - `/dieta` montador de dieta, trocas, fixos, bloqueios e compras
 - `/diario` consumo real vs meta
-- `/acompanhamento` check-in semanal e ajuste automatico
+- `/acompanhamento` check-in semanal e ajuste automático
 - `/coach` engine de insights
-- `/receitas` receitas com macros por porcao
+- `/receitas` receitas com macros por porção
 
 ## Arquitetura
 
 - `prisma/schema.prisma`: schema completo do MVP
 - `prisma/seed.ts`: seed com mais de 30 alimentos brasileiros comuns
-- `src/lib/nutrition`: funcoes puras para calculos, macros, nutrientes e ajustes
-- `src/lib/coach`: triggers, insights, briefing diario e consistency score
+- `src/lib/nutrition`: funções puras para cálculos, macros, nutrientes e ajustes
+- `src/lib/coach`: triggers, insights, briefing diário e consistency score
 - `src/lib/validations.ts`: schemas Zod
-- `src/components`: UI reutilizavel em estilo iOS/glass
+- `src/components`: UI reutilizável em estilo iOS/glass
 
 ## TACO
 
-A tabela `food` foi modelada para compatibilidade com TACO 4a edicao:
+A tabela `food` foi modelada para compatibilidade com TACO 4a edição:
 
 - `id`
 - `name`
@@ -89,9 +89,9 @@ Cobertura inicial:
 - TDEE
 - IMC
 - macros
-- ajustes automaticos
+- ajustes automáticos
 - triggers do Coach
 
-## Segurança e etica
+## Segurança e ética
 
-O ShapeOS nao diagnostica doencas, nao prescreve dieta clinica e nao promete resultados. Usuarios com diabetes, doenca renal, gestacao, transtornos alimentares, doenca cardiaca ou uso de medicamentos devem procurar medico ou nutricionista.
+O ShapeOS não diagnostica doenças, não prescreve dieta clínica e não promete resultados. Usuários com diabetes, doença renal, gestação, transtornos alimentares, doença cardíaca ou uso de medicamentos devem procurar médico ou nutricionista.

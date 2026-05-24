@@ -25,25 +25,25 @@ export function suggestCalorieAdjustment(input: {
   if (input.goal === "fat_loss") {
     if (change >= -0.1 && current.adherencePct >= 80) {
       const delta = highFatigue ? -100 : -150;
-      return { delta, reason: "Peso estabilizado por 2 semanas com boa aderencia.", severity: "action" as const };
+      return { delta, reason: "Peso estabilizado por 2 semanas com boa aderência.", severity: "action" as const };
     }
     if (change <= -1 || highFatigue) {
-      return { delta: 150, reason: "Ritmo de queda, fome ou fadiga sugerem deficit agressivo.", severity: "warning" as const };
+      return { delta: 150, reason: "Ritmo de queda, fome ou fadiga sugerem déficit agressivo.", severity: "warning" as const };
     }
   }
 
   if (input.goal === "muscle_gain" && change <= 0.1 && current.adherencePct >= 80) {
-    return { delta: highFatigue ? 100 : 200, reason: "Peso nao subiu por 2 semanas com boa aderencia.", severity: "action" as const };
+    return { delta: highFatigue ? 100 : 200, reason: "Peso não subiu por 2 semanas com boa aderência.", severity: "action" as const };
   }
 
-  return { delta: 0, reason: "Manter estrategia atual e reavaliar no proximo check-in.", severity: "info" as const };
+  return { delta: 0, reason: "Manter estratégia atual e reavaliar no próximo check-in.", severity: "info" as const };
 }
 
 export function assessDeficitRisk(input: { weightKg: number; deficitKcal: number }) {
   if (!input.weightKg || !input.deficitKcal) {
     return {
       level: "info" as const,
-      message: "Escolha um deficit para ver o impacto esperado.",
+      message: "Escolha um déficit para ver o impacto esperado.",
     };
   }
 
@@ -52,26 +52,26 @@ export function assessDeficitRisk(input: { weightKg: number; deficitKcal: number
   if (input.deficitKcal <= 200) {
     return {
       level: "info" as const,
-      message: "Deficit conservador. A perda tende a ser mais lenta, mas costuma ser mais facil de sustentar.",
+      message: "Déficit conservador. A perda tende a ser mais lenta, mas costuma ser mais fácil de sustentar.",
     };
   }
 
   if (kcalPerKg <= 5) {
     return {
       level: "good" as const,
-      message: "Deficit moderado para seu peso. Boa faixa inicial se proteina, treino e sono estiverem em dia.",
+      message: "Déficit moderado para seu peso. Boa faixa inicial se proteína, treino e sono estiverem em dia.",
     };
   }
 
   if (kcalPerKg <= 8) {
     return {
       level: "warning" as const,
-      message: "Deficit mais agressivo. Monitore fome, energia, treino e proteina para reduzir risco de perder massa muscular.",
+      message: "Déficit mais agressivo. Monitore fome, energia, treino e proteína para reduzir risco de perder massa muscular.",
     };
   }
 
   return {
     level: "danger" as const,
-    message: "Deficit alto para seu peso. Isso pode aumentar fome, queda de performance e risco de perder massa muscular.",
+    message: "Déficit alto para seu peso. Isso pode aumentar fome, queda de performance e risco de perder massa muscular.",
   };
 }

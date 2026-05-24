@@ -14,7 +14,7 @@ export const coachTriggers: Trigger[] = [
     priority: 80,
     category: "nutrition",
     when: (ctx) => ctx.proteinLast3DaysPct.length === 3 && ctx.proteinLast3DaysPct.every((pct) => pct < 90),
-    message: "Sua ingestao de proteina caiu nos ultimos 3 dias.",
+    message: "Sua ingestão de proteína caiu nos últimos 3 dias.",
   },
   {
     id: "weight_plateau_14d",
@@ -28,21 +28,21 @@ export const coachTriggers: Trigger[] = [
     priority: 55,
     category: "adherence",
     when: (ctx) => ctx.adherenceStreakDays >= 5,
-    message: "Voce bateu suas metas 5 dias seguidos. Excelente consistencia.",
+    message: "Você bateu suas metas 5 dias seguidos. Excelente consistencia.",
   },
   {
     id: "sleep_decline",
     priority: 70,
     category: "sleep",
     when: (ctx) => ctx.sleepTrend === "down",
-    message: "Seu sono caiu esta semana. Isso pode impactar fome e recuperacao.",
+    message: "Seu sono caiu esta semana. Isso pode impactar fome e recuperação.",
   },
   {
     id: "aggressive_deficit",
     priority: 90,
     category: "nutrition",
     when: (ctx) => ctx.goal === "fat_loss" && ctx.currentDeficitPct >= 25,
-    message: "Seu deficit atual pode estar agressivo demais.",
+    message: "Seu déficit atual pode estar agressivo demais.",
   },
   {
     id: "training_low",
@@ -56,7 +56,7 @@ export const coachTriggers: Trigger[] = [
     priority: 65,
     category: "nutrition",
     when: (ctx) => Boolean(ctx.lowMicronutrients?.length),
-    message: "Alguns micronutrientes ficaram baixos hoje. Vale revisar variedade de frutas, verduras, laticinios ou leguminosas.",
+    message: "Alguns micronutrientes ficaram baixos hoje. Vale revisar variedade de frutas, verduras, laticínios ou leguminosas.",
   },
 ];
 
@@ -87,7 +87,7 @@ export function dailyBriefing(input: {
     adherencePct: input.adherencePct,
     macroCompletionPct: input.macroCompletionPct,
     sleepScore: input.sleepScore,
-    recommendation: topInsight?.message ?? "Sem ajustes hoje. Mantenha o plano e registre suas refeicoes.",
+    recommendation: topInsight?.message ?? "Sem ajustes hoje. Mantenha o plano e registre suas refeições.",
   };
 }
 

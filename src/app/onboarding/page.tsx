@@ -16,16 +16,16 @@ const fields = [
   "cintura",
   "quadril",
   "objetivo",
-  "deficit calorico",
-  "proteina por kg",
+  "déficit calórico",
+  "proteína por kg",
   "gordura por kg",
-  "nivel de atividade",
+  "nível de atividade",
   "fator de atividade manual",
-  "experiencia",
-  "restricoes",
+  "experiência",
+  "restrições",
   "alergias",
-  "alimentos que nao gosta",
-  "condicoes medicas",
+  "alimentos que não gosta",
+  "condições médicas",
   "preferencia alimentar",
 ];
 
@@ -39,28 +39,28 @@ const fieldNames: Record<string, string> = {
   cintura: "waistCm",
   quadril: "hipCm",
   objetivo: "goal",
-  "deficit calorico": "calorieDeficitKcal",
-  "proteina por kg": "proteinPerKg",
+  "déficit calórico": "calorieDeficitKcal",
+  "proteína por kg": "proteinPerKg",
   "gordura por kg": "fatPerKg",
-  "nivel de atividade": "activityLevel",
+  "nível de atividade": "activityLevel",
   "fator de atividade manual": "manualActivityFactor",
-  experiencia: "experience",
-  restricoes: "restrictions",
+  experiência: "experience",
+  restrições: "restrictions",
   alergias: "allergies",
-  "alimentos que nao gosta": "dislikedFoods",
-  "condicoes medicas": "medicalConditions",
+  "alimentos que não gosta": "dislikedFoods",
+  "condições médicas": "medicalConditions",
   "preferencia alimentar": "dietPreference",
 };
 
 export default async function OnboardingPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login?erro=Sessao nao encontrada. Entre novamente.");
+  if (!user) redirect("/login?erro=Sessão não encontrada. Entre novamente.");
 
   return (
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Onboarding</h1>
       <p className="mt-3 max-w-2xl text-zinc-400">
-        Preencha uma vez. Proteina e gordura podem ser ajustadas; no cutting, carboidrato fica sempre com as calorias restantes.
+        Preencha uma vez. Proteína e gordura podem ser ajustadas; no cutting, carboidrato fica sempre com as calorias restantes.
       </p>
       <GlassCard className="mt-8">
         <form action={saveOnboardingAction}>
@@ -81,7 +81,7 @@ export default async function OnboardingPage() {
               Continuar no modo guiado
             </button>
             <button name="mode" value="advanced" type="submit" className="rounded-full border border-white/15 px-5 py-3 font-medium text-white">
-              Continuar no modo avancado
+              Continuar no modo avançado
             </button>
           </div>
         </form>
@@ -94,14 +94,14 @@ function renderField(field: string, name: string, defaultValue?: string) {
   const className = "mt-2 h-12 w-full appearance-none rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none transition focus:border-lime-300/50";
 
   if (field === "objetivo") {
-    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Selecione</option><option value="maintenance">Manutencao</option><option value="fat_loss">Perda de peso</option><option value="muscle_gain">Ganho de massa muscular</option></select>;
+    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Selecione</option><option value="maintenance">Manutenção</option><option value="fat_loss">Perda de peso</option><option value="muscle_gain">Ganho de massa muscular</option></select>;
   }
 
-  if (field === "deficit calorico") {
+  if (field === "déficit calórico") {
     return <DeficitAdvisor name={name} className={className} />;
   }
 
-  if (field === "proteina por kg") {
+  if (field === "proteína por kg") {
     return <input name={name} inputMode="decimal" className={className} placeholder="Ex: 2,0 g/kg" defaultValue="2,0" />;
   }
 
@@ -109,12 +109,12 @@ function renderField(field: string, name: string, defaultValue?: string) {
     return <input name={name} inputMode="decimal" className={className} placeholder="Ex: 0,8 g/kg" defaultValue="0,8" />;
   }
 
-  if (field === "nivel de atividade") {
-    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha o mais parecido com sua rotina</option><option value="sedentary">Sedentario - quase nao caminha ou treina</option><option value="light">Leve - caminha ou treina 1 a 3 dias/semana</option><option value="moderate">Moderado - treina 3 a 5 dias/semana</option><option value="high">Alto - treina pesado 5 a 6 dias/semana</option><option value="very_high">Muito alto - trabalho fisico ou 2 treinos/dia</option></select>;
+  if (field === "nível de atividade") {
+    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha o mais parecido com sua rotina</option><option value="sedentary">Sedentário - quase não caminha ou treina</option><option value="light">Leve - caminha ou treina 1 a 3 dias/semana</option><option value="moderate">Moderado - treina 3 a 5 dias/semana</option><option value="high">Alto - treina pesado 5 a 6 dias/semana</option><option value="very_high">Muito alto - trabalho físico ou 2 treinos/dia</option></select>;
   }
 
-  if (field === "experiencia") {
-    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha o quanto voce ja acompanha dieta e treino</option><option value="beginner">Iniciante - quero que o app me guie no basico</option><option value="intermediate">Intermediario - ja treino e sigo dieta as vezes</option><option value="advanced">Avancado - ja controlo macros, calorias e ajustes</option></select>;
+  if (field === "experiência") {
+    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha o quanto você já acompanha dieta e treino</option><option value="beginner">Iniciante - quero que o app me guie no básico</option><option value="intermediate">Intermediário - já treino e sigo dieta às vezes</option><option value="advanced">Avançado - já controlo macros, calorias e ajustes</option></select>;
   }
 
   if (field === "fator de atividade manual") {
@@ -123,23 +123,23 @@ function renderField(field: string, name: string, defaultValue?: string) {
         name={name}
         inputMode="decimal"
         className={className}
-        placeholder="Opcional no modo avancado. Ex: 1,45"
+        placeholder="Opcional no modo avançado. Ex: 1,45"
       />
     );
   }
 
-  if (field === "condicoes medicas") {
-    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Selecione se algo se aplica a voce</option><option value="none">Nenhuma condicao relevante</option><option value="diabetes">Diabetes ou glicemia alterada</option><option value="kidney">Doenca renal ou restricao de proteina</option><option value="heart">Doenca cardiaca ou pressao alta</option><option value="pregnancy">Gestacao ou amamentacao</option><option value="eating_disorder">Historico de transtorno alimentar</option><option value="medication">Uso de medicamentos que afetam peso/apetite</option><option value="other">Outra condicao - quero informar depois</option></select>;
+  if (field === "condições médicas") {
+    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Selecione se algo se aplica a você</option><option value="none">Nenhuma condição relevante</option><option value="diabetes">Diabetes ou glicemia alterada</option><option value="kidney">Doença renal ou restrição de proteína</option><option value="heart">Doença cardíaca ou pressão alta</option><option value="pregnancy">Gestação ou amamentação</option><option value="eating_disorder">Histórico de transtorno alimentar</option><option value="medication">Uso de medicamentos que afetam peso/apetite</option><option value="other">Outra condição - quero informar depois</option></select>;
   }
 
   if (field === "preferencia alimentar") {
     return (
       <select name={name} className={className} defaultValue="balanced">
         <option value="balanced">Equilibrado - saciedade e prazer</option>
-        <option value="satiety">Mais saciedade - volume, fibra e proteina</option>
+        <option value="satiety">Mais saciedade - volume, fibra e proteína</option>
         <option value="pleasure">Mais prazer - encaixar alimentos gostosos com controle</option>
-        <option value="low_meal_volume">Comer menos volume - refeicoes menores e densas</option>
-        <option value="simple_repetitive">Simples e repetitivo - praticidade maxima</option>
+        <option value="low_meal_volume">Comer menos volume - refeições menores e densas</option>
+        <option value="simple_repetitive">Simples e repetitivo - praticidade máxima</option>
       </select>
     );
   }

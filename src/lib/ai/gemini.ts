@@ -4,7 +4,7 @@ import type { CoachContext } from "@/lib/coach";
 import { generateCoachInsights } from "@/lib/coach";
 
 const coachRequestSchema = z.object({
-  userName: z.string().min(1).default("usuario"),
+  userName: z.string().min(1).default("usuário"),
   context: z.object({
     proteinLast3DaysPct: z.array(z.number()).max(3),
     weightStableDays: z.number().min(0),
@@ -21,7 +21,7 @@ export type GeminiCoachRequest = z.infer<typeof coachRequestSchema>;
 export async function generateGeminiCoachBriefing(input: GeminiCoachRequest) {
   const parsed = coachRequestSchema.parse(input);
   const deterministicInsights = generateCoachInsights(parsed.context as CoachContext);
-  const topInsight = deterministicInsights[0]?.message ?? "Mantenha o plano atual e registre suas refeicoes hoje.";
+  const topInsight = deterministicInsights[0]?.message ?? "Mantenha o plano atual e registre suas refeições hoje.";
 
   if (!process.env.GEMINI_API_KEY) {
     return {
@@ -63,10 +63,10 @@ export async function generateGeminiCoachBriefing(input: GeminiCoachRequest) {
 
 function buildCoachPrompt(input: GeminiCoachRequest, topInsight: string) {
   return [
-    "Voce e o ShapeOS Coach, um assistente fitness silencioso em portugues do Brasil.",
+    "Você e o ShapeOS Coach, um assistente fitness silencioso em portugues do Brasil.",
     "Escreva um unico insight curto, premium, discreto, sem parecer chatbot.",
-    "Nao diagnostique doencas, nao prescreva dieta clinica, nao prometa resultados.",
-    "Se houver risco medico, recomende procurar profissional de saude.",
+    "Não diagnostique doenças, não prescreva dieta clínica, não prometa resultados.",
+    "Se houver risco médico, recomende procurar profissional de saúde.",
     "Use no maximo 220 caracteres.",
     `Nome: ${input.userName}`,
     `Contexto: ${JSON.stringify(input.context)}`,
