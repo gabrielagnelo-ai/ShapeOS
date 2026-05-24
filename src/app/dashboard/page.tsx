@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Activity, Apple, ArrowRight, BarChart3, Flame, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { CoachBubble } from "@/components/coach/coach-bubble";
@@ -129,6 +129,29 @@ export default async function DashboardPage() {
     carbs: percent(consumed.carbsG, targets.carbsG),
     fat: percent(consumed.fatG, targets.fatG),
   };
+  const activePlanTotals = activePlan
+    ? activePlan.meals.flatMap((meal) => meal.items).reduce(
+        (acc, item) => {
+          const nutrients = nutrientsForGrams({
+            name: item.food.name,
+            kcalPer100g: item.food.kcalPer100g,
+            proteinPer100g: item.food.proteinPer100g,
+            carbsPer100g: item.food.carbsPer100g,
+            fatPer100g: item.food.fatPer100g,
+            fiberPer100g: item.food.fiberPer100g ?? 0,
+            sodiumPer100g: item.food.sodiumPer100g ?? 0,
+          }, item.grams);
+
+          return {
+            kcal: acc.kcal + nutrients.kcal,
+            protein: acc.protein + nutrients.proteinG,
+            carbs: acc.carbs + nutrients.carbsG,
+            fat: acc.fat + nutrients.fatG,
+          };
+        },
+        { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+      )
+    : null;
 
   return (
     <AppShell>
@@ -176,20 +199,32 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-        <GlassCard className="p-0">
-          <div className="border-b border-white/10 p-5">
+        <GlassCard className="overflow-hidden p-0">
+          <div className="relative border-b border-white/10 p-5 md:p-6">
+            <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-lime-300/50 to-transparent" />
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Plano alimentar</h2>
-                <p className="mt-1 text-sm text-zinc-500">{activePlan ? activePlan.name : "Nenhum plano ativo ainda."}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-semibold">Plano alimentar</h2>
+                  {activePlan ? <span className="rounded-full bg-lime-300/12 px-3 py-1 text-xs font-medium text-lime-200">ativo</span> : null}
+                </div>
+                <p className="mt-2 text-sm text-zinc-500">{activePlan ? activePlan.name : "Nenhum plano ativo ainda."}</p>
               </div>
-              <Link href="/dieta" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
+              <Link href="/dieta" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black transition hover:bg-lime-200">
                 Abrir
                 <ArrowRight size={15} />
               </Link>
             </div>
+            {activePlanTotals ? (
+              <div className="mt-5 grid gap-2 sm:grid-cols-4">
+                <PlanTotal label="Kcal" value={`${Math.round(activePlanTotals.kcal)}`} />
+                <PlanTotal label="Proteína" value={`${Math.round(activePlanTotals.protein)}g`} />
+                <PlanTotal label="Carbo" value={`${Math.round(activePlanTotals.carbs)}g`} />
+                <PlanTotal label="Gordura" value={`${Math.round(activePlanTotals.fat)}g`} />
+              </div>
+            ) : null}
           </div>
-          <div className="grid gap-3 p-5">
+          <div className="grid gap-3 p-4 md:p-5">
             {activePlan ? activePlan.meals.map((meal) => {
               const totals = meal.items.reduce(
                 (acc, item) => {
@@ -211,7 +246,7 @@ export default async function DashboardPage() {
                 },
                 { kcal: 0, protein: 0, carbs: 0, fat: 0 },
               );
-              return <MealRow key={meal.id} name={meal.name} items={meal.items.map((item) => `${item.food.name} ${Math.round(item.grams)}g`)} totals={totals} />;
+              return <MealRow key={meal.id} name={meal.name} items={meal.items.map((item) => ({ name: item.food.name, grams: item.grams }))} totals={totals} />;
             }) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5">
                 <p className="text-sm leading-6 text-zinc-400">Gere um plano em Dieta para ver suas refeições reais aqui.</p>
@@ -309,21 +344,78 @@ function MetricTile({ icon, label, value, detail }: { icon: React.ReactNode; lab
   );
 }
 
-function MealRow({ name, items, totals }: { name: string; items: string[]; totals: { kcal: number; protein: number; carbs: number; fat: number } }) {
+function PlanTotal({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-black/25 p-4 transition hover:border-lime-300/30 hover:bg-white/[0.04]">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium">{name}</p>
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-zinc-500">{items.join(" + ")}</p>
+    <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
+    </div>
+  );
+}
+
+function MealRow({
+  name,
+  items,
+  totals,
+}: {
+  name: string;
+  items: { name: string; grams: number }[];
+  totals: { kcal: number; protein: number; carbs: number; fat: number };
+}) {
+  const hasItems = items.length > 0;
+
+  return (
+    <div className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-[#111]/80 p-4 transition hover:border-lime-300/30 hover:bg-[#151515]">
+      <div className="absolute inset-y-4 left-0 w-1 rounded-r-full bg-lime-300/80 opacity-70 transition group-hover:opacity-100" />
+      <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+        <div className="min-w-0 pl-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-lg font-semibold tracking-tight">{name}</p>
+            {!hasItems ? <span className="rounded-full bg-white/8 px-2.5 py-1 text-xs text-zinc-500">sem itens</span> : null}
+          </div>
+
+          {hasItems ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {items.map((item) => (
+                <span key={`${item.name}-${item.grams}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-zinc-300">
+                  {cleanFoodName(item.name)} <span className="text-zinc-500">{Math.round(item.grams)}g</span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-zinc-500">Adicione alimentos nesta refeição para completar a distribuição do dia.</p>
+          )}
         </div>
-        <div className="text-right text-sm text-zinc-300">
-          <p className="text-base font-semibold">{Math.round(totals.kcal)} kcal</p>
-          <p className="text-zinc-500">P {Math.round(totals.protein)}g C {Math.round(totals.carbs)}g G {Math.round(totals.fat)}g</p>
+
+        <div className="min-w-44 rounded-3xl bg-black/30 p-3 text-right">
+          <p className="text-2xl font-semibold tracking-tight">{Math.round(totals.kcal)}</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">kcal</p>
+          <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
+            <MacroPill label="P" value={Math.round(totals.protein)} />
+            <MacroPill label="C" value={Math.round(totals.carbs)} />
+            <MacroPill label="G" value={Math.round(totals.fat)} />
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function MacroPill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-white/[0.06] px-2 py-2">
+      <p className="text-[10px] font-semibold text-lime-300">{label}</p>
+      <p className="mt-0.5 text-xs text-zinc-300">{value}g</p>
+    </div>
+  );
+}
+
+function cleanFoodName(name: string) {
+  return name
+    .replace(/,\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\bcozido\/10minutos\b/gi, "cozido")
+    .trim();
 }
 
 function ActionPanel({ icon, title, text, href }: { icon: React.ReactNode; title: string; text: string; href: string }) {
