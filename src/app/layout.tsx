@@ -16,7 +16,11 @@ export const metadata: Metadata = {
   title: "ShapeOS",
   description: "Inteligencia para sua melhor versao.",
   icons: {
-    icon: "/shapeos-icon.png",
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/shapeos-icon.png", type: "image/png" },
+    ],
+    apple: "/favicon.png",
   },
 };
 
