@@ -261,7 +261,7 @@ export default async function DashboardPage() {
       <div className="mt-5 grid gap-4 md:grid-cols-3">
         <ActionPanel icon={<Apple size={18} />} title="Diario alimentar" text="Lance alimentos consumidos hoje e veja meta real contra plano." href="/diario" />
         <ActionPanel icon={<Activity size={18} />} title="Biblioteca" text="Consulte alimentos da TACO, favorite ou bloqueie para a IA." href="/alimentos" />
-        <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderencia para melhorar as projecoes." href="/acompanhamento" />
+        <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderência para melhorar as projeções." href="/acompanhamento" />
       </div>
       {insights.length ? <CoachBubble message={briefing.recommendation} /> : null}
     </AppShell>

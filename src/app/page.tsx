@@ -7,14 +7,14 @@ import { ProgressRing } from "@/components/ui/progress-ring";
 const features: Array<[LucideIcon, string, string]> = [
   [Brain, "Coach silencioso", "Sinais contextuais aparecem quando existe algo para ajustar, sem conversa desnecessaria."],
   [Utensils, "Dieta por macros", "IA ou plano manual com TACO, receitas, lista de compras e auditoria de gramas."],
-  [LineChart, "Projecoes", "Peso, cintura, BF e massa magra estimada evoluem com historico real de check-ins."],
+  [LineChart, "Projeções", "Peso, cintura, BF e massa magra estimada evoluem com histórico real de check-ins."],
   [ShieldCheck, "Seguro por design", "Sem promessas, diagnosticos ou dieta clinica. Alertas claros para procurar profissional."],
 ];
 
 const steps = [
   ["01", "Informe seu perfil", "Altura, peso, medidas, objetivo, atividade e preferencias alimentares."],
   ["02", "Defina a estrategia", "Guidado ou avancado, deficit, proteina, gordura e coeficiente de atividade."],
-  ["03", "Execute e ajuste", "Registre diario, check-ins e deixe o Coach apontar tendencias antes de mexer no plano."],
+  ["03", "Execute e ajuste", "Registre diário, check-ins e deixe o Coach apontar tendências antes de mexer no plano."],
 ];
 
 export default function LandingPage() {
@@ -51,13 +51,13 @@ export default function LandingPage() {
           <div className="animate-rise">
             <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-4 py-2 text-sm text-lime-200">
               <Sparkles size={16} />
-              Inteligencia para sua melhor versao
+              Inteligência para sua melhor versão
             </div>
             <h1 className="mt-8 max-w-4xl text-6xl font-semibold tracking-tight text-white md:text-7xl">
-              Dieta, progresso e ajustes em um sistema que pensa com voce.
+              Dieta, progresso e ajustes em um sistema que pensa com você.
             </h1>
             <p className="mt-6 max-w-2xl text-xl leading-9 text-zinc-300">
-              O ShapeOS transforma medidas, macros, check-ins e preferencias em um plano fitness claro, elegante e acionavel.
+              O ShapeOS transforma medidas, macros, check-ins e preferências em um plano fitness claro, elegante e acionável.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-6 py-3 font-semibold text-black transition hover:bg-lime-200">
@@ -71,7 +71,7 @@ export default function LandingPage() {
             <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
               <Proof value="597" label="alimentos TACO" />
               <Proof value="IA" label="dietas e sinais" />
-              <Proof value="BF" label="historico salvo" />
+              <Proof value="BF" label="histórico salvo" />
             </div>
           </div>
 

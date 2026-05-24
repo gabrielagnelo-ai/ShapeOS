@@ -8,8 +8,8 @@ export function ProgressChart({ points }: { points: Point[] }) {
     return (
       <div className="grid h-64 place-items-center rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 text-center">
         <div>
-          <p className="font-medium text-zinc-200">Sem historico suficiente</p>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Salve pelo menos dois check-ins semanais para visualizar sua progressao.</p>
+          <p className="font-medium text-zinc-200">Sem histórico suficiente</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">Salve pelo menos dois check-ins semanais para visualizar sua progressão.</p>
         </div>
       </div>
     );

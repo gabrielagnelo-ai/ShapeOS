@@ -134,12 +134,12 @@ export default async function CoachPage() {
                 <LineChart size={20} />
               </div>
               <div>
-                <p className="text-sm text-lime-300">Projecoes</p>
+                <p className="text-sm text-lime-300">Projeções</p>
                 <h2 className="text-xl font-semibold">Tendencia corporal</h2>
               </div>
             </div>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
-              Projecoes usam historico de composicao e check-ins. Cada alteracao de peso, cintura, pescoco ou quadril salva um BF estimado novo.
+              Projeções usam histórico de composição e check-ins. Cada alteração de peso, cintura, pescoço ou quadril salva um BF estimado novo.
             </p>
           </div>
           <Link href="/acompanhamento" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
@@ -168,14 +168,14 @@ export default async function CoachPage() {
               icon={<Activity size={18} />}
               label="BF estimado"
               value={projections.bodyFatPct == null ? "pendente" : `${formatNumber(projections.bodyFatPct)}%`}
-              detail={projections.bodyFatChangePerWeekPct == null ? "precisa historico de medidas" : `${formatSigned(projections.bodyFatChangePerWeekPct)} p.p./sem`}
+              detail={projections.bodyFatChangePerWeekPct == null ? "precisa histórico de medidas" : `${formatSigned(projections.bodyFatChangePerWeekPct)} p.p./sem`}
               tone="neutral"
             />
             <ProjectionCard
               icon={<Dumbbell size={18} />}
               label="Massa magra est."
               value={projections.leanMassKg == null ? "pendente" : `${formatNumber(projections.leanMassKg)} kg`}
-              detail={projections.leanMassChangePerWeekKg == null ? "precisa historico de BF" : `${formatSigned(projections.leanMassChangePerWeekKg)} kg/sem`}
+              detail={projections.leanMassChangePerWeekKg == null ? "precisa histórico de BF" : `${formatSigned(projections.leanMassChangePerWeekKg)} kg/sem`}
               tone={leanMassTone(projections.leanMassChangePerWeekKg)}
             />
             <ProjectionCard
@@ -188,7 +188,7 @@ export default async function CoachPage() {
           </div>
         ) : (
           <div className="mt-6 rounded-3xl bg-black/25 p-5">
-            <p className="font-semibold">Ainda falta historico.</p>
+            <p className="font-semibold">Ainda falta histórico.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               Faca pelo menos dois check-ins semanais com peso medio. Para cintura e massa magra estimada, informe cintura e medidas de BF nas configuracoes.
             </p>

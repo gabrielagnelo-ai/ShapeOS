@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ShapeOS",
-  description: "Inteligencia para sua melhor versao.",
+  description: "Inteligência para sua melhor versão.",
   icons: {
     icon: [
       { url: "/icon.png", type: "image/png" },
