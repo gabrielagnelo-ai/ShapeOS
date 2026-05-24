@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { signUpSchema } from "./validations";
 
-const sessionCookieName = "shapeos_session";
+export const sessionCookieName = "shapeos_session";
 const sessionTtlDays = 30;
 
 export async function hashPassword(password: string) {
@@ -23,7 +23,17 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function createSession(userId: string) {
+export function sessionCookieOptions(expiresAt: Date) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: expiresAt,
+  };
+}
+
+export async function createSessionRecord(userId: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + sessionTtlDays * 24 * 60 * 60 * 1000);
 
@@ -35,14 +45,13 @@ export async function createSession(userId: string) {
     },
   });
 
+  return { token, expiresAt };
+}
+
+export async function createSession(userId: string) {
+  const { token, expiresAt } = await createSessionRecord(userId);
   const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: expiresAt,
-  });
+  cookieStore.set(sessionCookieName, token, sessionCookieOptions(expiresAt));
 }
 
 export async function getCurrentUser() {
