@@ -1,4 +1,4 @@
-﻿import { BookOpen, Plus, Trash2, Utensils } from "lucide-react";
+import { BookOpen, Plus, Sparkles, Trash2, Utensils, Wand2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { mealOrder } from "@/lib/meals";
@@ -10,6 +10,8 @@ import {
   addRecipePortionToPlanAction,
   createRecipeAction,
   deleteRecipeAction,
+  estimateEatenRecipeAction,
+  generateAiRecipeSuggestionAction,
 } from "./actions";
 
 export default async function ReceitasPage() {
@@ -36,7 +38,7 @@ export default async function ReceitasPage() {
           <p className="text-sm text-lime-300">Receitas</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Minhas receitas</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Monte receitas com alimentos da TACO, calcule calorias e nutrientes por porção e lance no diário ou no plano alimentar.
+            Gere ideias com IA, estime receitas que você comeu, calcule macros por porção e lance no diário ou no plano alimentar.
           </p>
         </div>
         <div className="rounded-3xl bg-white/10 px-5 py-4 text-right">
@@ -45,13 +47,74 @@ export default async function ReceitasPage() {
         </div>
       </div>
 
-      <GlassCard className="mt-8">
+      <div className="mt-8 grid gap-4 lg:grid-cols-2">
+        <GlassCard className="border-lime-300/20 bg-lime-300/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300 text-black">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Sugerir receita com IA</h2>
+              <p className="text-sm text-zinc-500">A IA cria uma receita e salva usando alimentos do banco para manter as calorias auditáveis.</p>
+            </div>
+          </div>
+          <form action={generateAiRecipeSuggestionAction} className="mt-6 grid gap-3">
+            <div className="grid gap-3 md:grid-cols-[190px_1fr]">
+              <select name="style" className={inputClass} defaultValue="satiety">
+                <option value="satiety">Saciedade</option>
+                <option value="pleasure">Prazer</option>
+                <option value="sweet">Doce saudável</option>
+                <option value="high_protein">Alta proteína</option>
+                <option value="low_calorie">Baixa caloria</option>
+                <option value="simple">Barata e simples</option>
+              </select>
+              <input name="query" className={inputClass} placeholder="Ex: café da manhã doce, jantar barato, lanche com whey" />
+            </div>
+            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+              <Wand2 size={18} />
+              Gerar e salvar receita
+            </button>
+            <p className="text-xs leading-5 text-zinc-500">
+              A sugestão usa repertório geral da IA e sua base de alimentos. Confira marcas e quantidades antes de seguir.
+            </p>
+          </form>
+        </GlassCard>
+
+        <GlassCard>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-lime-300">
+              <Wand2 size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">Estimar algo que comi</h2>
+              <p className="text-sm text-zinc-500">Descreva a receita. A IA estima ingredientes prováveis, salva a receita e você lança no diário.</p>
+            </div>
+          </div>
+          <form action={estimateEatenRecipeAction} className="mt-6 grid gap-3">
+            <textarea
+              name="description"
+              className="min-h-28 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
+              placeholder="Ex: comi uma panqueca média com banana, aveia, 2 ovos e um pouco de mel"
+              required
+            />
+            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white/10 px-5 font-semibold text-white transition hover:bg-white/15">
+              <Sparkles size={18} />
+              Estimar e salvar
+            </button>
+            <p className="text-xs leading-5 text-zinc-500">
+              Isso é estimativa. Para mais precisão, cadastre os ingredientes e gramas manualmente.
+            </p>
+          </form>
+        </GlassCard>
+      </div>
+
+      <GlassCard className="mt-5">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">
             <Utensils size={20} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Nova receita</h2>
+            <h2 className="text-xl font-semibold">Nova receita manual</h2>
             <p className="text-sm text-zinc-500">Digite o alimento e escolha uma sugestão da base TACO ou dos seus alimentos.</p>
           </div>
         </div>
@@ -87,7 +150,7 @@ export default async function ReceitasPage() {
           />
           <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
             <Plus size={18} />
-            Salvar receita
+            Salvar receita manual
           </button>
         </form>
         <datalist id="recipe-food-options">
