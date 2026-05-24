@@ -1,6 +1,5 @@
 ﻿import { redirect } from "next/navigation";
 import { Activity, Apple, ArrowRight, BarChart3, Flame, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
-import { CoachBubble } from "@/components/coach/coach-bubble";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressChart } from "@/components/ui/progress-chart";
@@ -8,6 +7,7 @@ import { ProgressRing } from "@/components/ui/progress-ring";
 import { getCurrentUser } from "@/lib/auth";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
+import { normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
@@ -266,7 +266,7 @@ export default async function DashboardPage() {
                 },
                 { kcal: 0, protein: 0, carbs: 0, fat: 0 },
               );
-              return <MealRow key={meal.id} name={meal.name} items={meal.items.map((item) => ({ name: item.food.name, grams: item.grams }))} totals={totals} />;
+              return <MealRow key={meal.id} name={normalizeMealName(meal.name)} items={meal.items.map((item) => ({ name: item.food.name, grams: item.grams }))} totals={totals} />;
             }) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5">
                 <p className="text-sm leading-6 text-zinc-400">Gere um plano em Dieta para ver suas refeições reais aqui.</p>
@@ -304,10 +304,10 @@ export default async function DashboardPage() {
             <div className="mt-5 space-y-3">
               {insights.length ? insights.slice(0, 3).map((insight) => (
                 <a href="/coach" key={insight.trigger} className="block rounded-3xl bg-white/[0.04] p-4 transition hover:bg-white/[0.08]">
-                  <p className="text-sm capitalize text-lime-300">{insight.category}</p>
+                  <p className="text-sm text-lime-300">{coachCategoryLabel(insight.category)}</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-200">{insight.message}</p>
                 </a>
-              )) : <p className="rounded-3xl bg-white/[0.04] p-4 text-sm leading-6 text-zinc-400">Registre alimentos por alguns dias e ao menos dois check-ins para o Coach gerar insights confiaveis.</p>}
+              )) : <p className="rounded-3xl bg-white/[0.04] p-4 text-sm leading-6 text-zinc-400">Registre alimentos por alguns dias e ao menos dois check-ins para o Coach gerar insights confiáveis.</p>}
             </div>
           </GlassCard>
         </div>
@@ -318,7 +318,6 @@ export default async function DashboardPage() {
         <ActionPanel icon={<Activity size={18} />} title="Biblioteca" text="Consulte alimentos da TACO, favorite ou bloqueie para a IA." href="/alimentos" />
         <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderência para melhorar as projeções." href="/acompanhamento" />
       </div>
-      {insights.length ? <CoachBubble message={briefing.recommendation} /> : null}
     </AppShell>
   );
 }
@@ -436,6 +435,18 @@ function cleanFoodName(name: string) {
     .replace(/\s+/g, " ")
     .replace(/\bcozido\/10minutos\b/gi, "cozido")
     .trim();
+}
+
+function coachCategoryLabel(category: string) {
+  const labels: Record<string, string> = {
+    nutrition: "Nutrição",
+    weight: "Peso",
+    sleep: "Sono",
+    adherence: "Aderência",
+    training: "Treino",
+  };
+
+  return labels[category] ?? category;
 }
 
 function ActionPanel({ icon, title, text, href }: { icon: React.ReactNode; title: string; text: string; href: string }) {

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { mealNames, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
@@ -26,17 +27,8 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     where: { userId: user.id, isActive: true },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
   });
-  const mealChoices = uniqueMeals([
-    "Café da manhã",
-    "Lanche da manhã",
-    "Almoço",
-    "Pré-treino",
-    "Lanche da tarde",
-    "Jantar",
-    "Ceia",
-    ...(plan?.meals.map((meal) => meal.name) ?? []),
-  ]);
-  const activeMealNames = new Set(plan?.meals.map((meal) => meal.name) ?? []);
+  const mealChoices = uniqueMeals([...mealNames, ...(plan?.meals.map((meal) => normalizeMealName(meal.name)) ?? [])]);
+  const activeMealNames = new Set(plan?.meals.map((meal) => normalizeMealName(meal.name)) ?? []);
   const foods = await prisma.food.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
@@ -86,7 +78,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Montador de dieta</h1>
       <p className="mt-3 max-w-2xl text-zinc-400">Gere um plano inicial, edite gramas ou registre a dieta do nutricionista. O foco aqui é bater sua meta real do dia.</p>
-      <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
+      <div className="mt-8 grid items-start gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <GlassCard>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold">{plan?.name ?? "Nenhum plano ativo"}</h2>
@@ -171,7 +163,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
           <div className="mt-5 space-y-3">
             {plan ? plan.meals.map((meal) => (
               <div key={meal.id} className="rounded-3xl bg-white/[0.04] p-4">
-                <p className="font-medium">{meal.name}</p>
+                <p className="font-medium">{normalizeMealName(meal.name)}</p>
                 <div className="mt-3 grid gap-2">
                   {meal.items.map((item) => {
                     const nutrients = nutrientsForGrams({
@@ -225,7 +217,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             ))}
           </datalist>
         </GlassCard>
-        <GlassCard>
+        <GlassCard className="lg:sticky lg:top-24">
           <ShoppingBag className="text-lime-300" />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div>

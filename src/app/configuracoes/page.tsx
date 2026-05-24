@@ -19,7 +19,7 @@ export default async function ConfiguracoesPage() {
     <AppShell>
       <div className="mb-8">
         <p className="text-sm text-lime-300">Metas</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight">Ajustar calculos</h1>
+        <h1 className="mt-2 text-4xl font-semibold tracking-tight">Ajustar cálculos</h1>
         <p className="mt-3 max-w-2xl text-zinc-400">
           Ajuste déficit, fator de atividade, proteína e gordura sem refazer o onboarding. Carboidrato fica automático com as calorias restantes.
         </p>
@@ -34,7 +34,7 @@ export default async function ConfiguracoesPage() {
           </label>
 
           <label className="block">
-            <span className="text-sm text-zinc-400">Déficit calorico</span>
+            <span className="text-sm text-zinc-400">Déficit calórico</span>
             <DeficitAdvisor name="calorieDeficitKcal" className={inputClass} defaultValue={profile.calorieDeficitKcal ?? 400} />
           </label>
 
@@ -53,11 +53,11 @@ export default async function ConfiguracoesPage() {
           <label className="block">
             <span className="text-sm text-zinc-400">Gordura por kg</span>
             <input name="fatPerKg" defaultValue={String(profile.fatPerKg ?? 0.8).replace(".", ",")} inputMode="decimal" className={inputClass} />
-            <p className="mt-2 text-xs leading-5 text-zinc-500">Faixa aceita: 0,4 a 1,5 g/kg. Carboidrato sera calculado pelo restante.</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-500">Faixa aceita: 0,4 a 1,5 g/kg. Carboidrato será calculado pelo restante.</p>
           </label>
 
           <label className="block">
-            <span className="text-sm text-zinc-400">Pescoco em cm</span>
+            <span className="text-sm text-zinc-400">Pescoço em cm</span>
             <input name="neckCm" defaultValue={profile.neckCm ? String(profile.neckCm).replace(".", ",") : ""} inputMode="decimal" className={inputClass} />
           </label>
 
@@ -83,7 +83,7 @@ export default async function ConfiguracoesPage() {
           ) : null}
 
           <label className="block md:col-span-2">
-            <span className="text-sm text-zinc-400">Preferencia alimentar para IA</span>
+            <span className="text-sm text-zinc-400">Preferência alimentar para IA</span>
             <select name="dietPreference" defaultValue={profile.dietPreference ?? "balanced"} className={inputClass}>
               <option value="balanced">Equilibrado - saciedade e prazer</option>
               <option value="satiety">Mais saciedade - volume, fibra e proteína</option>

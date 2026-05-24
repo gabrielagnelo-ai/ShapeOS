@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { findFoodByQuery } from "@/lib/food-search";
+import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics } from "@/lib/profile";
 
@@ -11,9 +12,6 @@ type AiMeal = {
   name: string;
   items: Array<{ foodName: string; grams: number }>;
 };
-
-const defaultMealNames = ["Café da manhã", "Almoço", "Pré-treino", "Jantar"];
-const optionalMealNames = ["Lanche da manhã", "Lanche da tarde", "Ceia"];
 
 export async function generateDietPlanAction() {
   const user = await getCurrentUser();
@@ -126,7 +124,7 @@ export async function createManualDietPlanAction(formData: FormData) {
 
   const metrics = computeProfileMetrics(profile);
   const name = String(formData.get("name") ?? "").trim() || `Plano manual ${new Date().toLocaleDateString("pt-BR")}`;
-  const mealNames = defaultMealNames;
+  const manualMealNames = baseMealNames;
 
   await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
   await prisma.dietPlan.create({
@@ -142,7 +140,7 @@ export async function createManualDietPlanAction(formData: FormData) {
       sodiumLimitMg: metrics.targets.sodiumMg,
       isActive: true,
       meals: {
-        create: mealNames.map((mealName, index) => ({
+        create: manualMealNames.map((mealName, index) => ({
           name: mealName,
           order: index + 1,
         })),
@@ -158,7 +156,7 @@ export async function updateDietMealsAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
 
-  const selected = formData.getAll("mealNames").map((value) => String(value)).filter(Boolean);
+  const selected = [...new Set(formData.getAll("mealNames").map((value) => normalizeMealName(String(value))).filter(Boolean))];
   if (!selected.length) return;
 
   const plan = await prisma.dietPlan.findFirst({
@@ -167,14 +165,34 @@ export async function updateDietMealsAction(formData: FormData) {
   });
   if (!plan) return;
 
-  await prisma.dietMeal.deleteMany({
-    where: {
-      dietPlanId: plan.id,
-      name: { notIn: selected },
-    },
+  const byCanonical = new Map<string, typeof plan.meals>();
+  plan.meals.forEach((meal) => {
+    const canonical = normalizeMealName(meal.name);
+    byCanonical.set(canonical, [...(byCanonical.get(canonical) ?? []), meal]);
   });
 
-  const existing = new Set(plan.meals.map((meal) => meal.name));
+  for (const [canonical, meals] of byCanonical.entries()) {
+    if (!selected.includes(canonical)) {
+      await prisma.dietMeal.deleteMany({ where: { id: { in: meals.map((meal) => meal.id) } } });
+      continue;
+    }
+
+    const [keeper, ...duplicates] = meals;
+    await prisma.dietMeal.update({
+      where: { id: keeper.id },
+      data: { name: canonical, order: mealOrder(canonical) },
+    });
+
+    if (duplicates.length) {
+      await prisma.dietMealItem.updateMany({
+        where: { mealId: { in: duplicates.map((meal) => meal.id) } },
+        data: { mealId: keeper.id },
+      });
+      await prisma.dietMeal.deleteMany({ where: { id: { in: duplicates.map((meal) => meal.id) } } });
+    }
+  }
+
+  const existing = new Set([...byCanonical.keys()]);
   const missing = selected.filter((name) => !existing.has(name));
   if (missing.length) {
     await prisma.dietMeal.createMany({
@@ -272,7 +290,7 @@ async function generateMealsWithGemini(input: {
         parts: [{
           text: [
             "Monte uma dieta diária em português do Brasil usando SOMENTE os alimentos da lista.",
-            "Responda apenas JSON valido, sem markdown.",
+            "Responda apenas JSON válido, sem markdown.",
             "Formato: {\"meals\":[{\"name\":\"Café da manhã\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}]}",
             "Use nomes de alimentos exatamente como aparecem na lista.",
             `Crie exatamente estas refeições, sem adicionar outras: ${input.mealNames.join(", ")}.`,
@@ -284,7 +302,7 @@ async function generateMealsWithGemini(input: {
             "Também tente favorecer micronutrientes quando possível: cálcio, ferro, magnésio, potássio, zinco, vitamina C, vitamina D e B12.",
             `Evitar alimentos não gostados: ${input.dislikedFoods.join(", ") || "nenhum"}`,
             `Restrições: ${input.restrictions.join(", ") || "nenhuma"}`,
-            `Preferencia alimentar: ${describeDietPreference(input.dietPreference)}`,
+            `Preferência alimentar: ${describeDietPreference(input.dietPreference)}`,
             input.monthlyBudget ? `Orçamento mensal aproximado: R$ ${input.monthlyBudget}. Priorize alimentos baratos e repetíveis. Considere cerca de R$ ${(input.monthlyBudget / 30).toFixed(2)} por dia.` : "Sem orçamento informado.",
             "Se houver pricePerKg nos alimentos, tente respeitar o orçamento. Se faltar preço, priorize alimentos tradicionalmente baratos no Brasil.",
             `Alimentos disponíveis: ${JSON.stringify(input.foods)}`,
@@ -363,15 +381,11 @@ async function getPreferredMealNames(userId: string) {
   });
 
   const mealNames = activePlan?.meals.map((meal) => meal.name).filter(Boolean) ?? [];
-  return mealNames.length ? mealNames : defaultMealNames;
+  return mealNames.length ? [...new Set(mealNames.map(normalizeMealName))] : [...baseMealNames];
 }
 
 function filterMealsBySelection<T extends { name: string }>(meals: T[], selectedNames: string[]) {
   const selected = new Set(selectedNames);
   const filtered = meals.filter((meal) => selected.has(meal.name));
-  return filtered.length ? filtered : meals.filter((meal) => defaultMealNames.includes(meal.name));
-}
-
-function mealOrder(name: string) {
-  return [...defaultMealNames, ...optionalMealNames].indexOf(name) + 1 || 99;
+  return filtered.length ? filtered : meals.filter((meal) => baseMealNames.includes(meal.name as (typeof baseMealNames)[number]));
 }

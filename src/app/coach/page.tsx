@@ -82,7 +82,7 @@ export default async function CoachPage() {
           <div className="mt-5 grid gap-3">
             <Signal icon={<Activity size={18} />} label="Redução de calorias" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal gasto estimado`} />
             <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
-            <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estavel nas ultimas 2 semanas" : "sem plato detectado"} />
+            <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
           </div>
         </GlassCard>
@@ -135,7 +135,7 @@ export default async function CoachPage() {
               </div>
               <div>
                 <p className="text-sm text-lime-300">Projeções</p>
-                <h2 className="text-xl font-semibold">Tendencia corporal</h2>
+                <h2 className="text-xl font-semibold">Tendência corporal</h2>
               </div>
             </div>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
@@ -240,8 +240,8 @@ function Signal({ icon, label, value, detail }: { icon: React.ReactNode; label: 
 function insightTitle(trigger: string) {
   const titles: Record<string, string> = {
     protein_drop_3d: "Proteína abaixo da meta",
-    weight_plateau_14d: "Peso em plato",
-    adherence_streak_5d: "Consistencia forte",
+    weight_plateau_14d: "Peso em platô",
+    adherence_streak_5d: "Consistência forte",
     sleep_decline: "Sono em queda",
     aggressive_deficit: "Redução calórica alta",
     training_low: "Treino baixo",
@@ -282,7 +282,7 @@ function defaultActions() {
 
 function categoryLabel(category: string) {
   const labels: Record<string, string> = {
-    nutrition: "nutricao",
+    nutrition: "nutrição",
     weight: "peso",
     sleep: "sono",
     adherence: "aderência",
@@ -423,7 +423,7 @@ function projectionMessage(projections: ReturnType<typeof buildProjections>) {
   if (projections.weightLossPctPerWeek > 1) return "ritmo rápido; acompanhe fome, treino e medidas";
   if (projections.weightLossPctPerWeek >= 0.5) return "ritmo coerente para cutting";
   if (projections.weightLossPctPerWeek > 0) return "perda lenta, boa se aderência estiver difícil";
-  if ((projections.waistChangePerWeekCm ?? 0) < 0) return "peso estavel com cintura caindo pode indicar recomposicao";
+  if ((projections.waistChangePerWeekCm ?? 0) < 0) return "peso estável com cintura caindo pode indicar recomposição";
   return "se o objetivo é perda, revise aderência e calorias";
 }
 
@@ -436,7 +436,7 @@ function leanMassTone(value: number | null) {
 
 function snapshotSource(value: string) {
   const labels: Record<string, string> = {
-    onboarding: "inicio",
+    onboarding: "início",
     profile_update: "medidas",
     weekly_checkin: "check-in",
   };

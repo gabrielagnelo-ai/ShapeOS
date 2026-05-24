@@ -47,7 +47,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
       ...(onlyBlocked ? { id: { in: blockedIds.length ? blockedIds : ["__none__"] } } : {}),
     },
     orderBy: [{ category: "asc" }, { name: "asc" }],
-    take: 80,
+    take: 40,
   });
   const activePlan = await prisma.dietPlan.findFirst({
     where: { userId: user.id, isActive: true },
@@ -76,42 +76,6 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
       </div>
 
       <GlassCard className="mt-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">Adicionar alimento manual</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-              Use para alimentos que não existem na TACO. Os valores devem ser por 100g, como no rótulo ou na tabela que você usa.
-            </p>
-          </div>
-          <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-200">disponível para todos</span>
-        </div>
-        <form action={createCustomFoodAction} className="mt-5 grid gap-3">
-          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-            <input name="name" className={inputClass} placeholder="Nome do alimento. Ex: Pão francês da padaria" required />
-            <input name="category" className={inputClass} placeholder="Categoria. Ex: Pães" />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-            <input name="kcalPer100g" inputMode="decimal" className={inputClass} placeholder="kcal/100g" />
-            <input name="proteinPer100g" inputMode="decimal" className={inputClass} placeholder="proteína" required />
-            <input name="carbsPer100g" inputMode="decimal" className={inputClass} placeholder="carbo" required />
-            <input name="fatPer100g" inputMode="decimal" className={inputClass} placeholder="gordura" required />
-            <input name="fiberPer100g" inputMode="decimal" className={inputClass} placeholder="fibra" />
-            <input name="sodiumPer100g" inputMode="decimal" className={inputClass} placeholder="sódio mg" />
-            <input name="pricePerKg" inputMode="decimal" className={inputClass} placeholder="R$/kg" />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs leading-5 text-zinc-500">
-              Se kcal ficar vazio, o app calcula por macros: proteína 4 kcal/g, carbo 4 kcal/g e gordura 9 kcal/g.
-            </p>
-            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
-              <Plus size={17} />
-              Salvar alimento
-            </button>
-          </div>
-        </form>
-      </GlassCard>
-
-      <GlassCard className="mt-5">
         <form className="grid gap-3 lg:grid-cols-[1fr_220px_130px_auto]">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
@@ -142,19 +106,56 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
           <button className="h-12 rounded-full bg-lime-300 px-6 font-semibold text-black transition hover:bg-lime-200">
             Buscar
           </button>
-          <div className="flex flex-wrap gap-2 lg:col-span-4">
-            <FilterChip href={buildHref({ ...params, favoritos: onlyFavorites ? undefined : "1", bloqueados: undefined })} active={onlyFavorites}>
-              Favoritos
-            </FilterChip>
-            <FilterChip href={buildHref({ ...params, bloqueados: onlyBlocked ? undefined : "1", favoritos: undefined })} active={onlyBlocked}>
-              Bloqueados
-            </FilterChip>
-            <FilterChip href="/alimentos" active={!query && !category && !onlyFavorites && !onlyBlocked && grams === 100}>
-              Limpar
-            </FilterChip>
+          <div className="flex flex-wrap items-center justify-between gap-2 lg:col-span-4">
+            <div className="flex flex-wrap gap-2">
+              <FilterChip href={buildHref({ ...params, favoritos: onlyFavorites ? undefined : "1", bloqueados: undefined })} active={onlyFavorites}>
+                Favoritos
+              </FilterChip>
+              <FilterChip href={buildHref({ ...params, bloqueados: onlyBlocked ? undefined : "1", favoritos: undefined })} active={onlyBlocked}>
+                Bloqueados
+              </FilterChip>
+              <FilterChip href="/alimentos" active={!query && !category && !onlyFavorites && !onlyBlocked && grams === 100}>
+                Limpar
+              </FilterChip>
+            </div>
+            <p className="text-xs text-zinc-500">Mostrando até 40 resultados.</p>
           </div>
         </form>
       </GlassCard>
+
+      <details className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur-xl">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Adicionar alimento manual</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">Cadastre alimentos que não estão na base. Eles ficam disponíveis para todos.</p>
+          </div>
+          <span className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Abrir</span>
+        </summary>
+        <form action={createCustomFoodAction} className="mt-5 grid gap-3 border-t border-white/10 pt-5">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <input name="name" className={inputClass} placeholder="Nome do alimento. Ex: Pão francês da padaria" required />
+            <input name="category" className={inputClass} placeholder="Categoria. Ex: Pães" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            <input name="kcalPer100g" inputMode="decimal" className={inputClass} placeholder="kcal/100g" />
+            <input name="proteinPer100g" inputMode="decimal" className={inputClass} placeholder="proteína" required />
+            <input name="carbsPer100g" inputMode="decimal" className={inputClass} placeholder="carbo" required />
+            <input name="fatPer100g" inputMode="decimal" className={inputClass} placeholder="gordura" required />
+            <input name="fiberPer100g" inputMode="decimal" className={inputClass} placeholder="fibra" />
+            <input name="sodiumPer100g" inputMode="decimal" className={inputClass} placeholder="sódio mg" />
+            <input name="pricePerKg" inputMode="decimal" className={inputClass} placeholder="R$/kg" />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs leading-5 text-zinc-500">
+              Se kcal ficar vazio, o app calcula por macros: proteína 4 kcal/g, carbo 4 kcal/g e gordura 9 kcal/g.
+            </p>
+            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+              <Plus size={17} />
+              Salvar alimento
+            </button>
+          </div>
+        </form>
+      </details>
 
       <div className="mt-5 grid gap-3">
         {foods.map((food) => {
