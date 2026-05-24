@@ -17,8 +17,8 @@ export async function addFoodLogAction(formData: FormData) {
   if ((!foodId && !foodQuery) || !Number.isFinite(grams) || grams <= 0) return;
 
   const food = foodId
-    ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
-    : await findFoodByQuery(foodQuery);
+    ? await prisma.food.findFirst({ where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] }, select: { id: true } })
+    : await findFoodByQuery(foodQuery, user.id);
   if (!food) return;
 
   let log = await prisma.foodLog.findFirst({

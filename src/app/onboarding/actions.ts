@@ -155,6 +155,7 @@ async function createStarterDietPlan(input: {
 
   const foods = await prisma.food.findMany({
     where: {
+      createdByUserId: null,
       name: {
         in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"],
       },

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { findFoodByQuery } from "@/lib/food-search";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
 
@@ -12,7 +13,7 @@ export async function createRecipeAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const servings = Number(formData.get("servings") ?? 1);
   const instructions = String(formData.get("instructions") ?? "").trim();
-  const items = await parseRecipeItems(formData);
+  const items = await parseRecipeItems(formData, user.id);
   if (!name || items.length === 0) return;
 
   await prisma.recipe.create({
@@ -107,7 +108,7 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-async function parseRecipeItems(formData: FormData) {
+async function parseRecipeItems(formData: FormData, userId: string) {
   const items: Array<{ foodId: string; grams: number }> = [];
 
   for (let index = 0; index < 6; index += 1) {
@@ -117,29 +118,12 @@ async function parseRecipeItems(formData: FormData) {
     if ((!foodId && !foodQuery) || !grams) continue;
 
     const food = foodId
-      ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
-      : await findFoodByQuery(foodQuery);
+      ? await prisma.food.findFirst({ where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: userId }] }, select: { id: true } })
+      : await findFoodByQuery(foodQuery, userId);
     if (food) items.push({ foodId: food.id, grams });
   }
 
   return items;
-}
-
-async function findFoodByQuery(query: string) {
-  const normalized = query.trim();
-  if (!normalized) return null;
-
-  const exact = await prisma.food.findFirst({
-    where: { name: { equals: normalized, mode: "insensitive" } },
-    select: { id: true },
-  });
-  if (exact) return exact;
-
-  return prisma.food.findFirst({
-    where: { name: { contains: normalized, mode: "insensitive" } },
-    orderBy: [{ source: "asc" }, { name: "asc" }],
-    select: { id: true },
-  });
 }
 
 function parsePositiveNumber(value: FormDataEntryValue | null) {

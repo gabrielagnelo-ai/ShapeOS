@@ -59,6 +59,7 @@ model User {
   recipes        Recipe[]
   sessions       Session[]
   foodPreferences FoodPreference[]
+  customFoods    Food[]
 
   @@map("users")
 }
@@ -139,14 +140,17 @@ model Food {
   vitaminB12Per100g Float? @map("vitamin_b12_per_100g")
   pricePerKg      Float?   @map("price_per_kg")
   source         String   @default("Seed ShapeOS")
+  createdByUserId String?  @map("created_by_user_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
+  createdBy User? @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   dietItems DietMealItem[]
   foodLogs  FoodLogItem[]
   recipeItems RecipeItem[]
   preferences FoodPreference[]
 
   @@index([name])
+  @@index([createdByUserId])
   @@map("food")
 }
 

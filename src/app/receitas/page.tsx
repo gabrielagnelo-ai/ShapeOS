@@ -14,6 +14,7 @@ import {
 export default async function ReceitasPage() {
   const { user } = await requireUserProfile();
   const foods = await prisma.food.findMany({
+    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
   });
@@ -50,13 +51,13 @@ export default async function ReceitasPage() {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Nova receita</h2>
-            <p className="text-sm text-zinc-500">Digite o alimento e escolha uma sugestao da base TACO.</p>
+            <p className="text-sm text-zinc-500">Digite o alimento e escolha uma sugestão da base TACO ou dos seus alimentos.</p>
           </div>
         </div>
         <form action={createRecipeAction} className="mt-6 grid gap-4">
           <div className="grid gap-3 md:grid-cols-[1fr_150px]">
             <input name="name" className={inputClass} placeholder="Nome da receita" required />
-            <input name="servings" type="number" min="1" className={inputClass} placeholder="Porcoes" required />
+            <input name="servings" type="number" min="1" className={inputClass} placeholder="Porções" required />
           </div>
           <div className="grid gap-2">
             {Array.from({ length: 6 }, (_, index) => (

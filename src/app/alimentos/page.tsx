@@ -7,6 +7,7 @@ import { nutrientsForGrams } from "@/lib/nutrition";
 import {
   addFoodFromLibraryToDiaryAction,
   addFoodFromLibraryToPlanAction,
+  createCustomFoodAction,
   toggleBlockedFoodAction,
   toggleFavoriteFoodAction,
 } from "./actions";
@@ -27,8 +28,10 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
   const grams = parseGrams(params.gramas) ?? 100;
   const onlyFavorites = params.favoritos === "1";
   const onlyBlocked = params.bloqueados === "1";
+  const visibleFood = { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] };
 
   const categories = await prisma.food.findMany({
+    where: visibleFood,
     distinct: ["category"],
     orderBy: { category: "asc" },
     select: { category: true },
@@ -40,6 +43,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
 
   const foods = await prisma.food.findMany({
     where: {
+      ...visibleFood,
       ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
       ...(category ? { category } : {}),
       ...(onlyFavorites ? { id: { in: favoriteIds.length ? favoriteIds : ["__none__"] } } : {}),
@@ -53,8 +57,9 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
     include: { meals: { orderBy: { order: "asc" }, select: { id: true, name: true } } },
   });
 
-  const totalFoods = await prisma.food.count();
+  const totalFoods = await prisma.food.count({ where: visibleFood });
   const tacoFoods = await prisma.food.count({ where: { source: "TACO 4a edicao" } });
+  const customFoods = await prisma.food.count({ where: { createdByUserId: user.id } });
 
   return (
     <AppShell>
@@ -69,11 +74,47 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
         <div className="grid grid-cols-3 gap-2 text-center text-sm">
           <Metric label="base" value={totalFoods} />
           <Metric label="TACO" value={tacoFoods} />
-          <Metric label="favoritos" value={favoriteIds.length} />
+          <Metric label="meus" value={customFoods} />
         </div>
       </div>
 
       <GlassCard className="mt-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Adicionar alimento manual</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+              Use para alimentos que não existem na TACO. Os valores devem ser por 100g, como no rótulo ou na tabela que você usa.
+            </p>
+          </div>
+          <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-200">visível só para você</span>
+        </div>
+        <form action={createCustomFoodAction} className="mt-5 grid gap-3">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <input name="name" className={inputClass} placeholder="Nome do alimento. Ex: Pão francês da padaria" required />
+            <input name="category" className={inputClass} placeholder="Categoria. Ex: Pães" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            <input name="kcalPer100g" inputMode="decimal" className={inputClass} placeholder="kcal/100g" />
+            <input name="proteinPer100g" inputMode="decimal" className={inputClass} placeholder="proteína" required />
+            <input name="carbsPer100g" inputMode="decimal" className={inputClass} placeholder="carbo" required />
+            <input name="fatPer100g" inputMode="decimal" className={inputClass} placeholder="gordura" required />
+            <input name="fiberPer100g" inputMode="decimal" className={inputClass} placeholder="fibra" />
+            <input name="sodiumPer100g" inputMode="decimal" className={inputClass} placeholder="sódio mg" />
+            <input name="pricePerKg" inputMode="decimal" className={inputClass} placeholder="R$/kg" />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs leading-5 text-zinc-500">
+              Se kcal ficar vazio, o app calcula por macros: proteína 4 kcal/g, carbo 4 kcal/g e gordura 9 kcal/g.
+            </p>
+            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+              <Plus size={17} />
+              Salvar alimento
+            </button>
+          </div>
+        </form>
+      </GlassCard>
+
+      <GlassCard className="mt-5">
         <form className="grid gap-3 lg:grid-cols-[1fr_220px_130px_auto]">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
@@ -273,6 +314,8 @@ function parseGrams(value?: string) {
   const parsed = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
+
+const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none transition focus:border-lime-300/50";
 
 function round(value: number) {
   return Math.round(value * 10) / 10;

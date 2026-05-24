@@ -9,6 +9,7 @@ export default async function DiarioPage() {
   const { user, profile } = await requireUserProfile();
   const metrics = computeProfileMetrics(profile);
   const foods = await prisma.food.findMany({
+    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
   });
