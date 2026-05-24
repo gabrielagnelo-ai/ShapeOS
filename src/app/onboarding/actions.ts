@@ -133,7 +133,68 @@ export async function saveOnboardingAction(formData: FormData) {
     hipCm,
   });
 
+  await createStarterDietPlan({
+    userId: user.id,
+    goal: goalMap[goal],
+    targets,
+  });
+
   redirect("/dashboard");
+}
+
+async function createStarterDietPlan(input: {
+  userId: string;
+  goal: (typeof goalMap)[keyof typeof goalMap];
+  targets: ReturnType<typeof guidedMacroTargets> | ReturnType<typeof advancedMacroTargets>;
+}) {
+  const existing = await prisma.dietPlan.findFirst({
+    where: { userId: input.userId, isActive: true },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  const foods = await prisma.food.findMany({
+    where: {
+      name: {
+        in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"],
+      },
+    },
+    select: { id: true, name: true },
+  });
+  const byName = new Map(foods.map((food) => [food.name, food.id]));
+  const meals = [
+    { name: "Café da manhã", items: [["Aveia em flocos", 60], ["Banana prata", 100], ["Ovo de galinha inteiro", 100]] },
+    { name: "Almoço", items: [["Arroz branco cozido", 180], ["Feijao carioca cozido", 120], ["Peito de frango grelhado", 180]] },
+    { name: "Pré-treino", items: [["Banana prata", 120], ["Aveia em flocos", 30]] },
+    { name: "Jantar", items: [["Tilapia grelhada", 180], ["Batata doce cozida", 220]] },
+  ];
+
+  await prisma.dietPlan.create({
+    data: {
+      userId: input.userId,
+      name: `Plano inicial ${new Date().toLocaleDateString("pt-BR")}`,
+      goal: input.goal,
+      targetCalories: input.targets.calories,
+      targetProteinG: input.targets.proteinG,
+      targetCarbsG: input.targets.carbsG,
+      targetFatG: input.targets.fatG,
+      targetFiberG: input.targets.fiberG,
+      sodiumLimitMg: input.targets.sodiumMg,
+      isActive: true,
+      meals: {
+        create: meals.map((meal, index) => ({
+          name: meal.name,
+          order: index + 1,
+          items: {
+            create: meal.items.flatMap(([foodName, grams]) => {
+              const foodId = byName.get(String(foodName));
+              return foodId ? [{ foodId, grams: Number(grams) }] : [];
+            }),
+          },
+        })),
+      },
+    },
+  });
 }
 
 function splitList(value: string) {

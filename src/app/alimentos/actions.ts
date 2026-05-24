@@ -50,7 +50,7 @@ export async function addFoodFromLibraryToDiaryAction(formData: FormData) {
   if (!user) return;
 
   const foodId = String(formData.get("foodId") ?? "");
-  const mealName = String(formData.get("mealName") ?? "Refeicao");
+  const mealName = String(formData.get("mealName") ?? "Refeição");
   const grams = parseGrams(formData.get("grams"));
   if (!foodId || !grams) return;
 

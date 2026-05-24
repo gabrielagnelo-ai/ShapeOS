@@ -1,5 +1,4 @@
 ﻿import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Activity, Apple, ArrowRight, BarChart3, Flame, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { CoachBubble } from "@/components/coach/coach-bubble";
 import { AppShell } from "@/components/shell/app-shell";
@@ -90,10 +89,10 @@ export default async function DashboardPage() {
     },
   })) ?? []);
   const lowMicronutrients = [
-    consumed.calciumMg < micronutrientTargets.calciumMg * 0.5 ? "calcio" : null,
+    consumed.calciumMg < micronutrientTargets.calciumMg * 0.5 ? "cálcio" : null,
     consumed.ironMg < micronutrientTargets.ironMg * 0.5 ? "ferro" : null,
-    consumed.magnesiumMg < micronutrientTargets.magnesiumMg * 0.5 ? "magnesio" : null,
-    consumed.potassiumMg < micronutrientTargets.potassiumMg * 0.5 ? "potassio" : null,
+    consumed.magnesiumMg < micronutrientTargets.magnesiumMg * 0.5 ? "magnésio" : null,
+    consumed.potassiumMg < micronutrientTargets.potassiumMg * 0.5 ? "potássio" : null,
   ].filter(Boolean) as string[];
 
   const coachContext = buildCoachContext({
@@ -152,6 +151,15 @@ export default async function DashboardPage() {
         { kcal: 0, protein: 0, carbs: 0, fat: 0 },
       )
     : null;
+  const nextAction = !activePlan
+    ? { href: "/dieta", title: "Gerar plano alimentar", text: "Crie sua primeira dieta com IA ou registre a dieta do nutricionista.", cta: "Abrir dieta" }
+    : !todayLog?.items.length
+      ? { href: "/diario", title: "Registrar primeira refeição", text: "Lance o que você comeu hoje para o ShapeOS comparar real vs meta.", cta: "Registrar alimento" }
+      : !weeklyCheckins.length
+        ? { href: "/acompanhamento", title: "Fazer check-in semanal", text: "Peso, cintura, sono e treino melhoram as projeções do Coach.", cta: "Fazer check-in" }
+        : insights.length
+          ? { href: "/coach", title: "Ver recomendação do Coach", text: insights[0].message, cta: "Abrir Coach" }
+          : { href: "/diario", title: "Manter consistência", text: "Continue registrando refeições para manter o acompanhamento confiável.", cta: "Registrar hoje" };
 
   return (
     <AppShell>
@@ -191,9 +199,21 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      <a href={nextAction.href} className="mt-5 flex flex-col justify-between gap-4 rounded-[28px] border border-lime-300/25 bg-lime-300/10 p-5 transition hover:bg-lime-300/15 md:flex-row md:items-center">
+        <div>
+          <p className="text-sm font-semibold text-lime-200">Próxima ação</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">{nextAction.title}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">{nextAction.text}</p>
+        </div>
+        <span className="inline-flex items-center justify-center gap-2 rounded-full bg-lime-300 px-5 py-3 text-sm font-semibold text-black">
+          {nextAction.cta}
+          <ArrowRight size={16} />
+        </span>
+      </a>
+
       <div className="mt-5 grid gap-4 md:grid-cols-4">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
-        <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="consistencia geral" />
+        <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
         <MetricTile icon={<Scale size={18} />} label="Peso" value={`${profile.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
       </div>
@@ -210,10 +230,10 @@ export default async function DashboardPage() {
                 </div>
                 <p className="mt-2 text-sm text-zinc-500">{activePlan ? activePlan.name : "Nenhum plano ativo ainda."}</p>
               </div>
-              <Link href="/dieta" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black transition hover:bg-lime-200">
+              <a href="/dieta" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black transition hover:bg-lime-200">
                 Abrir
                 <ArrowRight size={15} />
-              </Link>
+              </a>
             </div>
             {activePlanTotals ? (
               <div className="mt-5 grid gap-2 sm:grid-cols-4">
@@ -250,7 +270,7 @@ export default async function DashboardPage() {
             }) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5">
                 <p className="text-sm leading-6 text-zinc-400">Gere um plano em Dieta para ver suas refeições reais aqui.</p>
-                <Link href="/dieta" className="mt-4 inline-flex rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Ir para Dieta</Link>
+                <a href="/dieta" className="mt-4 inline-flex rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Ir para Dieta</a>
               </div>
             )}
           </div>
@@ -260,8 +280,8 @@ export default async function DashboardPage() {
           <GlassCard>
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Progressao</h2>
-                <p className="mt-1 text-sm text-zinc-500">Peso medio semanal.</p>
+                <h2 className="text-xl font-semibold">Progressão</h2>
+                <p className="mt-1 text-sm text-zinc-500">Peso médio semanal.</p>
               </div>
               <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-400">{weeklyCheckins.length}</span>
             </div>
@@ -283,10 +303,10 @@ export default async function DashboardPage() {
             </div>
             <div className="mt-5 space-y-3">
               {insights.length ? insights.slice(0, 3).map((insight) => (
-                <Link href="/coach" key={insight.trigger} className="block rounded-3xl bg-white/[0.04] p-4 transition hover:bg-white/[0.08]">
+                <a href="/coach" key={insight.trigger} className="block rounded-3xl bg-white/[0.04] p-4 transition hover:bg-white/[0.08]">
                   <p className="text-sm capitalize text-lime-300">{insight.category}</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-200">{insight.message}</p>
-                </Link>
+                </a>
               )) : <p className="rounded-3xl bg-white/[0.04] p-4 text-sm leading-6 text-zinc-400">Registre alimentos por alguns dias e ao menos dois check-ins para o Coach gerar insights confiaveis.</p>}
             </div>
           </GlassCard>
@@ -305,13 +325,13 @@ export default async function DashboardPage() {
 
 function QuickAction({ href, icon, label, primary = false }: { href: string; icon: React.ReactNode; label: string; primary?: boolean }) {
   return (
-    <Link
+    <a
       href={href}
       className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${primary ? "bg-lime-300 text-black hover:bg-lime-200" : "bg-white/10 text-white hover:bg-white/15"}`}
     >
       {icon}
       {label}
-    </Link>
+    </a>
   );
 }
 
@@ -420,13 +440,13 @@ function cleanFoodName(name: string) {
 
 function ActionPanel({ icon, title, text, href }: { icon: React.ReactNode; title: string; text: string; href: string }) {
   return (
-    <Link href={href} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 transition hover:border-lime-300/30 hover:bg-white/[0.07]">
+    <a href={href} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 transition hover:border-lime-300/30 hover:bg-white/[0.07]">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">{icon}</div>
         <h3 className="font-semibold">{title}</h3>
       </div>
       <p className="mt-3 text-sm leading-6 text-zinc-500">{text}</p>
-    </Link>
+    </a>
   );
 }
 

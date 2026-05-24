@@ -68,18 +68,19 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     },
     { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
+  const planStatus = totals ? dietStatus(Math.round(totals.kcal), metrics.targets.calories) : null;
 
   return (
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Montador de dieta</h1>
-      <p className="mt-3 max-w-2xl text-zinc-400">Gere um plano inicial, edite gramas e use a lista de compras automatica.</p>
+      <p className="mt-3 max-w-2xl text-zinc-400">Gere um plano inicial, edite gramas ou registre a dieta do nutricionista. O foco aqui é bater sua meta real do dia.</p>
       <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <GlassCard>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold">{plan?.name ?? "Nenhum plano ativo"}</h2>
             <div className="flex flex-wrap gap-2">
               <form action={generateAiDietPlanAction} className="flex flex-wrap gap-2">
-                <input name="monthlyBudget" inputMode="decimal" className="h-9 w-36 rounded-full bg-white/10 px-4 text-sm outline-none" placeholder="R$/mes" />
+                <input name="monthlyBudget" inputMode="decimal" className="h-9 w-36 rounded-full bg-white/10 px-4 text-sm outline-none" placeholder="R$/mês" />
                 <button className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Gerar com IA</button>
               </form>
               <form action={generateDietPlanAction}><button className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">Gerar básico</button></form>
@@ -101,20 +102,26 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               </button>
             </div>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Use quando o cliente ja tem dieta do nutricionista. Depois adicione alimento e gramas em cada refeicao.
+              Use quando o cliente já tem dieta do nutricionista. Depois adicione alimento e gramas em cada refeição.
             </p>
           </form>
-          {plan && totals ? (
-            <div className="mt-5 rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4">
-              <p className="text-sm font-medium text-lime-200">Resumo do plano</p>
-              <div className="mt-3 grid gap-2 text-sm text-zinc-300 sm:grid-cols-4">
-                <span>Planejado: {Math.round(totals.kcal)} kcal</span>
-                <span>Meta: {metrics.targets.calories} kcal</span>
-                <span>Proteína: {Math.round(totals.protein)} / {metrics.targets.proteinG}g</span>
-                <span>Gordura: {Math.round(totals.fat)} / {metrics.targets.fatG}g</span>
+          {plan && totals && planStatus ? (
+            <div className={`mt-5 rounded-3xl border p-4 ${planStatus.className}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-lime-200">Planejado vs meta</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">Use isso para saber se a dieta montada está perto do alvo que você escolheu.</p>
+                </div>
+                <span className="rounded-full bg-black/30 px-3 py-1 text-xs font-semibold text-zinc-100">{planStatus.label}</span>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                <DietTarget label="Calorias planejadas" value={`${Math.round(totals.kcal)} kcal`} detail={`meta ${metrics.targets.calories} kcal`} />
+                <DietTarget label="Proteína" value={`${Math.round(totals.protein)} g`} detail={`meta ${metrics.targets.proteinG} g`} />
+                <DietTarget label="Carboidrato" value={`${Math.round(totals.carbs)} g`} detail="restante das calorias" />
+                <DietTarget label="Gordura" value={`${Math.round(totals.fat)} g`} detail={`meta ${metrics.targets.fatG} g`} />
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-400">
-                Planejado é o total da dieta montada. Meta é o alvo calculado para seu objetivo. Confira alimentos, marcas, modo de preparo e gramas antes de seguir.
+                Diferença: {planStatus.diffLabel}. Confira marcas, modo de preparo e gramas antes de seguir.
               </p>
             </div>
           ) : null}
@@ -227,4 +234,40 @@ function cookingYieldFactor(name: string, category: string) {
 function formatShoppingWeight(grams: number) {
   if (grams >= 1000) return `${(grams / 1000).toFixed(2).replace(".", ",")} kg`;
   return `${Math.round(grams)} g`;
+}
+
+function dietStatus(planned: number, target: number) {
+  const diff = planned - target;
+  const abs = Math.abs(diff);
+  if (abs <= 100) {
+    return {
+      label: "Dentro da meta",
+      diffLabel: `${abs} kcal de diferença`,
+      className: "border-lime-300/25 bg-lime-300/10",
+    };
+  }
+
+  if (diff < 0) {
+    return {
+      label: "Abaixo da meta",
+      diffLabel: `${abs} kcal abaixo`,
+      className: "border-sky-300/25 bg-sky-300/10",
+    };
+  }
+
+  return {
+    label: "Acima da meta",
+    diffLabel: `${abs} kcal acima`,
+    className: "border-amber-300/25 bg-amber-300/10",
+  };
+}
+
+function DietTarget({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-2xl bg-black/25 px-4 py-3">
+      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-zinc-100">{value}</p>
+      <p className="mt-1 text-xs text-zinc-500">{detail}</p>
+    </div>
+  );
 }

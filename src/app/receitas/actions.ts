@@ -47,7 +47,7 @@ export async function addRecipePortionToDiaryAction(formData: FormData) {
 
   const recipeId = String(formData.get("recipeId") ?? "");
   const portions = parsePositiveNumber(formData.get("portions")) ?? 1;
-  const mealName = String(formData.get("mealName") ?? "Refeicao");
+  const mealName = String(formData.get("mealName") ?? "Refeição");
   const recipe = await prisma.recipe.findFirst({
     where: { id: recipeId, OR: [{ userId: user.id }, { userId: null }] },
     include: { items: true },

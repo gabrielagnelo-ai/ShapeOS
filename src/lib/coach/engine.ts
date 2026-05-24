@@ -28,7 +28,7 @@ export const coachTriggers: Trigger[] = [
     priority: 55,
     category: "adherence",
     when: (ctx) => ctx.adherenceStreakDays >= 5,
-    message: "Você bateu suas metas 5 dias seguidos. Excelente consistencia.",
+    message: "Você bateu suas metas 5 dias seguidos. Excelente consistência.",
   },
   {
     id: "sleep_decline",

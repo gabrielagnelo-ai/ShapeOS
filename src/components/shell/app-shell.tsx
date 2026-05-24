@@ -15,6 +15,8 @@ const links = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const mobileLinks = links.filter((link) => ["/dashboard", "/dieta", "/diario", "/coach", "/configuracoes"].includes(link.href));
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
       <div className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
@@ -40,7 +42,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </div>
-      <main className="mx-auto max-w-7xl px-5 pb-16 pt-28">{children}</main>
+      <main className="mx-auto max-w-7xl px-5 pb-28 pt-28 lg:pb-16">{children}</main>
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-[28px] border border-white/10 bg-black/75 p-2 shadow-2xl shadow-black/60 backdrop-blur-2xl lg:hidden">
+        {mobileLinks.map((link) => (
+          <a key={link.href} href={link.href} className="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white">
+            <link.icon size={18} />
+            {link.label}
+          </a>
+        ))}
+      </nav>
     </div>
   );
 }

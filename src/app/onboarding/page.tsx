@@ -1,33 +1,11 @@
 ﻿import { redirect } from "next/navigation";
+import { Activity, HeartPulse, Scale, Settings2, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DeficitAdvisor } from "@/components/onboarding/deficit-advisor";
 import { SexAwareMeasurements } from "@/components/onboarding/sex-aware-measurements";
 import { getCurrentUser } from "@/lib/auth";
 import { saveOnboardingAction } from "./actions";
-
-const fields = [
-  "nome",
-  "sexo",
-  "idade",
-  "altura",
-  "peso",
-  "pescoco",
-  "cintura",
-  "quadril",
-  "objetivo",
-  "déficit calórico",
-  "proteína por kg",
-  "gordura por kg",
-  "nível de atividade",
-  "fator de atividade manual",
-  "experiência",
-  "restrições",
-  "alergias",
-  "alimentos que não gosta",
-  "condições médicas",
-  "preferencia alimentar",
-];
 
 const fieldNames: Record<string, string> = {
   nome: "name",
@@ -58,23 +36,59 @@ export default async function OnboardingPage() {
 
   return (
     <AppShell>
-      <h1 className="text-4xl font-semibold tracking-tight">Onboarding</h1>
-      <p className="mt-3 max-w-2xl text-zinc-400">
-        Preencha uma vez. Proteína e gordura podem ser ajustadas; no cutting, carboidrato fica sempre com as calorias restantes.
-      </p>
+      <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr] lg:items-end">
+        <div>
+          <p className="text-sm font-medium text-lime-300">Primeira configuração</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">Vamos montar sua base sem complicar.</h1>
+          <p className="mt-4 max-w-2xl text-zinc-400">
+            Responda como você vive hoje. O ShapeOS calcula calorias, proteínas, gorduras e deixa carboidrato como o restante da meta.
+          </p>
+        </div>
+        <GlassCard className="bg-lime-300/10">
+          <p className="text-sm font-semibold text-lime-200">O que acontece ao finalizar</p>
+          <div className="mt-4 grid gap-3 text-sm leading-6 text-zinc-300">
+            <p>1. Seu gasto diário e sua meta calórica são calculados.</p>
+            <p>2. Seu percentual de gordura estimado fica salvo no histórico.</p>
+            <p>3. A tela Hoje mostra a próxima ação para começar.</p>
+          </div>
+        </GlassCard>
+      </div>
       <GlassCard className="mt-8">
         <form action={saveOnboardingAction}>
-          <div className="grid gap-4 md:grid-cols-2">
-            {fields.map((field) => (
-              field === "sexo" ? (
-                <SexAwareMeasurements key="sex-measurements" className="mt-2 h-12 w-full appearance-none rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none transition focus:border-lime-300/50 disabled:cursor-not-allowed disabled:opacity-45" />
-              ) : ["pescoco", "cintura", "quadril"].includes(field) ? null : (
-              <label key={field} className="block">
-                <span className="text-sm capitalize text-zinc-400">{field}</span>
-                {renderField(field, fieldNames[field], field === "nome" ? user.name : undefined)}
-              </label>
-              )
-            ))}
+          <div className="grid gap-5">
+            <FieldSection icon={<Scale size={18} />} title="1. Seu corpo e medidas" text="Dados usados para calcular metabolismo, IMC e gordura estimada. Quadril só aparece para mulheres.">
+              <div className="grid gap-4 md:grid-cols-2">
+                {["nome", "sexo", "idade", "altura", "peso"].map((field) => (
+                  field === "sexo" ? (
+                    <SexAwareMeasurements key="sex-measurements" className="mt-2 h-12 w-full appearance-none rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none transition focus:border-lime-300/50 disabled:cursor-not-allowed disabled:opacity-45" />
+                  ) : (
+                    <Field key={field} field={field} defaultValue={field === "nome" ? user.name : undefined} />
+                  )
+                ))}
+              </div>
+            </FieldSection>
+
+            <FieldSection icon={<Activity size={18} />} title="2. Objetivo e rotina" text="Escolha o cenário mais parecido com sua semana. Não precisa acertar perfeito agora.">
+              <div className="grid gap-4 md:grid-cols-2">
+                {["objetivo", "nível de atividade", "experiência", "preferencia alimentar"].map((field) => <Field key={field} field={field} />)}
+              </div>
+            </FieldSection>
+
+            <FieldSection icon={<Settings2 size={18} />} title="3. Metas ajustáveis" text="Usuário avançado pode reduzir inflação do gasto e escolher déficit, proteína e gordura.">
+              <div className="grid gap-4 md:grid-cols-2">
+                {["déficit calórico", "proteína por kg", "gordura por kg", "fator de atividade manual"].map((field) => <Field key={field} field={field} />)}
+              </div>
+            </FieldSection>
+
+            <FieldSection icon={<Utensils size={18} />} title="4. Preferências alimentares" text="Isso ajuda a IA a evitar uma dieta bonita no papel e ruim de seguir.">
+              <div className="grid gap-4 md:grid-cols-2">
+                {["restrições", "alergias", "alimentos que não gosta"].map((field) => <Field key={field} field={field} />)}
+              </div>
+            </FieldSection>
+
+            <FieldSection icon={<HeartPulse size={18} />} title="5. Segurança" text="O ShapeOS não faz prescrição clínica. Se algo se aplica, use acompanhamento profissional.">
+              <Field field="condições médicas" />
+            </FieldSection>
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <button name="mode" value="guided" type="submit" className="rounded-full bg-lime-300 px-5 py-3 font-medium text-black">
@@ -87,6 +101,30 @@ export default async function OnboardingPage() {
         </form>
       </GlassCard>
     </AppShell>
+  );
+}
+
+function FieldSection({ icon, title, text, children }: { icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-[28px] border border-white/10 bg-black/20 p-4 md:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">{icon}</div>
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">{text}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ field, defaultValue }: { field: string; defaultValue?: string }) {
+  return (
+    <label className="block">
+      <span className="text-sm capitalize text-zinc-400">{field}</span>
+      {renderField(field, fieldNames[field], defaultValue)}
+    </label>
   );
 }
 
@@ -159,6 +197,6 @@ function measurementPlaceholder(field: string) {
   if (field === "altura") return "ex: 1,92 ou 192";
   if (field === "pescoco") return "cm. Ex: 43";
   if (field === "cintura") return "cm na linha do umbigo. Ex: 108";
-  if (field === "quadril") return "cm. Obrigatorio para mulheres";
+  if (field === "quadril") return "cm. Obrigatório para mulheres";
   return field;
 }

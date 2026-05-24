@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { findFoodByQuery } from "@/lib/food-search";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics } from "@/lib/profile";
 
@@ -177,23 +178,6 @@ export async function addManualDietItemAction(formData: FormData) {
 
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
-}
-
-async function findFoodByQuery(query: string) {
-  const normalized = query.trim();
-  if (!normalized) return null;
-
-  const exact = await prisma.food.findFirst({
-    where: { name: { equals: normalized, mode: "insensitive" } },
-    select: { id: true },
-  });
-  if (exact) return exact;
-
-  return prisma.food.findFirst({
-    where: { name: { contains: normalized, mode: "insensitive" } },
-    orderBy: [{ source: "asc" }, { name: "asc" }],
-    select: { id: true },
-  });
 }
 
 export async function updateDietItemGramsAction(formData: FormData) {

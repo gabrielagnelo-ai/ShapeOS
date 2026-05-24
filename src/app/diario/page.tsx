@@ -8,7 +8,10 @@ import { addFoodLogAction, deleteFoodLogItemAction } from "./actions";
 export default async function DiarioPage() {
   const { user, profile } = await requireUserProfile();
   const metrics = computeProfileMetrics(profile);
-  const foods = await prisma.food.findMany({ orderBy: { name: "asc" }, take: 100 });
+  const foods = await prisma.food.findMany({
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, category: true },
+  });
   const log = await prisma.foodLog.findFirst({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
     include: { items: { include: { food: true }, orderBy: { id: "desc" } } },
@@ -64,16 +67,25 @@ export default async function DiarioPage() {
         <GlassCard>
           <h2 className="text-xl font-semibold">Registrar alimento</h2>
           <form action={addFoodLogAction} className="mt-5 grid gap-3">
-            <select name="foodId" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none" required>
-              <option value="">Selecione um alimento</option>
-              {foods.map((food) => <option key={food.id} value={food.id}>{food.name}</option>)}
-            </select>
+            <input
+              name="foodQuery"
+              list="diario-food-options"
+              className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none"
+              placeholder="Digite o alimento. Ex: frango, arroz, banana"
+              required
+            />
             <input name="grams" inputMode="decimal" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none" placeholder="Gramas. Ex: 150" required />
             <select name="mealName" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none">
               {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
             </select>
             <button className="rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Adicionar ao dia</button>
           </form>
+          <datalist id="diario-food-options">
+            {foods.map((food) => <option key={food.id} value={food.name} label={food.category} />)}
+          </datalist>
+          <p className="mt-3 text-sm leading-6 text-zinc-500">
+            A busca funciona como um Ctrl+F: digite parte do nome e confirme as gramas.
+          </p>
         </GlassCard>
         <GlassCard>
           <h2 className="text-xl font-semibold">Progresso de hoje</h2>

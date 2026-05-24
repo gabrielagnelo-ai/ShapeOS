@@ -38,7 +38,7 @@ export function SexAwareMeasurements({ className }: { className: string }) {
           <input
             name="hipCm"
             className={className}
-            placeholder="cm. Obrigatorio para mulheres"
+            placeholder="cm. Obrigatório para mulheres"
             required
           />
           <p className="mt-2 text-xs leading-5 text-zinc-500">

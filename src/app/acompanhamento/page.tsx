@@ -63,7 +63,7 @@ export default async function AcompanhamentoPage() {
           </form>
         </GlassCard>
         <GlassCard>
-          <h2 className="text-xl font-semibold">Ajuste automatico</h2>
+          <h2 className="text-xl font-semibold">Ajuste automático</h2>
           <p className="mt-3 text-zinc-400">{adjustment.reason}</p>
           <p className="mt-5 text-4xl font-semibold text-lime-300">{adjustment.delta > 0 ? "+" : ""}{adjustment.delta} kcal</p>
           <div className="mt-6 grid gap-3">
