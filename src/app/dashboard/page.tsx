@@ -7,7 +7,7 @@ import { ProgressRing } from "@/components/ui/progress-ring";
 import { getCurrentUser } from "@/lib/auth";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
-import { normalizeMealName } from "@/lib/meals";
+import { mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
@@ -41,6 +41,7 @@ export default async function DashboardPage() {
     where: { userId: user.id, isActive: true },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
   });
+  const activePlanMeals = activePlan ? sortMeals(activePlan.meals) : [];
   const latestBody = await prisma.bodyCompositionSnapshot.findFirst({
     where: { userId: user.id },
     orderBy: { measuredAt: "desc" },
@@ -129,7 +130,7 @@ export default async function DashboardPage() {
     fat: percent(consumed.fatG, targets.fatG),
   };
   const activePlanTotals = activePlan
-    ? activePlan.meals.flatMap((meal) => meal.items).reduce(
+    ? activePlanMeals.flatMap((meal) => meal.items).reduce(
         (acc, item) => {
           const nutrients = nutrientsForGrams({
             name: item.food.name,
@@ -245,7 +246,7 @@ export default async function DashboardPage() {
             ) : null}
           </div>
           <div className="grid gap-3 p-4 md:p-5">
-            {activePlan ? activePlan.meals.map((meal) => {
+            {activePlan ? activePlanMeals.map((meal) => {
               const totals = meal.items.reduce(
                 (acc, item) => {
                   const n = nutrientsForGrams({
@@ -447,6 +448,10 @@ function coachCategoryLabel(category: string) {
   };
 
   return labels[category] ?? category;
+}
+
+function sortMeals<T extends { name: string; order: number }>(meals: T[]) {
+  return [...meals].sort((a, b) => mealOrder(a.name) - mealOrder(b.name) || a.order - b.order);
 }
 
 function ActionPanel({ icon, title, text, href }: { icon: React.ReactNode; title: string; text: string; href: string }) {

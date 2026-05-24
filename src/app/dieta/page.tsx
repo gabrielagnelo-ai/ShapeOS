@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
-import { mealNames, normalizeMealName } from "@/lib/meals";
+import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
@@ -27,8 +27,9 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     where: { userId: user.id, isActive: true },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
   });
-  const mealChoices = uniqueMeals([...mealNames, ...(plan?.meals.map((meal) => normalizeMealName(meal.name)) ?? [])]);
-  const activeMealNames = new Set(plan?.meals.map((meal) => normalizeMealName(meal.name)) ?? []);
+  const planMeals = plan ? sortMeals(plan.meals) : [];
+  const mealChoices = uniqueMeals([...mealNames, ...planMeals.map((meal) => normalizeMealName(meal.name))]);
+  const activeMealNames = new Set(planMeals.map((meal) => normalizeMealName(meal.name)));
   const foods = await prisma.food.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
@@ -40,7 +41,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     unitLabel: string;
     pricePerKg: number | null;
   }>();
-  plan?.meals.forEach((meal) => meal.items.forEach((item) => {
+  planMeals.forEach((meal) => meal.items.forEach((item) => {
     const factor = cookingYieldFactor(item.food.name, item.food.category);
     const current = shopping.get(item.food.name) ?? {
       category: item.food.category,
@@ -54,7 +55,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     shopping.set(item.food.name, current);
   }));
   const estimatedCost = [...shopping.values()].reduce((total, item) => total + (item.pricePerKg ? (item.buyGrams / 1000) * item.pricePerKg : 0), 0);
-  const totals = plan?.meals.flatMap((meal) => meal.items).reduce(
+  const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
       const n = nutrientsForGrams({
         name: item.food.name,
@@ -161,7 +162,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             </div>
           ) : null}
           <div className="mt-5 space-y-3">
-            {plan ? plan.meals.map((meal) => (
+            {plan ? planMeals.map((meal) => (
               <div key={meal.id} className="rounded-3xl bg-white/[0.04] p-4">
                 <p className="font-medium">{normalizeMealName(meal.name)}</p>
                 <div className="mt-3 grid gap-2">
@@ -309,4 +310,8 @@ function DietTarget({ label, value, detail }: { label: string; value: string; de
 
 function uniqueMeals(meals: string[]) {
   return [...new Set(meals)];
+}
+
+function sortMeals<T extends { name: string; order: number }>(meals: T[]) {
+  return [...meals].sort((a, b) => mealOrder(a.name) - mealOrder(b.name) || a.order - b.order);
 }

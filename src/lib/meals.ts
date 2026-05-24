@@ -1,6 +1,6 @@
 export const baseMealNames = ["Café da manhã", "Almoço", "Pré-treino", "Jantar"] as const;
 export const extraMealNames = ["Lanche da manhã", "Lanche da tarde", "Ceia"] as const;
-export const mealNames = [...baseMealNames, ...extraMealNames] as const;
+export const mealNames = ["Café da manhã", "Lanche da manhã", "Almoço", "Pré-treino", "Lanche da tarde", "Jantar", "Ceia"] as const;
 
 const mealAliases = new Map<string, string>([
   ["cafe da manha", "Café da manhã"],

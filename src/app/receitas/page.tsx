@@ -1,6 +1,7 @@
 ﻿import { BookOpen, Plus, Trash2, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { mealOrder } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
@@ -26,6 +27,7 @@ export default async function ReceitasPage() {
     where: { userId: user.id, isActive: true },
     include: { meals: { orderBy: { order: "asc" }, select: { id: true, name: true } } },
   });
+  const activePlanMeals = activePlan ? [...activePlan.meals].sort((a, b) => mealOrder(a.name) - mealOrder(b.name)) : [];
 
   return (
     <AppShell>
@@ -182,7 +184,7 @@ export default async function ReceitasPage() {
                     <div className="grid gap-2 sm:grid-cols-[80px_1fr_auto]">
                       <input name="portions" defaultValue="1" inputMode="decimal" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
                       <select name="mealId" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
-                        {activePlan.meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
+                        {activePlanMeals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
                       </select>
                       <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white">
                         <BookOpen size={15} />
