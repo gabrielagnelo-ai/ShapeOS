@@ -17,7 +17,7 @@ const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN:
 
 export async function requireUserProfile() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?erro=Sessao nao encontrada. Entre novamente.");
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");

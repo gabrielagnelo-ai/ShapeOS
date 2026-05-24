@@ -10,7 +10,7 @@ const inputClass = "mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black
 
 export default async function ConfiguracoesPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?erro=Sessao nao encontrada. Entre novamente.");
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");

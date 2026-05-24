@@ -30,6 +30,7 @@ export function sessionCookieOptions(expiresAt: Date) {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     expires: expiresAt,
+    maxAge: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
   };
 }
 
@@ -55,20 +56,31 @@ export async function createSession(userId: string) {
 }
 
 export async function getCurrentUser() {
+  const status = await getSessionStatus();
+  return status.user;
+}
+
+export async function getSessionStatus() {
   const cookieStore = await cookies();
   const token = cookieStore.get(sessionCookieName)?.value;
-  if (!token) return null;
+  if (!token) {
+    return { reason: "missing_cookie" as const, user: null, hasCookie: false, hasSession: false };
+  }
 
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashSessionToken(token) },
     include: { user: true },
   });
 
-  if (!session || session.expiresAt < new Date()) {
-    return null;
+  if (!session) {
+    return { reason: "missing_session" as const, user: null, hasCookie: true, hasSession: false };
   }
 
-  return session.user;
+  if (session.expiresAt < new Date()) {
+    return { reason: "expired_session" as const, user: null, hasCookie: true, hasSession: true };
+  }
+
+  return { reason: "authenticated" as const, user: session.user, hasCookie: true, hasSession: true };
 }
 
 export async function clearSession() {

@@ -54,7 +54,7 @@ const fieldNames: Record<string, string> = {
 
 export default async function OnboardingPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?erro=Sessao nao encontrada. Entre novamente.");
 
   return (
     <AppShell>
