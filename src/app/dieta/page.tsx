@@ -11,6 +11,7 @@ import {
   generateAiDietPlanAction,
   generateDietPlanAction,
   removeDietItemAction,
+  updateDietMealsAction,
   updateDietItemGramsAction,
 } from "./actions";
 
@@ -25,6 +26,17 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     where: { userId: user.id, isActive: true },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
   });
+  const mealChoices = uniqueMeals([
+    "Café da manhã",
+    "Lanche da manhã",
+    "Almoço",
+    "Pré-treino",
+    "Lanche da tarde",
+    "Jantar",
+    "Ceia",
+    ...(plan?.meals.map((meal) => meal.name) ?? []),
+  ]);
+  const activeMealNames = new Set(plan?.meals.map((meal) => meal.name) ?? []);
   const foods = await prisma.food.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
@@ -103,6 +115,37 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             </div>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
               Use quando o cliente já tem dieta do nutricionista. Depois adicione alimento e gramas em cada refeição.
+            </p>
+          </form>
+          <form action={updateDietMealsAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="font-semibold">Refeições do plano</p>
+                <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-500">
+                  Marque só as refeições que você realmente faz. Se você treina 6h e não usa pré-treino, desmarque essa opção.
+                </p>
+              </div>
+              <button disabled={!plan} className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40">
+                Salvar refeições
+              </button>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {mealChoices.map((mealName) => (
+                <label key={mealName} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-zinc-200">
+                  <input
+                    type="checkbox"
+                    name="mealNames"
+                    value={mealName}
+                    defaultChecked={!plan || activeMealNames.has(mealName)}
+                    className="h-4 w-4 accent-lime-300"
+                    disabled={!plan}
+                  />
+                  {mealName}
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">
+              Ao remover uma refeição, os alimentos dela saem do plano ativo. Depois gere com IA novamente para redistribuir as calorias nas refeições escolhidas.
             </p>
           </form>
           {plan && totals && planStatus ? (
@@ -212,10 +255,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             {!shopping.size ? <p className="text-zinc-500">Gere um plano para ver a lista.</p> : null}
             {estimatedCost > 0 ? (
               <div className="rounded-2xl border border-lime-300/20 bg-lime-300/10 px-4 py-3 text-lime-100">
-                Custo estimado do periodo: R$ {estimatedCost.toFixed(2)}
+                Custo estimado do período: R$ {estimatedCost.toFixed(2)}
               </div>
             ) : (
-              shopping.size ? <p className="text-xs leading-5 text-zinc-500">Preencha preco por kg dos alimentos para estimar custo da lista.</p> : null
+              shopping.size ? <p className="text-xs leading-5 text-zinc-500">Preencha preço por kg dos alimentos para estimar custo da lista.</p> : null
             )}
           </div>
         </GlassCard>
@@ -270,4 +313,8 @@ function DietTarget({ label, value, detail }: { label: string; value: string; de
       <p className="mt-1 text-xs text-zinc-500">{detail}</p>
     </div>
   );
+}
+
+function uniqueMeals(meals: string[]) {
+  return [...new Set(meals)];
 }

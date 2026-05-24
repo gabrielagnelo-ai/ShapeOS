@@ -12,6 +12,9 @@ type AiMeal = {
   items: Array<{ foodName: string; grams: number }>;
 };
 
+const defaultMealNames = ["Café da manhã", "Almoço", "Pré-treino", "Jantar"];
+const optionalMealNames = ["Lanche da manhã", "Lanche da tarde", "Ceia"];
+
 export async function generateDietPlanAction() {
   const user = await getCurrentUser();
   if (!user) return;
@@ -24,12 +27,14 @@ export async function generateDietPlanAction() {
     where: { name: { in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"] } },
   });
   const byName = new Map(foods.map((food) => [food.name, food]));
-  const meals = [
+  const selectedMealNames = await getPreferredMealNames(user.id);
+  const meals = filterMealsBySelection([
     { name: "Café da manhã", items: [["Aveia em flocos", 60], ["Banana prata", 100], ["Ovo de galinha inteiro", 100]] },
     { name: "Almoço", items: [["Arroz branco cozido", 180], ["Feijao carioca cozido", 120], ["Peito de frango grelhado", 180]] },
     { name: "Pré-treino", items: [["Banana prata", 120], ["Aveia em flocos", 30]] },
     { name: "Jantar", items: [["Tilapia grelhada", 180], ["Batata doce cozida", 220]] },
-  ];
+    { name: "Ceia", items: [["Ovo de galinha inteiro", 100]] },
+  ], selectedMealNames);
 
   await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
   await prisma.dietPlan.create({
@@ -71,6 +76,7 @@ export async function generateAiDietPlanAction(formData: FormData) {
 
   const metrics = computeProfileMetrics(profile);
   const monthlyBudget = Number(String(formData.get("monthlyBudget") ?? "").replace(",", "."));
+  const selectedMealNames = await getPreferredMealNames(user.id);
   const foods = await prisma.food.findMany({ orderBy: { name: "asc" }, take: 80 });
   const foodNames = new Set(foods.map((food) => food.name));
   const byName = new Map(foods.map((food) => [food.name, food]));
@@ -89,6 +95,7 @@ export async function generateAiDietPlanAction(formData: FormData) {
         restrictions: profile.restrictions,
         dietPreference: profile.dietPreference ?? "balanced",
         monthlyBudget: Number.isFinite(monthlyBudget) && monthlyBudget > 0 ? monthlyBudget : undefined,
+        mealNames: selectedMealNames,
       })
     : null;
 
@@ -101,7 +108,7 @@ export async function generateAiDietPlanAction(formData: FormData) {
     userId: user.id,
     profile,
     metrics,
-    meals: validMeals.length ? validMeals : fallbackMeals(),
+    meals: validMeals.length ? validMeals : filterMealsBySelection(fallbackMeals(), selectedMealNames),
     byName,
     name: `Plano IA ${new Date().toLocaleDateString("pt-BR")}`,
   });
@@ -119,7 +126,7 @@ export async function createManualDietPlanAction(formData: FormData) {
 
   const metrics = computeProfileMetrics(profile);
   const name = String(formData.get("name") ?? "").trim() || `Plano manual ${new Date().toLocaleDateString("pt-BR")}`;
-  const mealNames = ["Café da manhã", "Almoço", "Pré-treino", "Jantar"];
+  const mealNames = defaultMealNames;
 
   await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
   await prisma.dietPlan.create({
@@ -142,6 +149,42 @@ export async function createManualDietPlanAction(formData: FormData) {
       },
     },
   });
+
+  revalidatePath("/dieta");
+  revalidatePath("/dashboard");
+}
+
+export async function updateDietMealsAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const selected = formData.getAll("mealNames").map((value) => String(value)).filter(Boolean);
+  if (!selected.length) return;
+
+  const plan = await prisma.dietPlan.findFirst({
+    where: { userId: user.id, isActive: true },
+    include: { meals: { select: { id: true, name: true } } },
+  });
+  if (!plan) return;
+
+  await prisma.dietMeal.deleteMany({
+    where: {
+      dietPlanId: plan.id,
+      name: { notIn: selected },
+    },
+  });
+
+  const existing = new Set(plan.meals.map((meal) => meal.name));
+  const missing = selected.filter((name) => !existing.has(name));
+  if (missing.length) {
+    await prisma.dietMeal.createMany({
+      data: missing.map((name) => ({
+        dietPlanId: plan.id,
+        name,
+        order: mealOrder(name),
+      })),
+    });
+  }
 
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
@@ -218,6 +261,7 @@ async function generateMealsWithGemini(input: {
   restrictions: string[];
   dietPreference: string;
   monthlyBudget?: number;
+  mealNames: string[];
 }): Promise<AiMeal[] | null> {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -227,11 +271,11 @@ async function generateMealsWithGemini(input: {
         role: "user",
         parts: [{
           text: [
-            "Monte uma dieta diaria em portugues do Brasil usando SOMENTE os alimentos da lista.",
+            "Monte uma dieta diária em português do Brasil usando SOMENTE os alimentos da lista.",
             "Responda apenas JSON valido, sem markdown.",
             "Formato: {\"meals\":[{\"name\":\"Café da manhã\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}]}",
             "Use nomes de alimentos exatamente como aparecem na lista.",
-            "Crie 4 refeições: Café da manhã, Almoço, Pré-treino, Jantar.",
+            `Crie exatamente estas refeições, sem adicionar outras: ${input.mealNames.join(", ")}.`,
             "Meta: ficar próximo das calorias e macros. Carboidrato deve ser o restante das calorias depois de proteína e gordura.",
             `Calorias: ${input.targets.calories}`,
             `Proteína: ${input.targets.proteinG}g`,
@@ -239,11 +283,11 @@ async function generateMealsWithGemini(input: {
             `Gordura: ${input.targets.fatG}g`,
             "Também tente favorecer micronutrientes quando possível: cálcio, ferro, magnésio, potássio, zinco, vitamina C, vitamina D e B12.",
             `Evitar alimentos não gostados: ${input.dislikedFoods.join(", ") || "nenhum"}`,
-            `Restricoes: ${input.restrictions.join(", ") || "nenhuma"}`,
+            `Restrições: ${input.restrictions.join(", ") || "nenhuma"}`,
             `Preferencia alimentar: ${describeDietPreference(input.dietPreference)}`,
-            input.monthlyBudget ? `Orcamento mensal aproximado: R$ ${input.monthlyBudget}. Priorize alimentos baratos e repetiveis. Considere cerca de R$ ${(input.monthlyBudget / 30).toFixed(2)} por dia.` : "Sem orcamento informado.",
-            "Se houver pricePerKg nos alimentos, tente respeitar o orcamento. Se faltar preco, priorize alimentos tradicionalmente baratos no Brasil.",
-            `Alimentos disponiveis: ${JSON.stringify(input.foods)}`,
+            input.monthlyBudget ? `Orçamento mensal aproximado: R$ ${input.monthlyBudget}. Priorize alimentos baratos e repetíveis. Considere cerca de R$ ${(input.monthlyBudget / 30).toFixed(2)} por dia.` : "Sem orçamento informado.",
+            "Se houver pricePerKg nos alimentos, tente respeitar o orçamento. Se faltar preço, priorize alimentos tradicionalmente baratos no Brasil.",
+            `Alimentos disponíveis: ${JSON.stringify(input.foods)}`,
           ].join("\n"),
         }],
       }],
@@ -258,10 +302,10 @@ async function generateMealsWithGemini(input: {
 function describeDietPreference(value: string) {
   const descriptions: Record<string, string> = {
     balanced: "equilibrar saciedade, prazer e aderência",
-    satiety: "priorizar saciedade com alimentos volumosos, ricos em proteína, fibra, legumes e frutas; evitar calorias liquidas e alimentos muito densos",
+    satiety: "priorizar saciedade com alimentos volumosos, ricos em proteína, fibra, legumes e frutas; evitar calorias líquidas e alimentos muito densos",
     pleasure: "incluir alimentos mais prazerosos em porções controladas sem ultrapassar macros; preservar aderência psicológica",
-    low_meal_volume: "preferir refeições menores e mais densas, sem volume excessivo; util para quem não gosta de comer muito",
-    simple_repetitive: "usar poucos alimentos, preparo simples e repeticao para facilitar rotina",
+    low_meal_volume: "preferir refeições menores e mais densas, sem volume excessivo; útil para quem não gosta de comer muito",
+    simple_repetitive: "usar poucos alimentos, preparo simples e repetição para facilitar rotina",
   };
   return descriptions[value] ?? descriptions.balanced;
 }
@@ -310,4 +354,24 @@ function fallbackMeals(): AiMeal[] {
     { name: "Pré-treino", items: [{ foodName: "Banana prata", grams: 120 }, { foodName: "Aveia em flocos", grams: 30 }] },
     { name: "Jantar", items: [{ foodName: "Tilapia grelhada", grams: 180 }, { foodName: "Batata doce cozida", grams: 220 }] },
   ];
+}
+
+async function getPreferredMealNames(userId: string) {
+  const activePlan = await prisma.dietPlan.findFirst({
+    where: { userId, isActive: true },
+    include: { meals: { orderBy: { order: "asc" }, select: { name: true } } },
+  });
+
+  const mealNames = activePlan?.meals.map((meal) => meal.name).filter(Boolean) ?? [];
+  return mealNames.length ? mealNames : defaultMealNames;
+}
+
+function filterMealsBySelection<T extends { name: string }>(meals: T[], selectedNames: string[]) {
+  const selected = new Set(selectedNames);
+  const filtered = meals.filter((meal) => selected.has(meal.name));
+  return filtered.length ? filtered : meals.filter((meal) => defaultMealNames.includes(meal.name));
+}
+
+function mealOrder(name: string) {
+  return [...defaultMealNames, ...optionalMealNames].indexOf(name) + 1 || 99;
 }
