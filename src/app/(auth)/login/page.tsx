@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       title="Entrar"
       subtitle="Acesse sua conta para continuar de onde parou."
       error={erro}
-      footer={<>Ainda nao tem conta? <Link className="text-lime-300" href="/cadastro">Criar conta</Link></>}
+      footer={<>Ainda não tem conta? <Link className="text-lime-300" href="/cadastro">Criar conta</Link></>}
     >
       <form action={signInAction} className="grid gap-4">
         <AuthField icon={Mail} label="Email" name="email" type="email" placeholder="voce@email.com" autoComplete="email" required />

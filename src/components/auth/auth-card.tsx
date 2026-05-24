@@ -23,7 +23,7 @@ export function AuthCard({
           <Link href="/" className="inline-flex">
             <Image src="/shapeos-logo.png" alt="ShapeOS" width={1105} height={285} className="h-auto w-[480px]" priority />
           </Link>
-          <h2 className="mt-10 max-w-xl text-5xl font-semibold tracking-tight">Sua dieta e evolucao em um sistema limpo.</h2>
+          <h2 className="mt-10 max-w-xl text-5xl font-semibold tracking-tight">Sua dieta e evolução em um sistema limpo.</h2>
           <p className="mt-5 max-w-lg text-lg leading-8 text-zinc-400">
             Calcule metas, salve seu perfil e acompanhe os ajustes com o Coach IA sem perder o controle.
           </p>

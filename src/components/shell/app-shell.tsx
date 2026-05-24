@@ -6,7 +6,7 @@ const links = [
   { href: "/dashboard", label: "Hoje", icon: Home },
   { href: "/calculadoras", label: "Calculadoras", icon: Calculator },
   { href: "/dieta", label: "Dieta", icon: Utensils },
-  { href: "/diario", label: "Diario", icon: Apple },
+  { href: "/diario", label: "Diário", icon: Apple },
   { href: "/acompanhamento", label: "Semana", icon: BarChart3 },
   { href: "/alimentos", label: "Alimentos", icon: Activity },
   { href: "/receitas", label: "Receitas", icon: ChefHat },
