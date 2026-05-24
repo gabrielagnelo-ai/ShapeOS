@@ -1,80 +1,262 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Activity, ArrowRight, Brain, ShieldCheck, Sparkles, Utensils, type LucideIcon } from "lucide-react";
+import { ArrowRight, Brain, Check, LineChart, LockKeyhole, Scale, ShieldCheck, Sparkles, Utensils, type LucideIcon } from "lucide-react";
 import { CoachBubble } from "@/components/coach/coach-bubble";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { demoMetrics } from "@/lib/demo-data";
 
+const features: Array<[LucideIcon, string, string]> = [
+  [Brain, "Coach silencioso", "Sinais contextuais aparecem quando existe algo para ajustar, sem conversa desnecessaria."],
+  [Utensils, "Dieta por macros", "IA ou plano manual com TACO, receitas, lista de compras e auditoria de gramas."],
+  [LineChart, "Projecoes", "Peso, cintura, BF e massa magra estimada evoluem com historico real de check-ins."],
+  [ShieldCheck, "Seguro por design", "Sem promessas, diagnosticos ou dieta clinica. Alertas claros para procurar profissional."],
+];
+
+const steps = [
+  ["01", "Informe seu perfil", "Altura, peso, medidas, objetivo, atividade e preferencias alimentares."],
+  ["02", "Defina a estrategia", "Guidado ou avancado, deficit, proteina, gordura e coeficiente de atividade."],
+  ["03", "Execute e ajuste", "Registre diario, check-ins e deixe o Coach apontar tendencias antes de mexer no plano."],
+];
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
-      <section className="relative mx-auto grid min-h-screen max-w-7xl content-center px-5 py-20">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(184,255,0,.12),transparent_28%),radial-gradient(circle_at_80%_30%,rgba(10,132,255,.12),transparent_25%)]" />
-        <div className="relative z-10 grid gap-10 lg:grid-cols-[1fr_.9fr] lg:items-center">
-          <div className="max-w-3xl">
-            <Image src="/shapeos-logo.png" alt="ShapeOS" width={1105} height={285} priority className="mb-10 h-auto w-full max-w-xl" />
-            <h1 className="text-5xl font-semibold tracking-tight text-white sm:text-7xl">ShapeOS</h1>
-            <p className="mt-5 max-w-2xl text-xl leading-8 text-zinc-300">
-              Sistema fitness premium para calcular metas, montar dietas brasileiras e receber sinais inteligentes sem ruído de chatbot.
+      <div className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-black/55 backdrop-blur-2xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5">
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/shapeos-icon.png" alt="ShapeOS" width={42} height={42} className="rounded-2xl" priority />
+            <span className="text-lg font-semibold">ShapeOS</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="hidden rounded-full px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white sm:inline-flex">
+              Entrar
+            </Link>
+            <Link href="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black transition hover:bg-lime-200">
+              Criar conta
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <section className="relative mx-auto grid min-h-screen max-w-7xl content-center px-5 pb-16 pt-28">
+        <Image
+          src="/shapeos-logo.png"
+          alt=""
+          width={1105}
+          height={285}
+          priority
+          className="pointer-events-none absolute left-1/2 top-28 w-[980px] max-w-none -translate-x-1/2 opacity-[0.07] blur-[1px]"
+        />
+        <div className="relative z-10 grid gap-10 lg:grid-cols-[1fr_.92fr] lg:items-center">
+          <div className="animate-rise">
+            <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-4 py-2 text-sm text-lime-200">
+              <Sparkles size={16} />
+              Inteligencia para sua melhor versao
+            </div>
+            <h1 className="mt-8 max-w-4xl text-6xl font-semibold tracking-tight text-white md:text-7xl">
+              Dieta, progresso e ajustes em um sistema que pensa com voce.
+            </h1>
+            <p className="mt-6 max-w-2xl text-xl leading-9 text-zinc-300">
+              O ShapeOS transforma medidas, macros, check-ins e preferencias em um plano fitness claro, elegante e acionavel.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-6 py-3 font-medium text-black transition hover:bg-lime-200">
-                Criar conta <ArrowRight size={18} />
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link href="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-6 py-3 font-semibold text-black transition hover:bg-lime-200">
+                Comecar agora
+                <ArrowRight size={18} />
               </Link>
-              <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 font-medium text-white transition hover:bg-white/10">
-                Entrar
+              <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
+                Ja tenho conta
               </Link>
             </div>
-            <p className="mt-6 max-w-xl text-sm leading-6 text-zinc-500">
-              O ShapeOS nao substitui medico ou nutricionista. Em diabetes, doenca renal, gestacao, transtornos alimentares, doenca cardiaca ou uso de medicamentos, procure um profissional.
-            </p>
+            <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
+              <Proof value="597" label="alimentos TACO" />
+              <Proof value="IA" label="dietas e sinais" />
+              <Proof value="BF" label="historico salvo" />
+            </div>
           </div>
 
-          <div className="grid gap-4">
-            <GlassCard className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-zinc-400">Hoje</p>
-                  <p className="mt-2 text-4xl font-semibold">{demoMetrics.targets.calories - 680} kcal</p>
-                  <p className="mt-1 text-sm text-lime-300">restantes</p>
-                </div>
-                <ProgressRing value={68} label="aderencia" />
+          <div className="animate-rise-delayed">
+            <DashboardPreview />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-10">
+        <div className="grid gap-4 md:grid-cols-4">
+          {features.map(([Icon, title, text]) => (
+            <GlassCard key={title} className="group min-h-56 p-5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-lime-300 transition group-hover:bg-lime-300 group-hover:text-black">
+                <Icon size={20} />
               </div>
+              <h2 className="mt-5 text-lg font-semibold">{title}</h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p>
             </GlassCard>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                ["BMR", demoMetrics.bmr],
-                ["TDEE", demoMetrics.tdee],
-                ["IMC", demoMetrics.bmi],
-              ].map(([label, value]) => (
-                <GlassCard key={label} className="p-5">
-                  <p className="text-sm text-zinc-500">{label}</p>
-                  <p className="mt-3 text-2xl font-semibold">{value}</p>
-                </GlassCard>
-              ))}
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-5 px-5 py-12 lg:grid-cols-[.85fr_1.15fr]">
+        <div className="self-center">
+          <p className="text-sm text-lime-300">Sem achismo</p>
+          <h2 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">O app sabe quando manter, ajustar ou investigar.</h2>
+          <p className="mt-5 text-lg leading-8 text-zinc-400">
+            Se o peso trava, a cintura cai, a proteina desanda ou o sono piora, o Coach traduz o padrao em uma acao simples.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {steps.map(([number, title, text]) => (
+            <div key={number} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 transition hover:border-lime-300/30 hover:bg-white/[0.07]">
+              <p className="text-sm text-lime-300">{number}</p>
+              <h3 className="mt-8 text-xl font-semibold">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {([
-                [Brain, "Coach IA", "Insights contextuais, discretos e acionaveis."],
-                [Utensils, "Dieta", "Macros por refeicao, compras e receitas."],
-                [Activity, "Evolucao", "Check-ins, aderencia e ajuste automatico."],
-                [ShieldCheck, "Etica", "Sem promessas, diagnosticos ou dieta clinica."],
-              ] as Array<[LucideIcon, string, string]>).map(([Icon, title, text]) => (
-                <GlassCard key={String(title)} className="p-5">
-                  <Icon className="mb-4 text-lime-300" size={22} />
-                  <h2 className="font-semibold">{title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
-                </GlassCard>
-              ))}
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-12">
+        <div className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.05]">
+          <div className="grid gap-0 lg:grid-cols-2">
+            <div className="p-6 md:p-10">
+              <p className="text-sm text-lime-300">Para usuario real</p>
+              <h2 className="mt-3 text-4xl font-semibold tracking-tight">Manual quando tem nutri. IA quando precisa montar do zero.</h2>
+              <p className="mt-5 text-lg leading-8 text-zinc-400">
+                O ShapeOS respeita dieta prescrita, permite montar refeicoes por alimento e ainda gera lista de compras quinzenal ou mensal.
+              </p>
+              <div className="mt-7 grid gap-3">
+                {["Montador manual com busca tipo Ctrl+F", "Receitas com macros por porcao", "Lista de compras com fator de coccao", "Favoritos e bloqueios para personalizar a IA"].map((item) => (
+                  <div key={item} className="flex items-center gap-3 text-zinc-200">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-lime-300 text-black"><Check size={14} /></span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="min-h-96 border-t border-white/10 bg-black/35 p-6 lg:border-l lg:border-t-0">
+              <MealMock />
             </div>
           </div>
         </div>
       </section>
-      <CoachBubble message="Seu peso estabilizou por 14 dias. Talvez seja hora de revisar calorias." />
-      <div className="fixed left-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-300 backdrop-blur-xl">
-        <Sparkles size={16} className="text-lime-300" /> Inteligencia para sua melhor versao
-      </div>
+
+      <section className="mx-auto max-w-7xl px-5 py-12 pb-24">
+        <div className="rounded-[36px] border border-lime-300/20 bg-lime-300/10 p-6 text-center md:p-12">
+          <LockKeyhole className="mx-auto text-lime-300" size={28} />
+          <h2 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
+            Comece com calculos. Continue com acompanhamento.
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
+            O ShapeOS nao substitui medico ou nutricionista. Em diabetes, doenca renal, gestacao, transtornos alimentares, doenca cardiaca ou uso de medicamentos, procure um profissional.
+          </p>
+          <Link href="/cadastro" className="mt-8 inline-flex items-center gap-2 rounded-full bg-lime-300 px-7 py-3 font-semibold text-black transition hover:bg-lime-200">
+            Criar minha conta
+            <ArrowRight size={18} />
+          </Link>
+        </div>
+      </section>
+
+      <CoachBubble message="Seu deficit atual pode estar agressivo demais. Revise calorias antes que performance e massa magra sofram." />
     </main>
+  );
+}
+
+function DashboardPreview() {
+  return (
+    <div className="relative">
+      <div className="absolute -inset-4 rounded-[44px] border border-lime-300/10" />
+      <div className="relative rounded-[40px] border border-white/10 bg-[#111111]/90 p-4 shadow-2xl shadow-black/60 backdrop-blur-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <Image src="/shapeos-icon.png" alt="" width={40} height={40} className="rounded-2xl" />
+            <div>
+              <p className="font-semibold">Hoje</p>
+              <p className="text-sm text-zinc-500">Gabriel, plano ativo</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-lime-300 px-3 py-1 text-sm font-semibold text-black">64%</span>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto]">
+          <div>
+            <p className="text-sm text-zinc-500">Calorias restantes</p>
+            <p className="mt-2 text-5xl font-semibold">{demoMetrics.targets.calories - 680}</p>
+            <div className="mt-5 grid gap-3">
+              <MiniBar label="Proteina" value="138/210g" pct={66} color="#7dd3fc" />
+              <MiniBar label="Carbo" value="180/260g" pct={69} color="#b8ff00" />
+              <MiniBar label="Gordura" value="52/94g" pct={55} color="#fbbf24" />
+            </div>
+          </div>
+          <ProgressRing value={64} label="dia" />
+        </div>
+        <div className="mt-5 grid gap-3">
+          <InsightCard icon={Sparkles} title="Coach" text="Seu peso estabilizou. Confira cintura antes de reduzir calorias." />
+          <InsightCard icon={Scale} title="Projecao" text="-0,6 kg/semana se a tendencia atual continuar." />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MealMock() {
+  const meals = [
+    ["Cafe da manha", "Aveia + banana + ovos", "520 kcal"],
+    ["Almoco", "Arroz + feijao + frango", "780 kcal"],
+    ["Pre-treino", "Whey + banana", "310 kcal"],
+    ["Jantar", "Tilapia + batata doce", "610 kcal"],
+  ];
+  return (
+    <div className="grid h-full content-center gap-3">
+      {meals.map(([name, items, kcal], index) => (
+        <div key={name} className="animate-float-subtle rounded-3xl border border-white/10 bg-white/[0.05] p-4" style={{ animationDelay: `${index * 140}ms` }}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="font-semibold">{name}</p>
+              <p className="mt-1 text-sm text-zinc-500">{items}</p>
+            </div>
+            <p className="text-sm font-semibold text-zinc-200">{kcal}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Proof({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/[0.05] px-4 py-3">
+      <p className="text-xl font-semibold">{value}</p>
+      <p className="text-xs text-zinc-500">{label}</p>
+    </div>
+  );
+}
+
+function MiniBar({ label, value, pct, color }: { label: string; value: string; pct: number; color: string }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-zinc-400">{label}</span>
+        <span className="text-zinc-200">{value}</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return (
+    <div className="rounded-3xl bg-white/[0.05] p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">
+          <Icon size={18} />
+        </div>
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-zinc-400">{text}</p>
+        </div>
+      </div>
+    </div>
   );
 }
