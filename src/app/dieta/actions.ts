@@ -24,10 +24,7 @@ export async function generateDietPlanAction() {
 
   const metrics = computeProfileMetrics(profile);
   const foods = await prisma.food.findMany({
-    where: {
-      OR: [{ createdByUserId: null }, { createdByUserId: user.id }],
-      name: { in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"] },
-    },
+    where: { name: { in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"] } },
   });
   const byName = new Map(foods.map((food) => [food.name, food]));
   const selectedMealNames = await getPreferredMealNames(user.id);
@@ -80,11 +77,7 @@ export async function generateAiDietPlanAction(formData: FormData) {
   const metrics = computeProfileMetrics(profile);
   const monthlyBudget = Number(String(formData.get("monthlyBudget") ?? "").replace(",", "."));
   const selectedMealNames = await getPreferredMealNames(user.id);
-  const foods = await prisma.food.findMany({
-    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
-    orderBy: { name: "asc" },
-    take: 80,
-  });
+  const foods = await prisma.food.findMany({ orderBy: { name: "asc" }, take: 80 });
   const foodNames = new Set(foods.map((food) => food.name));
   const byName = new Map(foods.map((food) => [food.name, food]));
   const meals = process.env.GEMINI_API_KEY
@@ -214,8 +207,8 @@ export async function addManualDietItemAction(formData: FormData) {
   if (!meal) return;
 
   const food = foodId
-    ? await prisma.food.findFirst({ where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] }, select: { id: true } })
-    : await findFoodByQuery(foodQuery, user.id);
+    ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
+    : await findFoodByQuery(foodQuery);
   if (!food) return;
 
   await prisma.dietMealItem.create({

@@ -1,14 +1,5 @@
 import { prisma } from "@/lib/prisma";
 
-export function visibleFoodWhere(userId: string) {
-  return {
-    OR: [
-      { createdByUserId: null },
-      { createdByUserId: userId },
-    ],
-  };
-}
-
 export function normalizeFoodQuery(value: string) {
   return value
     .normalize("NFD")
@@ -19,19 +10,18 @@ export function normalizeFoodQuery(value: string) {
     .trim();
 }
 
-export async function findFoodByQuery(query: string, userId: string) {
+export async function findFoodByQuery(query: string) {
   const normalized = query.trim();
   if (!normalized) return null;
-  const visible = visibleFoodWhere(userId);
 
   const exact = await prisma.food.findFirst({
-    where: { ...visible, name: { equals: normalized, mode: "insensitive" } },
+    where: { name: { equals: normalized, mode: "insensitive" } },
     select: { id: true },
   });
   if (exact) return exact;
 
   const contains = await prisma.food.findFirst({
-    where: { ...visible, name: { contains: normalized, mode: "insensitive" } },
+    where: { name: { contains: normalized, mode: "insensitive" } },
     orderBy: [{ source: "asc" }, { name: "asc" }],
     select: { id: true },
   });
@@ -42,7 +32,6 @@ export async function findFoodByQuery(query: string, userId: string) {
 
   return prisma.food.findFirst({
     where: {
-      ...visible,
       AND: terms.map((term) => ({
         name: { contains: term, mode: "insensitive" as const },
       })),

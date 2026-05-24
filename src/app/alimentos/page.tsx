@@ -28,10 +28,8 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
   const grams = parseGrams(params.gramas) ?? 100;
   const onlyFavorites = params.favoritos === "1";
   const onlyBlocked = params.bloqueados === "1";
-  const visibleFood = { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] };
 
   const categories = await prisma.food.findMany({
-    where: visibleFood,
     distinct: ["category"],
     orderBy: { category: "asc" },
     select: { category: true },
@@ -43,7 +41,6 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
 
   const foods = await prisma.food.findMany({
     where: {
-      ...visibleFood,
       ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
       ...(category ? { category } : {}),
       ...(onlyFavorites ? { id: { in: favoriteIds.length ? favoriteIds : ["__none__"] } } : {}),
@@ -57,9 +54,9 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
     include: { meals: { orderBy: { order: "asc" }, select: { id: true, name: true } } },
   });
 
-  const totalFoods = await prisma.food.count({ where: visibleFood });
+  const totalFoods = await prisma.food.count();
   const tacoFoods = await prisma.food.count({ where: { source: "TACO 4a edicao" } });
-  const customFoods = await prisma.food.count({ where: { createdByUserId: user.id } });
+  const communityFoods = await prisma.food.count({ where: { source: "Usuário" } });
 
   return (
     <AppShell>
@@ -74,7 +71,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
         <div className="grid grid-cols-3 gap-2 text-center text-sm">
           <Metric label="base" value={totalFoods} />
           <Metric label="TACO" value={tacoFoods} />
-          <Metric label="meus" value={customFoods} />
+          <Metric label="usuários" value={communityFoods} />
         </div>
       </div>
 
@@ -86,7 +83,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
               Use para alimentos que não existem na TACO. Os valores devem ser por 100g, como no rótulo ou na tabela que você usa.
             </p>
           </div>
-          <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-200">visível só para você</span>
+          <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-200">disponível para todos</span>
         </div>
         <form action={createCustomFoodAction} className="mt-5 grid gap-3">
           <div className="grid gap-3 md:grid-cols-[1fr_220px]">

@@ -13,7 +13,7 @@ export async function createRecipeAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const servings = Number(formData.get("servings") ?? 1);
   const instructions = String(formData.get("instructions") ?? "").trim();
-  const items = await parseRecipeItems(formData, user.id);
+  const items = await parseRecipeItems(formData);
   if (!name || items.length === 0) return;
 
   await prisma.recipe.create({
@@ -108,7 +108,7 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-async function parseRecipeItems(formData: FormData, userId: string) {
+async function parseRecipeItems(formData: FormData) {
   const items: Array<{ foodId: string; grams: number }> = [];
 
   for (let index = 0; index < 6; index += 1) {
@@ -118,8 +118,8 @@ async function parseRecipeItems(formData: FormData, userId: string) {
     if ((!foodId && !foodQuery) || !grams) continue;
 
     const food = foodId
-      ? await prisma.food.findFirst({ where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: userId }] }, select: { id: true } })
-      : await findFoodByQuery(foodQuery, userId);
+      ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
+      : await findFoodByQuery(foodQuery);
     if (food) items.push({ foodId: food.id, grams });
   }
 

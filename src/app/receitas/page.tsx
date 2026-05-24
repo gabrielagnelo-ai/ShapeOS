@@ -14,7 +14,6 @@ import {
 export default async function ReceitasPage() {
   const { user } = await requireUserProfile();
   const foods = await prisma.food.findMany({
-    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
   });

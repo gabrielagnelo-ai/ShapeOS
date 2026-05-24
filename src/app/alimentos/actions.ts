@@ -46,10 +46,7 @@ export async function toggleFavoriteFoodAction(formData: FormData) {
 
   const foodId = String(formData.get("foodId") ?? "");
   if (!foodId) return;
-  const food = await prisma.food.findFirst({
-    where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
-    select: { id: true },
-  });
+  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } });
   if (!food) return;
 
   const existing = await prisma.foodPreference.findUnique({
@@ -71,10 +68,7 @@ export async function toggleBlockedFoodAction(formData: FormData) {
 
   const foodId = String(formData.get("foodId") ?? "");
   if (!foodId) return;
-  const food = await prisma.food.findFirst({
-    where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
-    select: { id: true },
-  });
+  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } });
   if (!food) return;
 
   const existing = await prisma.foodPreference.findUnique({
@@ -98,10 +92,7 @@ export async function addFoodFromLibraryToDiaryAction(formData: FormData) {
   const mealName = String(formData.get("mealName") ?? "Refeição");
   const grams = parseGrams(formData.get("grams"));
   if (!foodId || !grams) return;
-  const food = await prisma.food.findFirst({
-    where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
-    select: { id: true },
-  });
+  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } });
   if (!food) return;
 
   let log = await prisma.foodLog.findFirst({
@@ -124,10 +115,7 @@ export async function addFoodFromLibraryToPlanAction(formData: FormData) {
   const mealId = String(formData.get("mealId") ?? "");
   const grams = parseGrams(formData.get("grams"));
   if (!foodId || !mealId || !grams) return;
-  const food = await prisma.food.findFirst({
-    where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
-    select: { id: true },
-  });
+  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } });
   if (!food) return;
 
   const meal = await prisma.dietMeal.findFirst({

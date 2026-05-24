@@ -38,7 +38,6 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   ]);
   const activeMealNames = new Set(plan?.meals.map((meal) => meal.name) ?? []);
   const foods = await prisma.food.findMany({
-    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
   });
