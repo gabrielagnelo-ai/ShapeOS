@@ -1,0 +1,328 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum Goal {
+  FAT_LOSS
+  MAINTENANCE
+  MUSCLE_GAIN
+}
+
+enum Experience {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum AppMode {
+  GUIDED
+  ADVANCED
+}
+
+enum InsightStatus {
+  NEW
+  SEEN
+  RESOLVED
+}
+
+enum InsightCategory {
+  NUTRITION
+  WEIGHT
+  SLEEP
+  ADHERENCE
+  TRAINING
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  profile        Profile?
+  dietPlans      DietPlan[]
+  foodLogs       FoodLog[]
+  weeklyCheckins WeeklyCheckin[]
+  bodyCompositionSnapshots BodyCompositionSnapshot[]
+  insights       CoachInsight[]
+  recipes        Recipe[]
+  sessions       Session[]
+  foodPreferences FoodPreference[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model Profile {
+  id                 String     @id @default(cuid())
+  userId             String     @unique @map("user_id")
+  sex                Sex
+  age                Int
+  heightCm           Float      @map("height_cm")
+  weightKg           Float      @map("weight_kg")
+  neckCm             Float?     @map("neck_cm")
+  waistCm            Float?     @map("waist_cm")
+  hipCm              Float?     @map("hip_cm")
+  goal               Goal
+  activityFactor     Float      @map("activity_factor")
+  experience         Experience
+  restrictions       String[]
+  allergies          String[]
+  dislikedFoods      String[]   @map("disliked_foods")
+  medicalConditions  String[]   @map("medical_conditions")
+  dietPreference     String?    @map("diet_preference")
+  mode               AppMode
+  targetCalories     Int?       @map("target_calories")
+  calorieDeficitKcal Int?       @map("calorie_deficit_kcal")
+  proteinPerKg       Float?     @map("protein_per_kg")
+  fatPerKg           Float?     @map("fat_per_kg")
+  carbsPerKg         Float?     @map("carbs_per_kg")
+  mealsPerDay        Int        @default(4) @map("meals_per_day")
+  fiberTargetG       Float?     @map("fiber_target_g")
+  sodiumLimitMg      Float?     @map("sodium_limit_mg")
+  calciumTargetMg    Float?     @map("calcium_target_mg")
+  ironTargetMg       Float?     @map("iron_target_mg")
+  magnesiumTargetMg  Float?     @map("magnesium_target_mg")
+  potassiumTargetMg  Float?     @map("potassium_target_mg")
+  zincTargetMg       Float?     @map("zinc_target_mg")
+  vitaminCTargetMg   Float?     @map("vitamin_c_target_mg")
+  vitaminDTargetMcg  Float?     @map("vitamin_d_target_mcg")
+  vitaminB12TargetMcg Float?    @map("vitamin_b12_target_mcg")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Food {
+  id             String   @id @default(cuid())
+  name           String
+  category       String
+  kcalPer100g    Float    @map("kcal_per_100g")
+  proteinPer100g Float    @map("protein_per_100g")
+  carbsPer100g   Float    @map("carbs_per_100g")
+  fatPer100g     Float    @map("fat_per_100g")
+  fiberPer100g   Float?   @map("fiber_per_100g")
+  sodiumPer100g  Float?   @map("sodium_per_100g")
+  calciumPer100g Float?   @map("calcium_per_100g")
+  ironPer100g    Float?   @map("iron_per_100g")
+  magnesiumPer100g Float? @map("magnesium_per_100g")
+  potassiumPer100g Float? @map("potassium_per_100g")
+  zincPer100g    Float?   @map("zinc_per_100g")
+  vitaminCPer100g Float?  @map("vitamin_c_per_100g")
+  vitaminDPer100g Float?  @map("vitamin_d_per_100g")
+  vitaminB12Per100g Float? @map("vitamin_b12_per_100g")
+  pricePerKg      Float?   @map("price_per_kg")
+  source         String   @default("Seed ShapeOS")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  dietItems DietMealItem[]
+  foodLogs  FoodLogItem[]
+  recipeItems RecipeItem[]
+  preferences FoodPreference[]
+
+  @@index([name])
+  @@map("food")
+}
+
+model FoodPreference {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  foodId     String   @map("food_id")
+  isFavorite Boolean  @default(false) @map("is_favorite")
+  isBlocked  Boolean  @default(false) @map("is_blocked")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  food Food @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, foodId])
+  @@index([userId, isFavorite])
+  @@index([userId, isBlocked])
+  @@map("food_preferences")
+}
+
+model DietPlan {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  name            String
+  goal            Goal
+  targetCalories  Int      @map("target_calories")
+  targetProteinG  Float    @map("target_protein_g")
+  targetCarbsG    Float    @map("target_carbs_g")
+  targetFatG      Float    @map("target_fat_g")
+  targetFiberG    Float?   @map("target_fiber_g")
+  sodiumLimitMg   Float?   @map("sodium_limit_mg")
+  isActive        Boolean  @default(false) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals DietMeal[]
+
+  @@map("diet_plans")
+}
+
+model DietMeal {
+  id         String @id @default(cuid())
+  dietPlanId String @map("diet_plan_id")
+  name       String
+  order      Int
+  macroShare Json?
+
+  dietPlan DietPlan       @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+  items    DietMealItem[]
+
+  @@map("diet_meals")
+}
+
+model DietMealItem {
+  id         String  @id @default(cuid())
+  mealId     String  @map("meal_id")
+  foodId     String  @map("food_id")
+  grams      Float
+  isFixed    Boolean @default(false) @map("is_fixed")
+  isBlocked  Boolean @default(false) @map("is_blocked")
+
+  meal DietMeal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food Food     @relation(fields: [foodId], references: [id])
+
+  @@map("diet_meal_items")
+}
+
+model FoodLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      DateTime
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items FoodLogItem[]
+
+  @@index([userId, date])
+  @@map("food_logs")
+}
+
+model FoodLogItem {
+  id        String @id @default(cuid())
+  foodLogId String @map("food_log_id")
+  foodId    String @map("food_id")
+  mealName  String @map("meal_name")
+  grams     Float
+
+  foodLog FoodLog @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
+  food    Food    @relation(fields: [foodId], references: [id])
+
+  @@map("food_log_items")
+}
+
+model WeeklyCheckin {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  weekStart       DateTime @map("week_start")
+  averageWeightKg Float    @map("average_weight_kg")
+  waistCm         Float?   @map("waist_cm")
+  adherencePct    Float    @map("adherence_pct")
+  hunger          Int
+  energy          Int
+  sleep           Int
+  trainingDone    Boolean  @map("training_done")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, weekStart])
+  @@map("weekly_checkins")
+}
+
+model BodyCompositionSnapshot {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  source         String
+  measuredAt     DateTime @default(now()) @map("measured_at")
+  weightKg       Float    @map("weight_kg")
+  neckCm         Float?   @map("neck_cm")
+  waistCm        Float?   @map("waist_cm")
+  hipCm          Float?   @map("hip_cm")
+  bodyFatPct     Float?   @map("body_fat_pct")
+  leanMassKg     Float?   @map("lean_mass_kg")
+  fatMassKg      Float?   @map("fat_mass_kg")
+  limitation     String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, measuredAt])
+  @@map("body_composition_snapshots")
+}
+
+model CoachInsight {
+  id        String          @id @default(cuid())
+  userId    String          @map("user_id")
+  trigger   String
+  priority  Int
+  status    InsightStatus   @default(NEW)
+  category  InsightCategory
+  message   String
+  metadata  Json?
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, priority])
+  @@map("coach_insights")
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  name        String
+  servings    Int
+  instructions String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user  User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items RecipeItem[]
+
+  @@map("recipes")
+}
+
+model RecipeItem {
+  id       String @id @default(cuid())
+  recipeId String @map("recipe_id")
+  foodId   String @map("food_id")
+  grams    Float
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  food   Food   @relation(fields: [foodId], references: [id])
+
+  @@map("recipe_items")
+}

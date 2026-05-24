@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "profiles" ADD COLUMN "neck_cm" DOUBLE PRECISION;
+ALTER TABLE "profiles" ADD COLUMN "waist_cm" DOUBLE PRECISION;
+ALTER TABLE "profiles" ADD COLUMN "hip_cm" DOUBLE PRECISION;

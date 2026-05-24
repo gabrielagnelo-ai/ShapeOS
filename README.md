@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ShapeOS
 
-## Getting Started
+MVP fitness premium em portugues do Brasil, inspirado em Apple Health/Fitness e iOS widgets. O app calcula BMR, TDEE, IMC, percentual de gordura estimado, metas de macros, sugestoes de dieta, acompanhamento semanal e insights contextuais do ShapeOS Coach.
 
-First, run the development server:
+## Stack
+
+- Next.js + TypeScript
+- TailwindCSS
+- PostgreSQL + Prisma ORM
+- Zod
+- Auth base com email/senha e bcrypt
+- Vitest para testes unitarios
+
+## Rodando localmente
 
 ```bash
+npm install
+npm run prisma:generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Para Supabase, copie as strings em Project Settings > Database. Use a connection string Postgres, nao a API key do projeto:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run prisma:generate
+npm run prisma:seed
+```
 
-## Learn More
+Para criar as tabelas no banco:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx prisma migrate deploy
+npm run prisma:seed
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Rotas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `/` landing page
+- `/onboarding` cadastro inicial e selecao de modo guiado/avancado
+- `/dashboard` tela Hoje com briefing, macros, refeicoes e Coach
+- `/calculadoras` BMR, TDEE, IMC, gordura estimada e meta calorica
+- `/alimentos` estrutura TACO e amostra de alimentos
+- `/dieta` montador de dieta, trocas, fixos, bloqueios e compras
+- `/diario` consumo real vs meta
+- `/acompanhamento` check-in semanal e ajuste automatico
+- `/coach` engine de insights
+- `/receitas` receitas com macros por porcao
 
-## Deploy on Vercel
+## Arquitetura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `prisma/schema.prisma`: schema completo do MVP
+- `prisma/seed.ts`: seed com mais de 30 alimentos brasileiros comuns
+- `src/lib/nutrition`: funcoes puras para calculos, macros, nutrientes e ajustes
+- `src/lib/coach`: triggers, insights, briefing diario e consistency score
+- `src/lib/validations.ts`: schemas Zod
+- `src/components`: UI reutilizavel em estilo iOS/glass
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## TACO
+
+A tabela `food` foi modelada para compatibilidade com TACO 4a edicao:
+
+- `id`
+- `name`
+- `category`
+- `kcal_per_100g`
+- `protein_per_100g`
+- `carbs_per_100g`
+- `fat_per_100g`
+- `fiber_per_100g`
+- `sodium_per_100g`
+- `source`
+- `created_at`
+
+O arquivo Excel da TACO pode ser convertido futuramente para CSV e importado mapeando cada coluna nutricional para os campos por 100g.
+
+## Testes
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+Cobertura inicial:
+
+- BMR
+- TDEE
+- IMC
+- macros
+- ajustes automaticos
+- triggers do Coach
+
+## Segurança e etica
+
+O ShapeOS nao diagnostica doencas, nao prescreve dieta clinica e nao promete resultados. Usuarios com diabetes, doenca renal, gestacao, transtornos alimentares, doenca cardiaca ou uso de medicamentos devem procurar medico ou nutricionista.
