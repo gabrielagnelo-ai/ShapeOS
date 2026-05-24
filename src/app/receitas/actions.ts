@@ -34,7 +34,7 @@ export async function createRecipeAction(formData: FormData) {
     },
   });
 
-  revalidatePath("/receitas");
+  revalidateRecipePaths();
 }
 
 export async function generateAiRecipeSuggestionAction(formData: FormData) {
@@ -60,8 +60,8 @@ export async function generateAiRecipeSuggestionAction(formData: FormData) {
       })
     : fallbackRecipe(style, query);
 
-  await saveAiRecipe(user.id, recipe, foods);
-  revalidatePath("/receitas");
+  await saveAiRecipe(user.id, recipe, foods, fallbackRecipe(style, query));
+  revalidateRecipePaths();
 }
 
 export async function estimateEatenRecipeAction(formData: FormData) {
@@ -72,6 +72,7 @@ export async function estimateEatenRecipeAction(formData: FormData) {
   if (!description) return;
 
   const foods = await recipeFoodContext(user.id);
+  const fallback = fallbackRecipe("estimate", description);
   const recipe = process.env.GEMINI_API_KEY
     ? await generateRecipeWithGemini({
         mode: "estimate",
@@ -85,10 +86,10 @@ export async function estimateEatenRecipeAction(formData: FormData) {
         },
         foods,
       })
-    : fallbackRecipe("estimate", description);
+    : fallback;
 
-  await saveAiRecipe(user.id, recipe, foods);
-  revalidatePath("/receitas");
+  await saveAiRecipe(user.id, recipe, foods, fallback);
+  revalidateRecipePaths();
 }
 
 export async function deleteRecipeAction(formData: FormData) {
@@ -99,7 +100,7 @@ export async function deleteRecipeAction(formData: FormData) {
   if (!recipeId) return;
 
   await prisma.recipe.deleteMany({ where: { id: recipeId, userId: user.id } });
-  revalidatePath("/receitas");
+  revalidateRecipePaths();
 }
 
 export async function addRecipePortionToDiaryAction(formData: FormData) {
@@ -108,7 +109,7 @@ export async function addRecipePortionToDiaryAction(formData: FormData) {
 
   const recipeId = String(formData.get("recipeId") ?? "");
   const portions = parsePositiveNumber(formData.get("portions")) ?? 1;
-  const mealName = String(formData.get("mealName") ?? "Refeição");
+  const mealName = String(formData.get("mealName") ?? "Refeicao");
   const recipe = await prisma.recipe.findFirst({
     where: { id: recipeId, OR: [{ userId: user.id }, { userId: null }] },
     include: { items: true },
@@ -130,7 +131,7 @@ export async function addRecipePortionToDiaryAction(formData: FormData) {
     })),
   });
 
-  revalidatePath("/receitas");
+  revalidateRecipePaths();
   revalidatePath("/diario");
   revalidatePath("/dashboard");
 }
@@ -163,7 +164,7 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
     })),
   });
 
-  revalidatePath("/receitas");
+  revalidateRecipePaths();
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
 }
@@ -188,14 +189,9 @@ async function parseRecipeItems(formData: FormData) {
 
 async function recipeFoodContext(userId: string) {
   return prisma.food.findMany({
-    where: {
-      OR: [
-        { source: { in: ["TACO 4a edicao", "Seed ShapeOS", "Usuário"] } },
-        { createdByUserId: userId },
-      ],
-    },
+    where: { OR: [{ createdByUserId: userId }, { createdByUserId: null }, { source: { not: "" } }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
-    take: 160,
+    take: 220,
     select: {
       id: true,
       name: true,
@@ -229,22 +225,22 @@ async function generateRecipeWithGemini(input: {
         role: "user",
         parts: [{
           text: [
-            "Você é o motor de receitas do ShapeOS em português do Brasil.",
-            "Responda apenas JSON válido, sem markdown.",
+            "Voce e o motor de receitas do ShapeOS em portugues do Brasil.",
+            "Responda apenas JSON valido, sem markdown.",
             "Formato: {\"name\":\"nome\",\"servings\":1,\"instructions\":\"modo de preparo curto\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}",
             "Use SOMENTE foodName exatamente igual a um alimento da lista.",
-            "Não invente alimentos fora da lista. Se faltar algo, use o substituto mais próximo.",
-            "Não diagnostique, não prometa resultado, não use linguagem clínica.",
+            "Nao invente alimentos fora da lista. Se faltar algo, use o substituto mais proximo.",
+            "Nao diagnostique, nao prometa resultado, nao use linguagem clinica.",
             input.mode === "suggestion"
-              ? "Crie uma receita saudável, prática e realista baseada no estilo escolhido."
-              : "Estime uma receita provável a partir da descrição do usuário. Seja conservador: melhor superestimar levemente do que subestimar calorias.",
+              ? "Crie uma receita saudavel, pratica e realista baseada no estilo escolhido."
+              : "Estime uma receita provavel a partir da descricao do usuario. Seja conservador: melhor superestimar levemente do que subestimar calorias.",
             `Estilo: ${describeRecipeStyle(input.style)}`,
-            `Pedido/descrição: ${input.query || "sem pedido específico"}`,
-            `Preferência alimentar do perfil: ${input.profileContext.dietPreference}`,
-            `Restrições: ${input.profileContext.restrictions.join(", ") || "nenhuma"}`,
+            `Pedido/descricao: ${input.query || "sem pedido especifico"}`,
+            `Preferencia alimentar do perfil: ${input.profileContext.dietPreference}`,
+            `Restricoes: ${input.profileContext.restrictions.join(", ") || "nenhuma"}`,
             `Alergias: ${input.profileContext.allergies.join(", ") || "nenhuma"}`,
-            `Não gosta: ${input.profileContext.dislikedFoods.join(", ") || "nenhum"}`,
-            `Alimentos disponíveis: ${JSON.stringify(input.foods.map((food) => ({
+            `Nao gosta: ${input.profileContext.dislikedFoods.join(", ") || "nenhum"}`,
+            `Alimentos disponiveis: ${JSON.stringify(input.foods.map((food) => ({
               name: food.name,
               category: food.category,
               kcal: food.kcalPer100g,
@@ -264,19 +260,18 @@ async function generateRecipeWithGemini(input: {
   }
 }
 
-async function saveAiRecipe(userId: string, recipe: AiRecipe, foods: Awaited<ReturnType<typeof recipeFoodContext>>) {
+async function saveAiRecipe(userId: string, recipe: AiRecipe, foods: Awaited<ReturnType<typeof recipeFoodContext>>, fallback: AiRecipe) {
   const byName = new Map(foods.map((food) => [food.name, food.id]));
-  const items: Array<{ foodId: string; grams: number }> = [];
+  let items = await resolveRecipeItems(recipe, byName);
 
-  for (const item of recipe.items) {
-    const foodId = byName.get(item.foodName) ?? (await findFoodByQuery(item.foodName))?.id;
-    const grams = Number(item.grams);
-    if (foodId && Number.isFinite(grams) && grams > 0) {
-      items.push({ foodId, grams: Math.round(grams * 10) / 10 });
-    }
+  if (!items.length) {
+    items = await resolveRecipeItems(fallback, byName);
+    recipe = fallback;
   }
 
-  if (!items.length) return;
+  if (!items.length) {
+    throw new Error("Nao foi possivel salvar a receita: nenhum alimento encontrado na base.");
+  }
 
   await prisma.recipe.create({
     data: {
@@ -287,6 +282,20 @@ async function saveAiRecipe(userId: string, recipe: AiRecipe, foods: Awaited<Ret
       items: { create: items },
     },
   });
+}
+
+async function resolveRecipeItems(recipe: AiRecipe, byName: Map<string, string>) {
+  const items: Array<{ foodId: string; grams: number }> = [];
+
+  for (const item of recipe.items) {
+    const foodId = byName.get(item.foodName) ?? (await findFoodByQuery(item.foodName))?.id;
+    const grams = Number(item.grams);
+    if (foodId && Number.isFinite(grams) && grams > 0) {
+      items.push({ foodId, grams: Math.round(grams * 10) / 10 });
+    }
+  }
+
+  return items;
 }
 
 function parseAiRecipe(text: string): AiRecipe | null {
@@ -318,7 +327,7 @@ function fallbackRecipe(style: string, query: string): AiRecipe {
   return {
     name: query ? `Receita IA: ${query}` : "Bowl de frango com arroz e legumes",
     servings: 1,
-    instructions: "Monte uma refeição simples com proteína, carboidrato e vegetais. Ajuste gramas conforme sua meta.",
+    instructions: "Monte uma refeicao simples com proteina, carboidrato e vegetais. Ajuste gramas conforme sua meta.",
     items: [
       { foodName: "Peito de frango grelhado", grams: 160 },
       { foodName: "Arroz branco cozido", grams: 160 },
@@ -329,12 +338,12 @@ function fallbackRecipe(style: string, query: string): AiRecipe {
 
 function describeRecipeStyle(style: string) {
   const labels: Record<string, string> = {
-    satiety: "mais saciedade: volume, fibra, proteína e baixa densidade calórica",
+    satiety: "mais saciedade: volume, fibra, proteina e baixa densidade calorica",
     pleasure: "mais prazer: comida gostosa, ainda controlada em calorias",
-    sweet: "doce saudável: sobremesa ou lanche doce com boa saciedade",
-    high_protein: "alta proteína",
+    sweet: "doce saudavel: sobremesa ou lanche doce com boa saciedade",
+    high_protein: "alta proteina",
     low_calorie: "baixa caloria",
-    simple: "simples, barato e repetível",
+    simple: "simples, barato e repetivel",
     estimate: "estimativa do que foi consumido",
   };
   return labels[style] ?? style;
@@ -343,4 +352,8 @@ function describeRecipeStyle(style: string) {
 function parsePositiveNumber(value: FormDataEntryValue | null) {
   const parsed = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function revalidateRecipePaths() {
+  revalidatePath("/receitas");
 }
