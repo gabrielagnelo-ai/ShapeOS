@@ -1,10 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Brain, Check, LineChart, LockKeyhole, Scale, ShieldCheck, Sparkles, Utensils, type LucideIcon } from "lucide-react";
-import { CoachBubble } from "@/components/coach/coach-bubble";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { demoMetrics } from "@/lib/demo-data";
 
 const features: Array<[LucideIcon, string, string]> = [
   [Brain, "Coach silencioso", "Sinais contextuais aparecem quando existe algo para ajustar, sem conversa desnecessaria."],
@@ -157,7 +155,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <CoachBubble message="Seu deficit atual pode estar agressivo demais. Revise calorias antes que performance e massa magra sofram." />
     </main>
   );
 }
@@ -180,7 +177,7 @@ function DashboardPreview() {
         <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto]">
           <div>
             <p className="text-sm text-zinc-500">Calorias restantes</p>
-            <p className="mt-2 text-5xl font-semibold">{demoMetrics.targets.calories - 680}</p>
+            <p className="mt-2 text-5xl font-semibold">1.842</p>
             <div className="mt-5 grid gap-3">
               <MiniBar label="Proteina" value="138/210g" pct={66} color="#7dd3fc" />
               <MiniBar label="Carbo" value="180/260g" pct={69} color="#b8ff00" />

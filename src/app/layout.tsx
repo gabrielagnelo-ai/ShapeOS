@@ -17,10 +17,10 @@ export const metadata: Metadata = {
   description: "Inteligencia para sua melhor versao.",
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
       { url: "/shapeos-icon.png", type: "image/png" },
     ],
-    apple: "/favicon.png",
+    apple: "/icon.png",
   },
 };
 
