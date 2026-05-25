@@ -53,6 +53,9 @@ model User {
   profile        Profile?
   dietPlans      DietPlan[]
   foodLogs       FoodLog[]
+  waterLogs      WaterLog[]
+  healthDailySummaries HealthDailySummary[]
+  mealPhotoEstimates MealPhotoEstimate[]
   weeklyCheckins WeeklyCheckin[]
   bodyCompositionSnapshots BodyCompositionSnapshot[]
   insights       CoachInsight[]
@@ -112,6 +115,7 @@ model Profile {
   vitaminCTargetMg   Float?     @map("vitamin_c_target_mg")
   vitaminDTargetMcg  Float?     @map("vitamin_d_target_mcg")
   vitaminB12TargetMcg Float?    @map("vitamin_b12_target_mcg")
+  waterPreference     String     @default("medium") @map("water_preference")
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
@@ -245,6 +249,63 @@ model FoodLogItem {
   food    Food    @relation(fields: [foodId], references: [id])
 
   @@map("food_log_items")
+}
+
+model WaterLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      DateTime
+  amountMl  Int      @map("amount_ml")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("water_logs")
+}
+
+model HealthDailySummary {
+  id                  String   @id @default(cuid())
+  userId              String   @map("user_id")
+  date                DateTime
+  steps               Int?
+  activeEnergyKcal    Float?   @map("active_energy_kcal")
+  restingEnergyKcal   Float?   @map("resting_energy_kcal")
+  totalEnergyKcal     Float?   @map("total_energy_kcal")
+  workoutMinutes      Int?     @map("workout_minutes")
+  sleepMinutes        Int?     @map("sleep_minutes")
+  restingHeartRateBpm Int?     @map("resting_heart_rate_bpm")
+  averageHeartRateBpm Int?     @map("average_heart_rate_bpm")
+  source              String   @default("apple_health")
+  syncedAt            DateTime @default(now()) @map("synced_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("health_daily_summaries")
+}
+
+model MealPhotoEstimate {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  mealName        String?  @map("meal_name")
+  description     String?
+  imageMimeType   String?  @map("image_mime_type")
+  estimatedKcal   Float?   @map("estimated_kcal")
+  estimatedProteinG Float? @map("estimated_protein_g")
+  estimatedCarbsG Float?   @map("estimated_carbs_g")
+  estimatedFatG   Float?   @map("estimated_fat_g")
+  confidence      String?
+  rawResult       Json?    @map("raw_result")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("meal_photo_estimates")
 }
 
 model WeeklyCheckin {

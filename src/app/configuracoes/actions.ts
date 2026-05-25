@@ -35,6 +35,7 @@ export async function updateGoalsAction(formData: FormData) {
   const waistCm = optionalDecimal(formData.get("waistCm"));
   const hipCm = profile.sex === "FEMALE" ? optionalDecimal(formData.get("hipCm")) : null;
   const dietPreference = String(formData.get("dietPreference") ?? profile.dietPreference ?? "balanced");
+  const waterPreference = normalizeWaterPreference(String(formData.get("waterPreference") ?? profile.waterPreference ?? "medium"));
 
   const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg });
   const tdee = calculateTdee(bmr, activityFactor);
@@ -73,6 +74,7 @@ export async function updateGoalsAction(formData: FormData) {
       waistCm,
       hipCm,
       dietPreference,
+      waterPreference,
     },
   });
 
@@ -103,4 +105,8 @@ function optionalDecimal(value: FormDataEntryValue | null) {
   if (!value) return null;
   const parsed = parseDecimal(String(value));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeWaterPreference(value: string) {
+  return ["minimum", "medium", "high"].includes(value) ? value : "medium";
 }

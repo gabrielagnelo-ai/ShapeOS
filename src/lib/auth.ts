@@ -50,7 +50,7 @@ export function createSessionCookieValue(userId: string, expiresAt: Date) {
   return `${payload}.${signSessionPayload(payload)}`;
 }
 
-function parseSessionCookieValue(value: string) {
+export function parseSessionCookieValue(value: string) {
   const [version, userId, expiresAtMs, signature] = value.split(".");
 
   if (version !== sessionVersion || !userId || !expiresAtMs || !signature) {
@@ -70,6 +70,24 @@ function parseSessionCookieValue(value: string) {
   }
 
   return { userId, expiresAt };
+}
+
+export async function getUserBySessionToken(token: string | null | undefined) {
+  if (!token) return null;
+
+  const signedSession = parseSessionCookieValue(token);
+  if (signedSession) {
+    if (signedSession.expiresAt < new Date()) return null;
+    return prisma.user.findUnique({ where: { id: signedSession.userId } });
+  }
+
+  const session = await prisma.session.findUnique({
+    where: { tokenHash: hashSessionToken(token) },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date()) return null;
+  return session.user;
 }
 
 export function sessionCookieOptions(expiresAt: Date) {

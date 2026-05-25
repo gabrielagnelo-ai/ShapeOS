@@ -6,6 +6,7 @@ import { DeficitAdvisor } from "@/components/onboarding/deficit-advisor";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics } from "@/lib/profile";
+import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { updateGoalsAction } from "./actions";
 
 const inputClass = "mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/35 px-4 text-white shadow-inner shadow-black/20 outline-none transition placeholder:text-zinc-600 focus:border-lime-300/55 focus:bg-black/50 focus:ring-4 focus:ring-lime-300/10";
@@ -27,6 +28,7 @@ export default async function ConfiguracoesPage() {
   const calorieDeficit = profile.calorieDeficitKcal ?? 400;
   const deficitPct = metrics.tdee ? Math.round((calorieDeficit / metrics.tdee) * 100) : 0;
   const macroCalories = metrics.targets.proteinG * 4 + metrics.targets.fatG * 9 + metrics.targets.carbsG * 4;
+  const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
 
   return (
     <AppShell>
@@ -117,18 +119,27 @@ export default async function ConfiguracoesPage() {
 
           <SectionCard
             icon={<Sparkles size={20} />}
-            title="Preferência da IA"
-            text="Isso muda como o gerador de dieta escolhe alimentos: mais saciedade, mais prazer, menor volume ou mais praticidade."
+            title="Preferências inteligentes"
+            text="Isso muda como a IA escolhe alimentos e como o ShapeOS recomenda hidratação no dia."
           >
-            <Field label="Estilo alimentar">
-              <select name="dietPreference" defaultValue={profile.dietPreference ?? "balanced"} className={inputClass}>
-                <option value="balanced">Equilibrado - saciedade e prazer</option>
-                <option value="satiety">Mais saciedade - volume, fibra e proteína</option>
-                <option value="pleasure">Mais prazer - encaixar alimentos gostosos com controle</option>
-                <option value="low_meal_volume">Comer menos volume - refeições menores e densas</option>
-                <option value="simple_repetitive">Simples e repetitivo - praticidade máxima</option>
-              </select>
-            </Field>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Estilo alimentar">
+                <select name="dietPreference" defaultValue={profile.dietPreference ?? "balanced"} className={inputClass}>
+                  <option value="balanced">Equilibrado - saciedade e prazer</option>
+                  <option value="satiety">Mais saciedade - volume, fibra e proteína</option>
+                  <option value="pleasure">Mais prazer - encaixar alimentos gostosos com controle</option>
+                  <option value="low_meal_volume">Comer menos volume - refeições menores e densas</option>
+                  <option value="simple_repetitive">Simples e repetitivo - praticidade máxima</option>
+                </select>
+              </Field>
+              <Field label="Meta de água" help={`Meta atual estimada: ${formatLiters(waterTarget)} por dia.`}>
+                <select name="waterPreference" defaultValue={profile.waterPreference ?? "medium"} className={inputClass}>
+                  <option value="minimum">Mínimo - 30 ml/kg</option>
+                  <option value="medium">Médio - 35 ml/kg</option>
+                  <option value="high">Elevado - 45 ml/kg</option>
+                </select>
+              </Field>
+            </div>
           </SectionCard>
         </div>
 
@@ -143,6 +154,7 @@ export default async function ConfiguracoesPage() {
               <SummaryLine label="Gasto diário" value={`${metrics.tdee} kcal`} detail={`fator ${formatInput(profile.activityFactor)}`} />
               <SummaryLine label="Déficit" value={`${calorieDeficit} kcal`} detail={`${deficitPct}% do gasto`} tone={deficitPct >= 25 ? "danger" : deficitPct >= 18 ? "warning" : "good"} />
               <SummaryLine label="Macros" value={`${macroCalories} kcal`} detail="P 4 / C 4 / G 9 kcal por g" />
+              <SummaryLine label="Água" value={formatLiters(waterTarget)} detail={`consumo ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
               <SummaryLine label="BF estimado" value={metrics.bodyFat.percentage == null ? "pendente" : `${metrics.bodyFat.percentage}%`} detail="método da Marinha" />
             </div>
           </GlassCard>
@@ -229,4 +241,8 @@ function SummaryLine({ label, value, detail, tone = "neutral" }: { label: string
 
 function formatInput(value: number) {
   return String(value).replace(".", ",");
+}
+
+function formatLiters(valueMl: number) {
+  return `${(valueMl / 1000).toFixed(1).replace(".", ",")} L`;
 }

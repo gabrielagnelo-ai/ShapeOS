@@ -1,9 +1,10 @@
 ﻿import { redirect } from "next/navigation";
-import { Activity, Apple, ArrowRight, BarChart3, Flame, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
+import { Activity, Apple, ArrowRight, BarChart3, Droplets, Flame, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
@@ -11,6 +12,8 @@ import { mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
+import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
+import { addWaterLogAction } from "./actions";
 
 const sexMap = { MALE: "male", FEMALE: "female" } as const;
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
@@ -46,6 +49,10 @@ export default async function DashboardPage() {
     where: { userId: user.id },
     orderBy: { measuredAt: "desc" },
   });
+  const waterLogs = await prisma.waterLog.findMany({
+    where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
+    select: { amountMl: true },
+  });
 
   const sex = sexMap[profile.sex] as Sex;
   const goal = goalMap[profile.goal] as Goal;
@@ -69,6 +76,9 @@ export default async function DashboardPage() {
     fiberG: profile.fiberTargetG ?? 30,
     sodiumMg: profile.sodiumLimitMg ?? 2300,
   });
+  const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
+  const waterConsumed = waterLogs.reduce((total, log) => total + log.amountMl, 0);
+  const waterPct = percent(waterConsumed, waterTarget);
   const consumed = sumNutrients(todayLog?.items.map((item) => ({
     grams: item.grams,
     food: {
@@ -212,12 +222,47 @@ export default async function DashboardPage() {
         </span>
       </a>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-4">
+      <div className="mt-5 grid gap-4 md:grid-cols-5">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
         <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
         <MetricTile icon={<Scale size={18} />} label="Peso" value={`${profile.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
+        <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`meta ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
       </div>
+
+      <GlassCard className="mt-5 border-sky-300/20 bg-sky-300/[0.06]">
+        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-start gap-4">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-300/15 text-sky-200">
+              <Droplets size={22} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold">Hidratação</h2>
+                <span className="rounded-full bg-sky-300/15 px-3 py-1 text-xs font-semibold text-sky-100">{waterPct}%</span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                Meta diária: {formatLiters(waterTarget)}. Você registrou {formatLiters(waterConsumed)} hoje.
+              </p>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-sky-300" style={{ width: `${waterPct}%` }} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            {[250, 500, 750].map((amount) => (
+              <form key={amount} action={addWaterLogAction}>
+                <input type="hidden" name="amountMl" value={amount} />
+                <button className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
+                  +{amount} ml
+                </button>
+              </form>
+            ))}
+            <WaterReminder targetMl={waterTarget} />
+          </div>
+        </div>
+      </GlassCard>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <GlassCard className="overflow-hidden p-0">
@@ -428,6 +473,10 @@ function MacroPill({ label, value }: { label: string; value: number }) {
       <p className="mt-0.5 text-xs text-zinc-300">{value}g</p>
     </div>
   );
+}
+
+function formatLiters(valueMl: number) {
+  return `${(valueMl / 1000).toFixed(1).replace(".", ",")} L`;
 }
 
 function cleanFoodName(name: string) {
