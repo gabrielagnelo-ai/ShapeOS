@@ -56,6 +56,36 @@ export async function logSupplementDoseAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function addSupplementUsagePeriodAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const planId = String(formData.get("planId") ?? "");
+  const startDate = parseDate(String(formData.get("startDate") ?? ""));
+  const endDate = parseDate(String(formData.get("endDate") ?? ""));
+  const dailyDoseG = parsePositiveNumber(formData.get("dailyDoseG"));
+  const adherencePct = clamp(parsePositiveNumber(formData.get("adherencePct")) ?? 100, 0, 100);
+  const note = String(formData.get("note") ?? "").trim();
+  if (!planId || !startDate || !dailyDoseG) return;
+
+  const plan = await prisma.supplementPlan.findFirst({ where: { id: planId, userId: user.id }, select: { id: true } });
+  if (!plan) return;
+
+  await prisma.supplementUsagePeriod.create({
+    data: {
+      planId: plan.id,
+      startDate,
+      endDate: endDate && endDate >= startDate ? endDate : null,
+      dailyDoseG,
+      adherencePct,
+      note: note || null,
+    },
+  });
+
+  revalidatePath("/suplementos");
+  revalidatePath("/dashboard");
+}
+
 export async function archiveSupplementPlanAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
@@ -90,4 +120,8 @@ function startOfToday() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   return date;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }

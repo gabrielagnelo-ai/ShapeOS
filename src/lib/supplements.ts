@@ -7,6 +7,7 @@ export type SupplementPlanInput = {
   dailyDoseG: number;
   startedAt: Date;
   logs: Array<{ date: Date; doseG: number }>;
+  periods?: Array<{ startDate: Date; endDate: Date | null; dailyDoseG: number; adherencePct: number }>;
   now?: Date;
 };
 
@@ -30,10 +31,12 @@ export function estimateSupplementProgress(input: SupplementPlanInput) {
   const elapsedDays = Math.max(1, daysInclusive(input.startedAt, now));
   const expectedDose = input.dailyDoseG * elapsedDays;
   const loggedDose = input.logs.reduce((total, log) => total + Math.max(0, log.doseG), 0);
-  const effectiveDose = Math.max(loggedDose, expectedDose);
+  const periodDose = (input.periods ?? []).reduce((total, period) => total + periodCumulativeDose(period, now), 0);
+  const observedDose = loggedDose + periodDose;
+  const effectiveDose = observedDose > 0 ? observedDose : expectedDose;
   const targetDose = targetCumulativeDose(input.type, input.protocol, input.dailyDoseG);
   const pct = clamp(Math.round((effectiveDose / targetDose) * 100), 0, 100);
-  const adherencePct = clamp(Math.round((loggedDose / Math.max(expectedDose, 1)) * 100), 0, 120);
+  const adherencePct = clamp(Math.round((observedDose / Math.max(expectedDose, 1)) * 100), 0, 120);
   const daysRemaining = Math.max(0, Math.ceil((targetDose - effectiveDose) / Math.max(input.dailyDoseG, 0.1)));
 
   return {
@@ -41,6 +44,8 @@ export function estimateSupplementProgress(input: SupplementPlanInput) {
     elapsedDays,
     daysRemaining,
     loggedDoseG: round(loggedDose),
+    periodDoseG: round(periodDose),
+    totalDoseG: round(observedDose),
     expectedDoseG: round(expectedDose),
     targetDoseG: round(targetDose),
     adherencePct,
@@ -63,6 +68,17 @@ function targetCumulativeDose(type: SupplementType, protocol: SupplementProtocol
   }
 
   return Math.max(112, dailyDoseG * 28);
+}
+
+function periodCumulativeDose(
+  period: { startDate: Date; endDate: Date | null; dailyDoseG: number; adherencePct: number },
+  now: Date,
+) {
+  const endDate = period.endDate && period.endDate < now ? period.endDate : now;
+  if (period.startDate > endDate) return 0;
+  const days = daysInclusive(period.startDate, endDate);
+  const adherence = clamp(period.adherencePct, 0, 100) / 100;
+  return Math.max(0, period.dailyDoseG) * days * adherence;
 }
 
 function guidanceText(type: SupplementType, protocol: SupplementProtocol, pct: number, daysRemaining: number) {

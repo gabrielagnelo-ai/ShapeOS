@@ -32,4 +32,25 @@ describe("estimateSupplementProgress", () => {
     expect(result.percent).toBe(50);
     expect(result.status).toBe("acumulando");
   });
+
+  it("counts imported usage periods with estimated adherence", () => {
+    const result = estimateSupplementProgress({
+      type: "CREATINE",
+      protocol: "STEADY",
+      dailyDoseG: 5,
+      startedAt: new Date("2026-05-01"),
+      now: new Date("2026-05-20"),
+      logs: [],
+      periods: [{
+        startDate: new Date("2026-05-01"),
+        endDate: new Date("2026-05-20"),
+        dailyDoseG: 5,
+        adherencePct: 80,
+      }],
+    });
+
+    expect(result.periodDoseG).toBe(80);
+    expect(result.totalDoseG).toBe(80);
+    expect(result.percent).toBe(57);
+  });
 });

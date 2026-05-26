@@ -12,13 +12,16 @@ import {
   type SupplementProtocol,
   type SupplementType,
 } from "@/lib/supplements";
-import { archiveSupplementPlanAction, createSupplementPlanAction, logSupplementDoseAction } from "./actions";
+import { addSupplementUsagePeriodAction, archiveSupplementPlanAction, createSupplementPlanAction, logSupplementDoseAction } from "./actions";
 
 export default async function SuplementosPage() {
   const { user } = await requireUserProfile();
   const plans = await prisma.supplementPlan.findMany({
     where: { userId: user.id },
-    include: { logs: { orderBy: { date: "desc" }, take: 35 } },
+    include: {
+      logs: { orderBy: { date: "desc" }, take: 35 },
+      periods: { orderBy: { startDate: "desc" } },
+    },
     orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
   });
   const activePlans = plans.filter((plan) => plan.isActive);
@@ -109,6 +112,7 @@ export default async function SuplementosPage() {
             dailyDoseG: plan.dailyDoseG,
             startedAt: plan.startedAt,
             logs: plan.logs,
+            periods: plan.periods,
           });
           const todayLog = plan.logs.find((log) => sameDay(log.date, new Date()));
 
@@ -144,7 +148,7 @@ export default async function SuplementosPage() {
                 <div>
                   <div className="grid gap-2 sm:grid-cols-3">
                     <MiniStat label="Dose/dia" value={`${formatNumber(plan.dailyDoseG)}g`} />
-                    <MiniStat label="Acumulado" value={`${formatNumber(progress.loggedDoseG)}g`} />
+                    <MiniStat label="Acumulado" value={`${formatNumber(progress.totalDoseG)}g`} />
                     <MiniStat label="Aderência" value={`${progress.adherencePct}%`} />
                   </div>
                   <p className="mt-4 text-sm leading-6 text-zinc-400">{progress.guidance}</p>
@@ -153,23 +157,57 @@ export default async function SuplementosPage() {
               </div>
 
               {plan.isActive ? (
-                <div className="mt-6 grid gap-3 md:grid-cols-[1fr_auto]">
-                  <form action={logSupplementDoseAction} className="grid gap-2 rounded-3xl bg-black/25 p-3 sm:grid-cols-[1fr_120px_auto]">
+                <div className="mt-6 grid gap-3">
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                    <form action={logSupplementDoseAction} className="grid gap-2 rounded-3xl bg-black/25 p-3 sm:grid-cols-[1fr_120px_auto]">
+                      <input type="hidden" name="planId" value={plan.id} />
+                      <input name="date" type="date" defaultValue={today} className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
+                      <input name="doseG" inputMode="decimal" defaultValue={todayLog?.doseG ?? plan.dailyDoseG} className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
+                      <button className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
+                        <Check size={15} />
+                        Registrar hoje
+                      </button>
+                    </form>
+                    <form action={archiveSupplementPlanAction}>
+                      <input type="hidden" name="planId" value={plan.id} />
+                      <button className="inline-flex h-full min-h-11 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/15">
+                        <Archive size={15} />
+                        Arquivar
+                      </button>
+                    </form>
+                  </div>
+
+                  <form action={addSupplementUsagePeriodAction} className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-4">
                     <input type="hidden" name="planId" value={plan.id} />
-                    <input name="date" type="date" defaultValue={today} className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
-                    <input name="doseG" inputMode="decimal" defaultValue={todayLog?.doseG ?? plan.dailyDoseG} className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
-                    <button className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
-                      <Check size={15} />
-                      Registrar
-                    </button>
+                    <p className="text-sm font-semibold text-zinc-200">Importar periodo anterior</p>
+                    <p className="mt-1 text-xs text-zinc-500">Informe gramatura e intervalo para calcular o uso passado sem cadastrar dia por dia.</p>
+                    <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_120px_120px]">
+                      <input name="startDate" type="date" className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" required />
+                      <input name="endDate" type="date" className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
+                      <input name="dailyDoseG" inputMode="decimal" defaultValue={plan.dailyDoseG} className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" placeholder="g/dia" required />
+                      <input name="adherencePct" inputMode="decimal" defaultValue="100" className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" placeholder="% uso" />
+                    </div>
+                    <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+                      <input name="note" className="h-11 rounded-2xl bg-white/10 px-3 text-sm outline-none" placeholder="Ex: usava quase todo dia" />
+                      <button className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
+                        Importar periodo
+                      </button>
+                    </div>
                   </form>
-                  <form action={archiveSupplementPlanAction}>
-                    <input type="hidden" name="planId" value={plan.id} />
-                    <button className="inline-flex h-full min-h-11 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/15">
-                      <Archive size={15} />
-                      Arquivar
-                    </button>
-                  </form>
+                </div>
+              ) : null}
+
+              {plan.periods.length ? (
+                <div className="mt-5 rounded-3xl bg-black/20 p-4">
+                  <p className="text-sm font-semibold text-zinc-300">Periodos importados</p>
+                  <div className="mt-3 grid gap-2">
+                    {plan.periods.map((period) => (
+                      <div key={period.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2 text-xs text-zinc-400">
+                        <span>{period.startDate.toLocaleDateString("pt-BR")} ate {period.endDate?.toLocaleDateString("pt-BR") ?? "hoje"}</span>
+                        <span>{formatNumber(period.dailyDoseG)}g/dia - {formatNumber(period.adherencePct)}%</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
 

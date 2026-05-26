@@ -334,6 +334,7 @@ model SupplementPlan {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   logs SupplementLog[]
+  periods SupplementUsagePeriod[]
 
   @@index([userId, isActive])
   @@map("supplement_plans")
@@ -351,6 +352,22 @@ model SupplementLog {
   @@unique([planId, date])
   @@index([planId, date])
   @@map("supplement_logs")
+}
+
+model SupplementUsagePeriod {
+  id          String   @id @default(cuid())
+  planId      String   @map("plan_id")
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  dailyDoseG  Float    @map("daily_dose_g")
+  adherencePct Float   @default(100) @map("adherence_pct")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  plan SupplementPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, startDate])
+  @@map("supplement_usage_periods")
 }
 
 model WeeklyCheckin {
