@@ -17,6 +17,7 @@ import {
   archiveSupplementPlanAction,
   createSupplementPlanAction,
   deleteSupplementLogAction,
+  deleteSupplementPlanAction,
   deleteSupplementUsagePeriodAction,
   logSupplementDoseAction,
   restoreSupplementPlanAction,
@@ -136,7 +137,15 @@ export default async function SuplementosPage() {
                     <h2 className="text-2xl font-semibold">{supplementDisplayName(plan.type as SupplementType)}</h2>
                   </div>
                 </div>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-300">{progress.status}</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-300">{progress.status}</span>
+                  <form action={deleteSupplementPlanAction}>
+                    <input type="hidden" name="planId" value={plan.id} />
+                    <button className="grid size-9 place-items-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir suplemento">
+                      <Trash2 size={15} />
+                    </button>
+                  </form>
+                </div>
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-[180px_1fr] md:items-center">

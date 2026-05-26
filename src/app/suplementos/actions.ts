@@ -142,6 +142,21 @@ export async function restoreSupplementPlanAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function deleteSupplementPlanAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  await prisma.supplementPlan.deleteMany({
+    where: {
+      id: String(formData.get("planId") ?? ""),
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/suplementos");
+  revalidatePath("/dashboard");
+}
+
 function normalizeEnum(value: string, allowed: string[], fallback: string) {
   return allowed.includes(value) ? value : fallback;
 }
