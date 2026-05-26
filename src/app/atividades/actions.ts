@@ -2,14 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { estimateActivityCalories, estimateMetByEffort, findActivityEffort, findActivityPreset } from "@/lib/activity";
+import { conservativeActivityFactor, estimateActivityCalories, estimateMetByEffort, findActivityEffort, findActivityPreset } from "@/lib/activity";
 import { prisma } from "@/lib/prisma";
+import { shouldCountActivity, type TdeeMode } from "@/lib/tdee";
 
 export async function addPhysicalActivityAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
 
-  const profile = await prisma.profile.findUnique({ where: { userId: user.id }, select: { weightKg: true } });
+  const profile = await prisma.profile.findUnique({
+    where: { userId: user.id },
+    select: { weightKg: true, activityFactor: true, tdeeCalculationMode: true },
+  });
   if (!profile) return;
 
   const activityKey = String(formData.get("activityKey") ?? "walk_fast");
@@ -22,7 +26,29 @@ export async function addPhysicalActivityAction(formData: FormData) {
   const durationMinutes = Math.round(clamp(parsePositiveNumber(formData.get("durationMinutes")) ?? 0, 1, 600));
   const date = parseDate(String(formData.get("date") ?? "")) ?? startOfToday();
   const note = String(formData.get("note") ?? "").trim();
+  const tdeeChoice = normalizeTdeeChoice(String(formData.get("tdeeChoice") ?? "auto"));
   if (!durationMinutes) return;
+
+  if (tdeeChoice === "switch_additive") {
+    await prisma.profile.update({
+      where: { userId: user.id },
+      data: {
+        tdeeCalculationMode: "ADDITIVE",
+        activityFactor: Math.min(profile.activityFactor, 1.3),
+      },
+    });
+  }
+
+  const mode = (tdeeChoice === "switch_additive" ? "ADDITIVE" : profile.tdeeCalculationMode) as TdeeMode;
+  const countChoice = tdeeChoice === "count_extra" ? "count_extra" : tdeeChoice === "ignore" ? "ignore" : "auto";
+  const countsTowardTdee = shouldCountActivity({
+    mode,
+    activityFactor: tdeeChoice === "switch_additive" ? Math.min(profile.activityFactor, 1.3) : profile.activityFactor,
+    activityKey,
+    userChoice: countChoice,
+  });
+  const caloriesKcal = estimateActivityCalories({ met, weightKg: profile.weightKg, durationMinutes });
+  const confidenceFactor = conservativeActivityFactor({ activityKey, source: "manual_met" });
 
   await prisma.physicalActivityLog.create({
     data: {
@@ -32,7 +58,10 @@ export async function addPhysicalActivityAction(formData: FormData) {
       name: customName || preset.name,
       met,
       durationMinutes,
-      caloriesKcal: estimateActivityCalories({ met, weightKg: profile.weightKg, durationMinutes }),
+      caloriesKcal,
+      conservativeCaloriesKcal: Math.round(caloriesKcal * confidenceFactor),
+      confidenceFactor,
+      countsTowardTdee,
       intensity: effort.label,
       note: note || null,
     },
@@ -75,4 +104,8 @@ function startOfToday() {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function normalizeTdeeChoice(value: string) {
+  return ["auto", "ignore", "count_extra", "switch_additive"].includes(value) ? value : "auto";
 }

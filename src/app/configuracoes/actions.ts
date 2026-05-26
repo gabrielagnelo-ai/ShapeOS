@@ -36,9 +36,10 @@ export async function updateGoalsAction(formData: FormData) {
   const hipCm = profile.sex === "FEMALE" ? optionalDecimal(formData.get("hipCm")) : null;
   const dietPreference = String(formData.get("dietPreference") ?? profile.dietPreference ?? "balanced");
   const waterPreference = normalizeWaterPreference(String(formData.get("waterPreference") ?? profile.waterPreference ?? "medium"));
+  const tdeeCalculationMode = normalizeTdeeMode(String(formData.get("tdeeCalculationMode") ?? profile.tdeeCalculationMode));
 
   const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg });
-  const tdee = calculateTdee(bmr, activityFactor);
+  const tdee = calculateTdee(bmr, activityFactor) + profile.tdeeAdjustmentKcal;
   const targets =
     profile.mode === "ADVANCED"
       ? advancedMacroTargets({
@@ -75,6 +76,7 @@ export async function updateGoalsAction(formData: FormData) {
       hipCm,
       dietPreference,
       waterPreference,
+      tdeeCalculationMode,
     },
   });
 
@@ -109,4 +111,8 @@ function optionalDecimal(value: FormDataEntryValue | null) {
 
 function normalizeWaterPreference(value: string) {
   return ["minimum", "medium", "high"].includes(value) ? value : "medium";
+}
+
+function normalizeTdeeMode(value: string) {
+  return value === "ADDITIVE" ? "ADDITIVE" : "COEFFICIENT";
 }

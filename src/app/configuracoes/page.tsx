@@ -70,6 +70,12 @@ export default async function ConfiguracoesPage() {
             text="Aqui você controla o cálculo mais sensível. Para usuário avançado, o fator manual evita inflar o gasto estimado."
           >
             <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Modo de TDEE" help="Coeficiente inclui sua rotina normal. Aditivo usa fator baixo e soma atividades registradas.">
+                <select name="tdeeCalculationMode" defaultValue={profile.tdeeCalculationMode} className={inputClass}>
+                  <option value="COEFFICIENT">Coeficiente - rotina ja incluida</option>
+                  <option value="ADDITIVE">Aditivo - fator baixo + atividades</option>
+                </select>
+              </Field>
               <Field label="Fator de atividade" help="Use algo entre 1,1 e 2,2. Exemplo: 1,45 para rotina ativa, mas conservadora.">
                 <input name="activityFactor" defaultValue={formatInput(profile.activityFactor)} inputMode="decimal" className={inputClass} />
               </Field>
@@ -151,7 +157,8 @@ export default async function ConfiguracoesPage() {
             </div>
             <div className="grid gap-3 p-5">
               <SummaryLine label="Repouso" value={`${metrics.bmr} kcal`} detail="BMR estimado" />
-              <SummaryLine label="Gasto diário" value={`${metrics.tdee} kcal`} detail={`fator ${formatInput(profile.activityFactor)}`} />
+              <SummaryLine label="Gasto diário" value={`${metrics.tdee} kcal`} detail={`${profile.tdeeCalculationMode === "ADDITIVE" ? "modo aditivo" : "modo coeficiente"} / fator ${formatInput(profile.activityFactor)}`} />
+              <SummaryLine label="Confiança do TDEE" value={confidenceLabel(profile.tdeeConfidence)} detail={profile.tdeeAdjustmentKcal ? `ajuste ${profile.tdeeAdjustmentKcal} kcal` : "sem ajuste adaptativo"} />
               <SummaryLine label="Déficit" value={`${calorieDeficit} kcal`} detail={`${deficitPct}% do gasto`} tone={deficitPct >= 25 ? "danger" : deficitPct >= 18 ? "warning" : "good"} />
               <SummaryLine label="Macros" value={`${macroCalories} kcal`} detail="P 4 / C 4 / G 9 kcal por g" />
               <SummaryLine label="Água" value={formatLiters(waterTarget)} detail={`consumo ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
@@ -245,4 +252,14 @@ function formatInput(value: number) {
 
 function formatLiters(valueMl: number) {
   return `${(valueMl / 1000).toFixed(1).replace(".", ",")} L`;
+}
+
+function confidenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    HIGH: "alta",
+    MEDIUM: "media",
+    LOW: "baixa",
+  };
+
+  return labels[value] ?? "media";
 }

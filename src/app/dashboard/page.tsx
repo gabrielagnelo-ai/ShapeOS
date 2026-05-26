@@ -1,18 +1,18 @@
 ﻿import { redirect } from "next/navigation";
-import { Activity, Apple, ArrowRight, BarChart3, Droplets, Flame, FlaskConical, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
+import { Activity, Apple, ArrowRight, BarChart3, Droplets, Flame, FlaskConical, Gauge, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
-import { tdeeCheck } from "@/lib/activity";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
+import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { addWaterLogAction } from "./actions";
 
@@ -56,13 +56,12 @@ export default async function DashboardPage() {
   });
   const physicalActivities = await prisma.physicalActivityLog.findMany({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
-    select: { caloriesKcal: true },
   });
 
   const sex = sexMap[profile.sex] as Sex;
   const goal = goalMap[profile.goal] as Goal;
   const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
-  const tdee = calculateTdee(bmr, profile.activityFactor);
+  const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
   const bmi = calculateBmi(profile.weightKg, profile.heightCm);
   const suggestedMicros = suggestedMicronutrientTargets({ sex, age: profile.age });
   const micronutrientTargets = {
@@ -84,7 +83,14 @@ export default async function DashboardPage() {
   const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
   const waterConsumed = waterLogs.reduce((total, log) => total + log.amountMl, 0);
   const waterPct = percent(waterConsumed, waterTarget);
-  const activityKcal = physicalActivities.reduce((total, activityLog) => total + activityLog.caloriesKcal, 0);
+  const tdeeResult = effectiveTdee({
+    bmr,
+    activityFactor: profile.activityFactor,
+    adjustmentKcal: profile.tdeeAdjustmentKcal,
+    mode: profile.tdeeCalculationMode,
+    activities: physicalActivities,
+  });
+  const activityKcal = tdeeResult.activityKcal;
   const consumed = sumNutrients(todayLog?.items.map((item) => ({
     grams: item.grams,
     food: {
@@ -145,7 +151,12 @@ export default async function DashboardPage() {
     carbs: percent(consumed.carbsG, targets.carbsG),
     fat: percent(consumed.fatG, targets.fatG),
   };
-  const tdeeComparison = tdeeCheck({ estimatedTdee: tdee, loggedActivityKcal: activityKcal });
+  const averageIntakeKcal = averageFoodLogCalories(recentFoodLogs);
+  const trendValidation = validateTdeeTrend({
+    tdee,
+    averageIntakeKcal,
+    checkins: weeklyCheckins,
+  });
   const activePlanTotals = activePlan
     ? activePlanMeals.flatMap((meal) => meal.items).reduce(
         (acc, item) => {
@@ -229,12 +240,13 @@ export default async function DashboardPage() {
         </span>
       </a>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-6">
+      <div className="mt-5 grid gap-4 md:grid-cols-7">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
         <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
         <MetricTile icon={<Scale size={18} />} label="Peso" value={`${profile.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
-        <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`TDEE conf. ${tdeeComparison.checkedTdee} kcal`} />
+        <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`${tdeeResult.ignoredActivityKcal} kcal ignoradas`} />
+        <MetricTile icon={<Gauge size={18} />} label="Conf. TDEE" value={confidenceLabel(trendValidation.confidence)} detail={trendValidation.message} />
         <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`meta ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
       </div>
 
@@ -527,4 +539,25 @@ function ActionPanel({ icon, title, text, href }: { icon: React.ReactNode; title
 function percent(value: number, target: number) {
   if (!target) return 0;
   return Math.max(0, Math.min(100, Math.round((value / target) * 100)));
+}
+
+function averageFoodLogCalories(logs: Array<{ items: Array<{ grams: number; food: { kcalPer100g: number } }> }>) {
+  const days = logs.filter((log) => log.items.length);
+  if (!days.length) return 0;
+
+  const total = days.reduce((sum, log) => (
+    sum + log.items.reduce((dayTotal, item) => dayTotal + (item.food.kcalPer100g * item.grams) / 100, 0)
+  ), 0);
+
+  return Math.round(total / days.length);
+}
+
+function confidenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    HIGH: "alta",
+    MEDIUM: "media",
+    LOW: "baixa",
+  };
+
+  return labels[value] ?? "media";
 }

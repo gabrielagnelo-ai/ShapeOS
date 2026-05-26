@@ -6,6 +6,7 @@ import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
+import { validateTdeeTrend } from "@/lib/tdee";
 
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
 
@@ -24,6 +25,11 @@ export default async function CoachPage() {
     checkins,
   });
   const insights = hasEnoughCoachData(context) ? generateCoachInsights(context) : [];
+  const tdeeValidation = validateTdeeTrend({
+    tdee: metrics.tdee,
+    averageIntakeKcal: averageFoodLogCalories(foodLogs),
+    checkins: [...checkins].reverse(),
+  });
   const topInsight = insights[0];
   const latestCheckin = checkins[0];
   const projections = buildProjections({
@@ -81,6 +87,7 @@ export default async function CoachPage() {
           <h2 className="text-xl font-semibold">Leitura atual</h2>
           <div className="mt-5 grid gap-3">
             <Signal icon={<Activity size={18} />} label="Redução de calorias" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal gasto estimado`} />
+            <Signal icon={<ShieldAlert size={18} />} label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} detail={tdeeValidation.message} />
             <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
             <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
@@ -450,4 +457,25 @@ function formatSigned(value: number) {
 
 function formatNumber(value: number) {
   return (Math.round(value * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+function averageFoodLogCalories(logs: Array<{ items: Array<{ grams: number; food: { kcalPer100g: number } }> }>) {
+  const days = logs.filter((log) => log.items.length);
+  if (!days.length) return 0;
+
+  const total = days.reduce((sum, log) => (
+    sum + log.items.reduce((dayTotal, item) => dayTotal + (item.food.kcalPer100g * item.grams) / 100, 0)
+  ), 0);
+
+  return Math.round(total / days.length);
+}
+
+function confidenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    HIGH: "alta",
+    MEDIUM: "media",
+    LOW: "baixa",
+  };
+
+  return labels[value] ?? "media";
 }

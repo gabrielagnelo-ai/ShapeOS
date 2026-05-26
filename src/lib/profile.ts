@@ -4,13 +4,13 @@ import { prisma } from "@/lib/prisma";
 import {
   calculateBmi,
   calculateBmr,
-  calculateTdee,
   estimateBodyFat,
   guidedMacroTargets,
   suggestedMicronutrientTargets,
   type Goal,
   type Sex,
 } from "@/lib/nutrition";
+import { calculateBaseTdee } from "@/lib/tdee";
 
 const sexMap = { MALE: "male", FEMALE: "female" } as const;
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
@@ -29,7 +29,11 @@ export function computeProfileMetrics(profile: Awaited<ReturnType<typeof require
   const sex = sexMap[profile.sex] as Sex;
   const goal = goalMap[profile.goal] as Goal;
   const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
-  const tdee = calculateTdee(bmr, profile.activityFactor);
+  const tdee = calculateBaseTdee({
+    bmr,
+    activityFactor: profile.activityFactor,
+    adjustmentKcal: profile.tdeeAdjustmentKcal,
+  });
   const bmi = calculateBmi(profile.weightKg, profile.heightCm);
   const bodyFat = estimateBodyFat({
     sex,

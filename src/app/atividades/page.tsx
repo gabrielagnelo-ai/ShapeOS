@@ -5,6 +5,7 @@ import { activityEfforts, activityPresets, tdeeCheck } from "@/lib/activity";
 import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
+import { effectiveTdee, tdeeInflationWarning } from "@/lib/tdee";
 import { addPhysicalActivityAction, deletePhysicalActivityAction } from "./actions";
 
 const sexMap = { MALE: "male", FEMALE: "female" } as const;
@@ -22,9 +23,20 @@ export default async function AtividadesPage() {
     take: 12,
   });
   const bmr = calculateBmr({ sex: sexMap[profile.sex] as Sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
-  const tdee = calculateTdee(bmr, profile.activityFactor);
-  const loggedKcal = logs.reduce((total, log) => total + log.caloriesKcal, 0);
-  const comparison = tdeeCheck({ estimatedTdee: tdee, loggedActivityKcal: loggedKcal });
+  const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
+  const tdeeResult = effectiveTdee({
+    bmr,
+    activityFactor: profile.activityFactor,
+    adjustmentKcal: profile.tdeeAdjustmentKcal,
+    mode: profile.tdeeCalculationMode,
+    activities: logs,
+  });
+  const comparison = tdeeCheck({ estimatedTdee: tdee, loggedActivityKcal: tdeeResult.activityKcal });
+  const strengthWarning = tdeeInflationWarning({
+    activityFactor: profile.activityFactor,
+    activityKey: "weight_training",
+    mode: profile.tdeeCalculationMode,
+  });
 
   return (
     <AppShell>
@@ -33,12 +45,12 @@ export default async function AtividadesPage() {
           <p className="text-sm font-medium text-lime-300">Atividade fisica</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Quanto voce se movimentou hoje?</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Registre treino, caminhada ou cardio em linguagem simples. O ShapeOS estima o gasto e ajuda a conferir se seu dia ficou mais ativo ou mais parado que o esperado.
+            Registre treino, caminhada ou cardio em linguagem simples. O ShapeOS evita somar duas vezes o que ja esta embutido no seu fator de atividade.
           </p>
         </div>
         <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-right">
-          <p className="text-2xl font-semibold text-lime-200">{Math.round(loggedKcal)}</p>
-          <p className="text-xs text-zinc-400">kcal de atividade hoje</p>
+          <p className="text-2xl font-semibold text-lime-200">{tdeeResult.activityKcal}</p>
+          <p className="text-xs text-zinc-400">kcal extras validas hoje</p>
         </div>
       </div>
 
@@ -55,6 +67,12 @@ export default async function AtividadesPage() {
           </div>
 
           <form action={addPhysicalActivityAction} className="mt-6 grid gap-4">
+            {strengthWarning ? (
+              <div className="rounded-[24px] border border-amber-300/25 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
+                {strengthWarning}
+              </div>
+            ) : null}
+
             <label className="grid gap-2">
               <span className="text-sm font-medium text-zinc-400">O que voce fez?</span>
               <select name="activityKey" className={inputClass} defaultValue="weight_training">
@@ -98,6 +116,19 @@ export default async function AtividadesPage() {
 
             <input name="note" className={inputClass} placeholder="Observacao opcional. Ex: treino de pernas" />
 
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-zinc-400">Como considerar no gasto do dia?</span>
+              <select name="tdeeChoice" className={inputClass} defaultValue="auto">
+                <option value="auto">Automatico e conservador</option>
+                <option value="ignore">Registrar, mas nao somar no TDEE</option>
+                <option value="count_extra">Contar como atividade extra mesmo assim</option>
+                <option value="switch_additive">Trocar para modo aditivo</option>
+              </select>
+              <span className="text-xs leading-5 text-zinc-500">
+                No modo coeficiente, musculacao em fator 1,55 ou maior fica fora do bonus para evitar inflar o gasto.
+              </span>
+            </label>
+
             <details className="rounded-[24px] border border-white/10 bg-black/20 p-4">
               <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-zinc-300">
                 <Info size={16} />
@@ -127,12 +158,12 @@ export default async function AtividadesPage() {
             </div>
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <Stat label="Seu gasto base estimado" value={`${Math.round(tdee)} kcal`} />
-            <Stat label="Atividade registrada" value={`${Math.round(loggedKcal)} kcal`} />
+            <Stat label="Gasto base" value={`${Math.round(tdee)} kcal`} />
+            <Stat label="Extra valido" value={`${tdeeResult.activityKcal} kcal`} />
             <Stat label="Dia ajustado" value={`${comparison.checkedTdee} kcal`} />
           </div>
           <p className="mt-5 text-sm leading-6 text-zinc-400">
-            Isso e uma estimativa para orientar tendencia. Quando houver Apple Watch, o app podera trocar esse calculo manual por dados de batimento, passos e treino.
+            Modo atual: {profile.tdeeCalculationMode === "ADDITIVE" ? "aditivo" : "coeficiente"}. Registrado bruto: {tdeeResult.rawActivityKcal} kcal. Ignorado para evitar inflacao: {tdeeResult.ignoredActivityKcal} kcal.
           </p>
         </GlassCard>
       </div>
@@ -166,7 +197,7 @@ function ActivityRow({
   log,
   compact = false,
 }: {
-  log: { id: string; name: string; date: Date; durationMinutes: number; caloriesKcal: number; intensity: string | null; note: string | null };
+  log: { id: string; name: string; date: Date; durationMinutes: number; caloriesKcal: number; conservativeCaloriesKcal: number | null; countsTowardTdee: boolean; intensity: string | null; note: string | null };
   compact?: boolean;
 }) {
   return (
@@ -180,7 +211,9 @@ function ActivityRow({
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-lime-300/15 px-3 py-1 text-sm font-semibold text-lime-200">{Math.round(log.caloriesKcal)} kcal</span>
+        <span className={`rounded-full px-3 py-1 text-sm font-semibold ${log.countsTowardTdee ? "bg-lime-300/15 text-lime-200" : "bg-white/10 text-zinc-400"}`}>
+          {Math.round(log.conservativeCaloriesKcal ?? log.caloriesKcal)} kcal {log.countsTowardTdee ? "validas" : "registradas"}
+        </span>
         <form action={deletePhysicalActivityAction}>
           <input type="hidden" name="activityId" value={log.id} />
           <button className="grid size-9 place-items-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir atividade">

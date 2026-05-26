@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { estimateActivityCalories, estimateMetByEffort, tdeeCheck } from "./activity";
+import { activityContribution, shouldCountActivity, validateTdeeTrend } from "./tdee";
 
 describe("activity estimates", () => {
   it("estimates calories from MET, body weight and duration", () => {
@@ -19,5 +20,41 @@ describe("activity estimates", () => {
     expect(estimateMetByEffort(5, "light")).toBe(4.3);
     expect(estimateMetByEffort(5, "moderate")).toBe(5);
     expect(estimateMetByEffort(5, "hard")).toBe(5.9);
+  });
+
+  it("prevents double counting strength training in coefficient mode", () => {
+    expect(shouldCountActivity({ mode: "COEFFICIENT", activityFactor: 1.65, activityKey: "weight_training" })).toBe(false);
+    expect(shouldCountActivity({ mode: "COEFFICIENT", activityFactor: 1.65, activityKey: "walk_fast" })).toBe(true);
+    expect(shouldCountActivity({ mode: "ADDITIVE", activityFactor: 1.2, activityKey: "weight_training" })).toBe(true);
+  });
+
+  it("uses conservative calories for counted manual activities", () => {
+    const result = activityContribution({
+      mode: "COEFFICIENT",
+      activityFactor: 1.65,
+      activities: [
+        { activityKey: "weight_training", caloriesKcal: 690, countsTowardTdee: false },
+        { activityKey: "walk_fast", caloriesKcal: 400, countsTowardTdee: true },
+      ],
+    });
+
+    expect(result.rawKcal).toBe(1090);
+    expect(result.countedKcal).toBe(340);
+    expect(result.ignoredKcal).toBe(690);
+  });
+
+  it("marks TDEE confidence low when expected deficit does not move weight or waist", () => {
+    const result = validateTdeeTrend({
+      tdee: 3700,
+      averageIntakeKcal: 2700,
+      checkins: [
+        { averageWeightKg: 117, waistCm: 106 },
+        { averageWeightKg: 117, waistCm: 106.2 },
+        { averageWeightKg: 117.1, waistCm: 106.1 },
+      ],
+    });
+
+    expect(result.confidence).toBe("LOW");
+    expect(result.suggestedAdjustmentKcal).toBeLessThan(0);
   });
 });

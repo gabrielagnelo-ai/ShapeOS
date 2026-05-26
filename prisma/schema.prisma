@@ -28,6 +28,17 @@ enum AppMode {
   ADVANCED
 }
 
+enum TdeeCalculationMode {
+  COEFFICIENT
+  ADDITIVE
+}
+
+enum TdeeConfidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 enum InsightStatus {
   NEW
   SEEN
@@ -128,6 +139,9 @@ model Profile {
   vitaminDTargetMcg  Float?     @map("vitamin_d_target_mcg")
   vitaminB12TargetMcg Float?    @map("vitamin_b12_target_mcg")
   waterPreference     String     @default("medium") @map("water_preference")
+  tdeeCalculationMode TdeeCalculationMode @default(COEFFICIENT) @map("tdee_calculation_mode")
+  tdeeConfidence      TdeeConfidence      @default(MEDIUM) @map("tdee_confidence")
+  tdeeAdjustmentKcal  Int                 @default(0) @map("tdee_adjustment_kcal")
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
@@ -309,6 +323,9 @@ model PhysicalActivityLog {
   met             Float
   durationMinutes Int      @map("duration_minutes")
   caloriesKcal    Float    @map("calories_kcal")
+  conservativeCaloriesKcal Float? @map("conservative_calories_kcal")
+  confidenceFactor Float?  @map("confidence_factor")
+  countsTowardTdee Boolean @default(true) @map("counts_toward_tdee")
   intensity       String?
   note            String?
   source          String   @default("manual_met")
