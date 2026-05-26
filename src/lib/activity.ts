@@ -38,6 +38,7 @@ export const activityEfforts: Array<{
 export const activityPresets: ActivityPreset[] = [
   { key: "walk_light", name: "Caminhada leve", met: 3.0, intensity: "leve", category: "walking" },
   { key: "walk_fast", name: "Caminhada rapida", met: 4.3, intensity: "moderado", category: "walking" },
+  { key: "active_commute", name: "Deslocamento ativo", met: 3.5, intensity: "moderado", category: "walking" },
   { key: "bike_moderate", name: "Bicicleta moderada", met: 6.8, intensity: "moderado", category: "cardio" },
   { key: "run_light", name: "Corrida leve", met: 8.3, intensity: "alto", category: "cardio" },
   { key: "run_fast", name: "Corrida forte", met: 11.5, intensity: "alto", category: "cardio" },
@@ -53,6 +54,11 @@ export const activityPresets: ActivityPreset[] = [
 export function estimateActivityCalories(input: { met: number; weightKg: number; durationMinutes: number }) {
   if (input.met <= 0 || input.weightKg <= 0 || input.durationMinutes <= 0) return 0;
   return Math.round(input.met * input.weightKg * (input.durationMinutes / 60));
+}
+
+export function estimateActivityCaloriesWithMetFormula(input: { met: number; weightKg: number; durationMinutes: number }) {
+  if (input.met <= 0 || input.weightKg <= 0 || input.durationMinutes <= 0) return 0;
+  return Math.round((input.met * 3.5 * input.weightKg * input.durationMinutes) / 200);
 }
 
 export function findActivityPreset(key: string) {
@@ -72,8 +78,48 @@ export function activityCategory(activityKey: string) {
   return findActivityPreset(activityKey).category;
 }
 
+export function isWalkingActivity(activityKey: string) {
+  return activityCategory(activityKey) === "walking";
+}
+
+export function averageWalkingSpeed(input: { distanceKm: number; durationMinutes: number }) {
+  if (input.distanceKm <= 0 || input.durationMinutes <= 0) return 0;
+  return Number((input.distanceKm / (input.durationMinutes / 60)).toFixed(1));
+}
+
+export function classifyWalkingBySpeed(speedKmh: number) {
+  if (speedKmh < 4) {
+    return { label: "Caminhada leve", intensity: "Leve", met: 2.8 };
+  }
+
+  if (speedKmh <= 5.5) {
+    return { label: "Caminhada moderada", intensity: "Moderada", met: 3.5 };
+  }
+
+  return { label: "Caminhada rapida", intensity: "Rapida", met: 4.3 };
+}
+
+export function estimateWalkingFromDistanceTime(input: { distanceKm: number; durationMinutes: number; weightKg: number }) {
+  const speedKmh = averageWalkingSpeed(input);
+  const classification = classifyWalkingBySpeed(speedKmh);
+  const caloriesKcal = estimateActivityCaloriesWithMetFormula({
+    met: classification.met,
+    weightKg: input.weightKg,
+    durationMinutes: input.durationMinutes,
+  });
+
+  return {
+    ...classification,
+    speedKmh,
+    caloriesKcal,
+    conservativeCaloriesKcal: Math.round(caloriesKcal * 0.88),
+    confidenceFactor: 0.88,
+  };
+}
+
 export function conservativeActivityFactor(input: { activityKey: string; source?: string | null }) {
   if (input.source === "apple_watch" || input.source === "apple_health") return 0.9;
+  if (input.source === "manual_distance") return 0.88;
 
   const category = activityCategory(input.activityKey);
   if (category === "strength") return 0.7;

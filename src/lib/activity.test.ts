@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateActivityCalories, estimateMetByEffort, tdeeCheck } from "./activity";
+import { averageWalkingSpeed, classifyWalkingBySpeed, estimateActivityCalories, estimateMetByEffort, estimateWalkingFromDistanceTime, tdeeCheck } from "./activity";
 import { activityContribution, shouldCountActivity, validateTdeeTrend } from "./tdee";
 
 describe("activity estimates", () => {
@@ -20,6 +20,18 @@ describe("activity estimates", () => {
     expect(estimateMetByEffort(5, "light")).toBe(4.3);
     expect(estimateMetByEffort(5, "moderate")).toBe(5);
     expect(estimateMetByEffort(5, "hard")).toBe(5.9);
+  });
+
+  it("calculates walking from distance and duration", () => {
+    expect(averageWalkingSpeed({ distanceKm: 4, durationMinutes: 60 })).toBe(4);
+    expect(classifyWalkingBySpeed(3.9)).toMatchObject({ intensity: "Leve", met: 2.8 });
+    expect(classifyWalkingBySpeed(5)).toMatchObject({ intensity: "Moderada", met: 3.5 });
+    expect(classifyWalkingBySpeed(5.6)).toMatchObject({ intensity: "Rapida", met: 4.3 });
+
+    const estimate = estimateWalkingFromDistanceTime({ distanceKm: 5, durationMinutes: 60, weightKg: 100 });
+    expect(estimate.speedKmh).toBe(5);
+    expect(estimate.caloriesKcal).toBe(368);
+    expect(estimate.conservativeCaloriesKcal).toBe(324);
   });
 
   it("prevents double counting strength training in coefficient mode", () => {

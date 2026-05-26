@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { conservativeActivityFactor, estimateActivityCalories, estimateMetByEffort, findActivityEffort, findActivityPreset } from "@/lib/activity";
+import {
+  conservativeActivityFactor,
+  estimateActivityCalories,
+  estimateMetByEffort,
+  estimateWalkingFromDistanceTime,
+  findActivityEffort,
+  findActivityPreset,
+  isWalkingActivity,
+} from "@/lib/activity";
 import { prisma } from "@/lib/prisma";
 import { shouldCountActivity, type TdeeMode } from "@/lib/tdee";
 
@@ -22,12 +30,18 @@ export async function addPhysicalActivityAction(formData: FormData) {
   const effort = findActivityEffort(effortKey);
   const customName = String(formData.get("customName") ?? "").trim();
   const advancedMet = parsePositiveNumber(formData.get("met"));
-  const met = clamp(advancedMet ?? estimateMetByEffort(preset.met, effort.key), 1, 18);
   const durationMinutes = Math.round(clamp(parsePositiveNumber(formData.get("durationMinutes")) ?? 0, 1, 600));
+  const distanceKm = parsePositiveNumber(formData.get("distanceKm"));
   const date = parseDate(String(formData.get("date") ?? "")) ?? startOfToday();
   const note = String(formData.get("note") ?? "").trim();
   const tdeeChoice = normalizeTdeeChoice(String(formData.get("tdeeChoice") ?? "auto"));
   if (!durationMinutes) return;
+
+  const walking = isWalkingActivity(activityKey);
+  const walkingEstimate = walking && distanceKm
+    ? estimateWalkingFromDistanceTime({ distanceKm, durationMinutes, weightKg: profile.weightKg })
+    : null;
+  if (walking && !walkingEstimate) return;
 
   if (tdeeChoice === "switch_additive") {
     await prisma.profile.update({
@@ -47,23 +61,28 @@ export async function addPhysicalActivityAction(formData: FormData) {
     activityKey,
     userChoice: countChoice,
   });
-  const caloriesKcal = estimateActivityCalories({ met, weightKg: profile.weightKg, durationMinutes });
-  const confidenceFactor = conservativeActivityFactor({ activityKey, source: "manual_met" });
+  const met = walkingEstimate?.met ?? clamp(advancedMet ?? estimateMetByEffort(preset.met, effort.key), 1, 18);
+  const caloriesKcal = walkingEstimate?.caloriesKcal ?? estimateActivityCalories({ met, weightKg: profile.weightKg, durationMinutes });
+  const source = walkingEstimate ? "manual_distance" : "manual_met";
+  const confidenceFactor = walkingEstimate?.confidenceFactor ?? conservativeActivityFactor({ activityKey, source });
 
   await prisma.physicalActivityLog.create({
     data: {
       userId: user.id,
       date,
       activityKey,
-      name: customName || preset.name,
+      name: customName || walkingEstimate?.label || preset.name,
       met,
       durationMinutes,
+      distanceKm: walkingEstimate ? distanceKm : null,
+      averageSpeedKmh: walkingEstimate?.speedKmh ?? null,
       caloriesKcal,
-      conservativeCaloriesKcal: Math.round(caloriesKcal * confidenceFactor),
+      conservativeCaloriesKcal: walkingEstimate?.conservativeCaloriesKcal ?? Math.round(caloriesKcal * confidenceFactor),
       confidenceFactor,
       countsTowardTdee,
-      intensity: effort.label,
+      intensity: walkingEstimate?.intensity ?? effort.label,
       note: note || null,
+      source,
     },
   });
 

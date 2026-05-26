@@ -1,0 +1,3 @@
+ALTER TABLE "physical_activity_logs"
+ADD COLUMN IF NOT EXISTS "distance_km" DOUBLE PRECISION,
+ADD COLUMN IF NOT EXISTS "average_speed_kmh" DOUBLE PRECISION;

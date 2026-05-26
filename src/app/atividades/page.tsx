@@ -1,4 +1,4 @@
-import { Activity, Calculator, Clock3, Info, Plus, Trash2 } from "lucide-react";
+import { Calculator, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { activityEfforts, activityPresets, tdeeCheck } from "@/lib/activity";
@@ -6,7 +6,8 @@ import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, tdeeInflationWarning } from "@/lib/tdee";
-import { addPhysicalActivityAction, deletePhysicalActivityAction } from "./actions";
+import { deletePhysicalActivityAction } from "./actions";
+import { ActivityForm } from "./activity-form";
 
 const sexMap = { MALE: "male", FEMALE: "female" } as const;
 
@@ -37,6 +38,7 @@ export default async function AtividadesPage() {
     activityKey: "weight_training",
     mode: profile.tdeeCalculationMode,
   });
+  const recurringWalking = detectRecurringWalking(recentLogs);
 
   return (
     <AppShell>
@@ -66,85 +68,12 @@ export default async function AtividadesPage() {
             </div>
           </div>
 
-          <form action={addPhysicalActivityAction} className="mt-6 grid gap-4">
-            {strengthWarning ? (
-              <div className="rounded-[24px] border border-amber-300/25 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
-                {strengthWarning}
-              </div>
-            ) : null}
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-zinc-400">O que voce fez?</span>
-              <select name="activityKey" className={inputClass} defaultValue="weight_training">
-                {activityPresets.map((preset) => (
-                  <option key={preset.key} value={preset.key}>{preset.name}</option>
-                ))}
-              </select>
-            </label>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-zinc-400">Quando?</span>
-                <input name="date" type="date" defaultValue={dateInputValue(today)} className={inputClass} />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-zinc-400">Durou quanto tempo?</span>
-                <div className="relative">
-                  <Clock3 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-                  <input name="durationMinutes" inputMode="numeric" className={`${inputClass} pl-11`} placeholder="Ex: 45 minutos" required />
-                </div>
-              </label>
-            </div>
-
-            <div className="grid gap-2">
-              <span className="text-sm font-medium text-zinc-400">Como foi o esforco?</span>
-              <div className="grid gap-2 md:grid-cols-3">
-                {activityEfforts.map((effort) => (
-                  <label key={effort.key} className="cursor-pointer rounded-[24px] border border-white/10 bg-black/25 p-4 transition hover:border-lime-300/40 has-[:checked]:border-lime-300/60 has-[:checked]:bg-lime-300/10">
-                    <input type="radio" name="effort" value={effort.key} defaultChecked={effort.key === "moderate"} className="sr-only" />
-                    <span className="block font-semibold text-zinc-100">{effort.label}</span>
-                    <span className="mt-1 block text-sm leading-5 text-zinc-500">{effort.helper}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-zinc-400">Se escolheu Outra atividade, escreva o nome</span>
-              <input name="customName" className={inputClass} placeholder="Ex: jiu-jitsu, beach tennis, obra em casa" />
-            </label>
-
-            <input name="note" className={inputClass} placeholder="Observacao opcional. Ex: treino de pernas" />
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-zinc-400">Como considerar no gasto do dia?</span>
-              <select name="tdeeChoice" className={inputClass} defaultValue="auto">
-                <option value="auto">Automatico e conservador</option>
-                <option value="ignore">Registrar, mas nao somar no TDEE</option>
-                <option value="count_extra">Contar como atividade extra mesmo assim</option>
-                <option value="switch_additive">Trocar para modo aditivo</option>
-              </select>
-              <span className="text-xs leading-5 text-zinc-500">
-                No modo coeficiente, musculacao em fator 1,55 ou maior fica fora do bonus para evitar inflar o gasto.
-              </span>
-            </label>
-
-            <details className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-              <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-zinc-300">
-                <Info size={16} />
-                Ajuste avancado
-              </summary>
-              <p className="mt-3 text-sm leading-6 text-zinc-500">
-                Use apenas se voce ja souber o equivalente metabolico da atividade. Se deixar vazio, o ShapeOS calcula automaticamente pela atividade e intensidade.
-              </p>
-              <input name="met" inputMode="decimal" className={`${inputClass} mt-3`} placeholder="Valor tecnico opcional" />
-            </details>
-
-            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
-              <Activity size={18} />
-              Registrar atividade
-            </button>
-          </form>
+          <ActivityForm
+            presets={activityPresets}
+            efforts={activityEfforts}
+            defaultDate={dateInputValue(today)}
+            strengthWarning={strengthWarning}
+          />
         </GlassCard>
 
         <GlassCard className="border-lime-300/20 bg-lime-300/[0.04]">
@@ -187,17 +116,24 @@ export default async function AtividadesPage() {
           </div>
         </GlassCard>
       </div>
+
+      {recurringWalking ? (
+        <GlassCard className="mt-5 border-lime-300/25 bg-lime-300/[0.06]">
+          <h2 className="text-xl font-semibold">Caminhada recorrente detectada</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">
+            Detectamos uma caminhada parecida em {recurringWalking.count} registros, com media de {formatNumber(recurringWalking.averageDistanceKm)} km. Futuramente voce podera salvar como atividade padrao.
+          </p>
+        </GlassCard>
+      ) : null}
     </AppShell>
   );
 }
-
-const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50";
 
 function ActivityRow({
   log,
   compact = false,
 }: {
-  log: { id: string; name: string; date: Date; durationMinutes: number; caloriesKcal: number; conservativeCaloriesKcal: number | null; countsTowardTdee: boolean; intensity: string | null; note: string | null };
+  log: { id: string; name: string; date: Date; durationMinutes: number; distanceKm: number | null; averageSpeedKmh: number | null; caloriesKcal: number; conservativeCaloriesKcal: number | null; countsTowardTdee: boolean; intensity: string | null; note: string | null };
   compact?: boolean;
 }) {
   return (
@@ -206,6 +142,8 @@ function ActivityRow({
         <p className="font-semibold">{log.name}</p>
         <p className="mt-1 text-sm text-zinc-500">
           {compact ? `${log.date.toLocaleDateString("pt-BR")} - ` : ""}{log.durationMinutes} min
+          {log.distanceKm ? ` - ${formatNumber(log.distanceKm)} km` : ""}
+          {log.averageSpeedKmh ? ` - ${formatNumber(log.averageSpeedKmh)} km/h` : ""}
           {log.intensity ? ` - intensidade ${log.intensity.toLowerCase()}` : ""}
           {log.note ? ` - ${log.note}` : ""}
         </p>
@@ -242,4 +180,18 @@ function dayLabel(label: string) {
   if (label === "dia mais ativo") return "Voce gastou mais que o previsto";
   if (label === "dia menos ativo") return "Voce se movimentou menos que o previsto";
   return "Seu dia esta dentro do esperado";
+}
+
+function detectRecurringWalking(logs: Array<{ activityKey: string; distanceKm: number | null }>) {
+  const walking = logs.filter((log) => ["walk_light", "walk_fast", "active_commute"].includes(log.activityKey) && typeof log.distanceKm === "number") as Array<{ distanceKm: number }>;
+  if (walking.length < 3) return null;
+
+  const averageDistanceKm = walking.reduce((total, log) => total + log.distanceKm, 0) / walking.length;
+  const similar = walking.filter((log) => Math.abs(log.distanceKm - averageDistanceKm) <= averageDistanceKm * 0.15);
+
+  return similar.length >= 3 ? { count: similar.length, averageDistanceKm } : null;
+}
+
+function formatNumber(value: number) {
+  return (Math.round(value * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 }

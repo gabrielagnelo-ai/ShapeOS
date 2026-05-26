@@ -322,6 +322,8 @@ model PhysicalActivityLog {
   name            String
   met             Float
   durationMinutes Int      @map("duration_minutes")
+  distanceKm      Float?   @map("distance_km")
+  averageSpeedKmh Float?   @map("average_speed_kmh")
   caloriesKcal    Float    @map("calories_kcal")
   conservativeCaloriesKcal Float? @map("conservative_calories_kcal")
   confidenceFactor Float?  @map("confidence_factor")
