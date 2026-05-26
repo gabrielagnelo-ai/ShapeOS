@@ -7,6 +7,7 @@ const links = [
   { href: "/dieta", label: "Dieta", icon: Utensils },
   { href: "/diario", label: "Diário", icon: Apple },
   { href: "/acompanhamento", label: "Semana", icon: BarChart3 },
+  { href: "/atividades", label: "Atividades", icon: Activity },
   { href: "/alimentos", label: "Alimentos", icon: Activity },
   { href: "/receitas", label: "Receitas", icon: ChefHat },
   { href: "/suplementos", label: "Suplementos", icon: FlaskConical },

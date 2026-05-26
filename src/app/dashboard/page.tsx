@@ -6,6 +6,7 @@ import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
+import { tdeeCheck } from "@/lib/activity";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
@@ -53,6 +54,10 @@ export default async function DashboardPage() {
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
     select: { amountMl: true },
   });
+  const physicalActivities = await prisma.physicalActivityLog.findMany({
+    where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
+    select: { caloriesKcal: true },
+  });
 
   const sex = sexMap[profile.sex] as Sex;
   const goal = goalMap[profile.goal] as Goal;
@@ -79,6 +84,7 @@ export default async function DashboardPage() {
   const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
   const waterConsumed = waterLogs.reduce((total, log) => total + log.amountMl, 0);
   const waterPct = percent(waterConsumed, waterTarget);
+  const activityKcal = physicalActivities.reduce((total, activityLog) => total + activityLog.caloriesKcal, 0);
   const consumed = sumNutrients(todayLog?.items.map((item) => ({
     grams: item.grams,
     food: {
@@ -139,6 +145,7 @@ export default async function DashboardPage() {
     carbs: percent(consumed.carbsG, targets.carbsG),
     fat: percent(consumed.fatG, targets.fatG),
   };
+  const tdeeComparison = tdeeCheck({ estimatedTdee: tdee, loggedActivityKcal: activityKcal });
   const activePlanTotals = activePlan
     ? activePlanMeals.flatMap((meal) => meal.items).reduce(
         (acc, item) => {
@@ -222,11 +229,12 @@ export default async function DashboardPage() {
         </span>
       </a>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-5">
+      <div className="mt-5 grid gap-4 md:grid-cols-6">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
         <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
         <MetricTile icon={<Scale size={18} />} label="Peso" value={`${profile.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
+        <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`TDEE conf. ${tdeeComparison.checkedTdee} kcal`} />
         <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`meta ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
       </div>
 
@@ -361,7 +369,7 @@ export default async function DashboardPage() {
 
       <div className="mt-5 grid gap-4 md:grid-cols-4">
         <ActionPanel icon={<Apple size={18} />} title="Diário alimentar" text="Lance alimentos consumidos hoje e veja meta real contra plano." href="/diario" />
-        <ActionPanel icon={<Activity size={18} />} title="Biblioteca" text="Consulte alimentos da TACO, favorite ou bloqueie para a IA." href="/alimentos" />
+        <ActionPanel icon={<Activity size={18} />} title="Atividade física" text="Registre treino e cardio para conferir seu TDEE do dia." href="/atividades" />
         <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderência para melhorar as projeções." href="/acompanhamento" />
         <ActionPanel icon={<FlaskConical size={18} />} title="Suplementos" text="Acompanhe creatina, beta-alanina, dose acumulada e aderência." href="/suplementos" />
       </div>

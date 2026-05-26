@@ -65,6 +65,7 @@ model User {
   foodLogs       FoodLog[]
   waterLogs      WaterLog[]
   healthDailySummaries HealthDailySummary[]
+  physicalActivityLogs PhysicalActivityLog[]
   mealPhotoEstimates MealPhotoEstimate[]
   supplementPlans SupplementPlan[]
   weeklyCheckins WeeklyCheckin[]
@@ -297,6 +298,26 @@ model HealthDailySummary {
   @@unique([userId, date])
   @@index([userId, date])
   @@map("health_daily_summaries")
+}
+
+model PhysicalActivityLog {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  date            DateTime
+  activityKey     String   @map("activity_key")
+  name            String
+  met             Float
+  durationMinutes Int      @map("duration_minutes")
+  caloriesKcal    Float    @map("calories_kcal")
+  intensity       String?
+  note            String?
+  source          String   @default("manual_met")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("physical_activity_logs")
 }
 
 model MealPhotoEstimate {
