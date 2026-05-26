@@ -129,6 +129,19 @@ export async function archiveSupplementPlanAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function restoreSupplementPlanAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  await prisma.supplementPlan.updateMany({
+    where: { id: String(formData.get("planId") ?? ""), userId: user.id },
+    data: { isActive: true },
+  });
+
+  revalidatePath("/suplementos");
+  revalidatePath("/dashboard");
+}
+
 function normalizeEnum(value: string, allowed: string[], fallback: string) {
   return allowed.includes(value) ? value : fallback;
 }

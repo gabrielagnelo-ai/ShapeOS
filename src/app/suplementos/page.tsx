@@ -1,4 +1,4 @@
-import { Archive, Check, FlaskConical, Plus, ShieldAlert, Trash2, Zap } from "lucide-react";
+import { Archive, Check, FlaskConical, Plus, RotateCcw, ShieldAlert, Trash2, Zap } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +19,7 @@ import {
   deleteSupplementLogAction,
   deleteSupplementUsagePeriodAction,
   logSupplementDoseAction,
+  restoreSupplementPlanAction,
 } from "./actions";
 
 export default async function SuplementosPage() {
@@ -202,7 +203,15 @@ export default async function SuplementosPage() {
                     </div>
                   </form>
                 </div>
-              ) : null}
+              ) : (
+                <form action={restoreSupplementPlanAction} className="mt-6">
+                  <input type="hidden" name="planId" value={plan.id} />
+                  <button className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black transition hover:bg-lime-200">
+                    <RotateCcw size={15} />
+                    Reativar suplemento
+                  </button>
+                </form>
+              )}
 
               {plan.periods.length ? (
                 <div className="mt-5 rounded-3xl bg-black/20 p-4">
