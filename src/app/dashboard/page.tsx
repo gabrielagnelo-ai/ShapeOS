@@ -1,5 +1,5 @@
 ﻿import { redirect } from "next/navigation";
-import { Activity, Apple, ArrowRight, BarChart3, Droplets, Flame, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
+import { Activity, Apple, ArrowRight, BarChart3, Droplets, Flame, FlaskConical, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressChart } from "@/components/ui/progress-chart";
@@ -359,10 +359,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
         <ActionPanel icon={<Apple size={18} />} title="Diário alimentar" text="Lance alimentos consumidos hoje e veja meta real contra plano." href="/diario" />
         <ActionPanel icon={<Activity size={18} />} title="Biblioteca" text="Consulte alimentos da TACO, favorite ou bloqueie para a IA." href="/alimentos" />
         <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderência para melhorar as projeções." href="/acompanhamento" />
+        <ActionPanel icon={<FlaskConical size={18} />} title="Suplementos" text="Acompanhe creatina, beta-alanina, dose acumulada e aderência." href="/suplementos" />
       </div>
     </AppShell>
   );

@@ -42,6 +42,16 @@ enum InsightCategory {
   TRAINING
 }
 
+enum SupplementType {
+  CREATINE
+  BETA_ALANINE
+}
+
+enum SupplementProtocol {
+  LOADING
+  STEADY
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -56,6 +66,7 @@ model User {
   waterLogs      WaterLog[]
   healthDailySummaries HealthDailySummary[]
   mealPhotoEstimates MealPhotoEstimate[]
+  supplementPlans SupplementPlan[]
   weeklyCheckins WeeklyCheckin[]
   bodyCompositionSnapshots BodyCompositionSnapshot[]
   insights       CoachInsight[]
@@ -306,6 +317,40 @@ model MealPhotoEstimate {
 
   @@index([userId, createdAt])
   @@map("meal_photo_estimates")
+}
+
+model SupplementPlan {
+  id          String             @id @default(cuid())
+  userId      String             @map("user_id")
+  type        SupplementType
+  protocol    SupplementProtocol @default(STEADY)
+  name        String
+  dailyDoseG  Float              @map("daily_dose_g")
+  startedAt   DateTime           @map("started_at")
+  isActive    Boolean            @default(true) @map("is_active")
+  notes       String?
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs SupplementLog[]
+
+  @@index([userId, isActive])
+  @@map("supplement_plans")
+}
+
+model SupplementLog {
+  id        String   @id @default(cuid())
+  planId    String   @map("plan_id")
+  date      DateTime
+  doseG     Float    @map("dose_g")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  plan SupplementPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, date])
+  @@index([planId, date])
+  @@map("supplement_logs")
 }
 
 model WeeklyCheckin {
