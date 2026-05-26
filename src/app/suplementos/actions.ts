@@ -86,6 +86,36 @@ export async function addSupplementUsagePeriodAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function deleteSupplementUsagePeriodAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  await prisma.supplementUsagePeriod.deleteMany({
+    where: {
+      id: String(formData.get("periodId") ?? ""),
+      plan: { userId: user.id },
+    },
+  });
+
+  revalidatePath("/suplementos");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteSupplementLogAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  await prisma.supplementLog.deleteMany({
+    where: {
+      id: String(formData.get("logId") ?? ""),
+      plan: { userId: user.id },
+    },
+  });
+
+  revalidatePath("/suplementos");
+  revalidatePath("/dashboard");
+}
+
 export async function archiveSupplementPlanAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;

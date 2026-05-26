@@ -1,4 +1,4 @@
-import { Archive, Check, FlaskConical, Plus, ShieldAlert, Zap } from "lucide-react";
+import { Archive, Check, FlaskConical, Plus, ShieldAlert, Trash2, Zap } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +12,14 @@ import {
   type SupplementProtocol,
   type SupplementType,
 } from "@/lib/supplements";
-import { addSupplementUsagePeriodAction, archiveSupplementPlanAction, createSupplementPlanAction, logSupplementDoseAction } from "./actions";
+import {
+  addSupplementUsagePeriodAction,
+  archiveSupplementPlanAction,
+  createSupplementPlanAction,
+  deleteSupplementLogAction,
+  deleteSupplementUsagePeriodAction,
+  logSupplementDoseAction,
+} from "./actions";
 
 export default async function SuplementosPage() {
   const { user } = await requireUserProfile();
@@ -204,7 +211,15 @@ export default async function SuplementosPage() {
                     {plan.periods.map((period) => (
                       <div key={period.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2 text-xs text-zinc-400">
                         <span>{period.startDate.toLocaleDateString("pt-BR")} ate {period.endDate?.toLocaleDateString("pt-BR") ?? "hoje"}</span>
-                        <span>{formatNumber(period.dailyDoseG)}g/dia - {formatNumber(period.adherencePct)}%</span>
+                        <div className="flex items-center gap-2">
+                          <span>{formatNumber(period.dailyDoseG)}g/dia - {formatNumber(period.adherencePct)}%</span>
+                          <form action={deleteSupplementUsagePeriodAction}>
+                            <input type="hidden" name="periodId" value={period.id} />
+                            <button className="grid size-7 place-items-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Apagar periodo importado">
+                              <Trash2 size={13} />
+                            </button>
+                          </form>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -214,8 +229,14 @@ export default async function SuplementosPage() {
               {plan.logs.length ? (
                 <div className="mt-5 flex flex-wrap gap-2">
                   {plan.logs.slice(0, 10).map((log) => (
-                    <span key={log.id} className="rounded-full bg-white/[0.06] px-3 py-1.5 text-xs text-zinc-400">
+                    <span key={log.id} className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 text-xs text-zinc-400">
                       {log.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}: {formatNumber(log.doseG)}g
+                      <form action={deleteSupplementLogAction}>
+                        <input type="hidden" name="logId" value={log.id} />
+                        <button className="grid size-6 place-items-center rounded-full bg-white/10 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Apagar registro diario">
+                          <Trash2 size={12} />
+                        </button>
+                      </form>
                     </span>
                   ))}
                 </div>
