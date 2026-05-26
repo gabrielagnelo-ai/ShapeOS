@@ -1,7 +1,7 @@
-import { Activity, Calculator, Plus, Trash2 } from "lucide-react";
+import { Activity, Calculator, Clock3, Info, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
-import { activityPresets, tdeeCheck } from "@/lib/activity";
+import { activityEfforts, activityPresets, tdeeCheck } from "@/lib/activity";
 import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
@@ -30,46 +30,88 @@ export default async function AtividadesPage() {
     <AppShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-lime-300">Atividade física</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Gasto estimado do dia</h1>
+          <p className="text-sm font-medium text-lime-300">Atividade fisica</p>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Quanto voce se movimentou hoje?</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Registre treino, caminhada ou cardio manualmente. O ShapeOS estima calorias por MET e compara com seu TDEE.
+            Registre treino, caminhada ou cardio em linguagem simples. O ShapeOS estima o gasto e ajuda a conferir se seu dia ficou mais ativo ou mais parado que o esperado.
           </p>
         </div>
         <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-right">
           <p className="text-2xl font-semibold text-lime-200">{Math.round(loggedKcal)}</p>
-          <p className="text-xs text-zinc-400">kcal registradas hoje</p>
+          <p className="text-xs text-zinc-400">kcal de atividade hoje</p>
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
+      <div className="mt-8 grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
         <GlassCard>
           <div className="flex items-center gap-3">
             <div className="grid size-12 place-items-center rounded-2xl bg-lime-300 text-black">
               <Plus size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Registrar atividade</h2>
-              <p className="text-sm text-zinc-500">Use o MET padrão ou ajuste manualmente se souber.</p>
+              <h2 className="text-xl font-semibold">Registrar sem complicar</h2>
+              <p className="text-sm text-zinc-500">Escolha o tipo, o tempo e como voce sentiu o esforco.</p>
             </div>
           </div>
 
-          <form action={addPhysicalActivityAction} className="mt-6 grid gap-3">
-            <select name="activityKey" className={inputClass} defaultValue="weight_training">
-              {activityPresets.map((preset) => (
-                <option key={preset.key} value={preset.key}>{preset.name} - MET {preset.met}</option>
-              ))}
-            </select>
-            <div className="grid gap-3 md:grid-cols-3">
-              <input name="date" type="date" defaultValue={dateInputValue(today)} className={inputClass} />
-              <input name="durationMinutes" inputMode="numeric" className={inputClass} placeholder="minutos" required />
-              <input name="met" inputMode="decimal" className={inputClass} placeholder="MET opcional" />
+          <form action={addPhysicalActivityAction} className="mt-6 grid gap-4">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-zinc-400">O que voce fez?</span>
+              <select name="activityKey" className={inputClass} defaultValue="weight_training">
+                {activityPresets.map((preset) => (
+                  <option key={preset.key} value={preset.key}>{preset.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-zinc-400">Quando?</span>
+                <input name="date" type="date" defaultValue={dateInputValue(today)} className={inputClass} />
+              </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-zinc-400">Durou quanto tempo?</span>
+                <div className="relative">
+                  <Clock3 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                  <input name="durationMinutes" inputMode="numeric" className={`${inputClass} pl-11`} placeholder="Ex: 45 minutos" required />
+                </div>
+              </label>
             </div>
-            <input name="customName" className={inputClass} placeholder="Nome personalizado opcional" />
-            <input name="note" className={inputClass} placeholder="Observação opcional. Ex: treino de pernas" />
+
+            <div className="grid gap-2">
+              <span className="text-sm font-medium text-zinc-400">Como foi o esforco?</span>
+              <div className="grid gap-2 md:grid-cols-3">
+                {activityEfforts.map((effort) => (
+                  <label key={effort.key} className="cursor-pointer rounded-[24px] border border-white/10 bg-black/25 p-4 transition hover:border-lime-300/40 has-[:checked]:border-lime-300/60 has-[:checked]:bg-lime-300/10">
+                    <input type="radio" name="effort" value={effort.key} defaultChecked={effort.key === "moderate"} className="sr-only" />
+                    <span className="block font-semibold text-zinc-100">{effort.label}</span>
+                    <span className="mt-1 block text-sm leading-5 text-zinc-500">{effort.helper}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-zinc-400">Se escolheu Outra atividade, escreva o nome</span>
+              <input name="customName" className={inputClass} placeholder="Ex: jiu-jitsu, beach tennis, obra em casa" />
+            </label>
+
+            <input name="note" className={inputClass} placeholder="Observacao opcional. Ex: treino de pernas" />
+
+            <details className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-zinc-300">
+                <Info size={16} />
+                Ajuste avancado
+              </summary>
+              <p className="mt-3 text-sm leading-6 text-zinc-500">
+                Use apenas se voce ja souber o equivalente metabolico da atividade. Se deixar vazio, o ShapeOS calcula automaticamente pela atividade e intensidade.
+              </p>
+              <input name="met" inputMode="decimal" className={`${inputClass} mt-3`} placeholder="Valor tecnico opcional" />
+            </details>
+
             <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
               <Activity size={18} />
-              Registrar gasto
+              Registrar atividade
             </button>
           </form>
         </GlassCard>
@@ -80,17 +122,17 @@ export default async function AtividadesPage() {
               <Calculator size={22} />
             </div>
             <div>
-              <p className="text-sm text-zinc-500">Conferência do TDEE</p>
-              <h2 className="text-xl font-semibold">{comparison.label}</h2>
+              <p className="text-sm text-zinc-500">Leitura do dia</p>
+              <h2 className="text-xl font-semibold">{dayLabel(comparison.label)}</h2>
             </div>
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <Stat label="TDEE estimado" value={`${Math.round(tdee)} kcal`} />
+            <Stat label="Seu gasto base estimado" value={`${Math.round(tdee)} kcal`} />
             <Stat label="Atividade registrada" value={`${Math.round(loggedKcal)} kcal`} />
-            <Stat label="TDEE conferido" value={`${comparison.checkedTdee} kcal`} />
+            <Stat label="Dia ajustado" value={`${comparison.checkedTdee} kcal`} />
           </div>
           <p className="mt-5 text-sm leading-6 text-zinc-400">
-            Estimativa baseada em MET: calorias = MET x peso x horas. Serve para tendência; relógio, frequência cardíaca e potência tendem a refinar esse número.
+            Isso e uma estimativa para orientar tendencia. Quando houver Apple Watch, o app podera trocar esse calculo manual por dados de batimento, passos e treino.
           </p>
         </GlassCard>
       </div>
@@ -106,11 +148,11 @@ export default async function AtividadesPage() {
         </GlassCard>
 
         <GlassCard>
-          <h2 className="text-xl font-semibold">Histórico recente</h2>
+          <h2 className="text-xl font-semibold">Historico recente</h2>
           <div className="mt-4 grid gap-3">
             {recentLogs.length ? recentLogs.map((log) => (
               <ActivityRow key={log.id} log={log} compact />
-            )) : <p className="text-sm text-zinc-500">Sem histórico ainda.</p>}
+            )) : <p className="text-sm text-zinc-500">Sem historico ainda.</p>}
           </div>
         </GlassCard>
       </div>
@@ -124,7 +166,7 @@ function ActivityRow({
   log,
   compact = false,
 }: {
-  log: { id: string; name: string; date: Date; durationMinutes: number; met: number; caloriesKcal: number; note: string | null };
+  log: { id: string; name: string; date: Date; durationMinutes: number; caloriesKcal: number; intensity: string | null; note: string | null };
   compact?: boolean;
 }) {
   return (
@@ -132,7 +174,8 @@ function ActivityRow({
       <div>
         <p className="font-semibold">{log.name}</p>
         <p className="mt-1 text-sm text-zinc-500">
-          {compact ? `${log.date.toLocaleDateString("pt-BR")} - ` : ""}{log.durationMinutes} min - MET {log.met}
+          {compact ? `${log.date.toLocaleDateString("pt-BR")} - ` : ""}{log.durationMinutes} min
+          {log.intensity ? ` - intensidade ${log.intensity.toLowerCase()}` : ""}
           {log.note ? ` - ${log.note}` : ""}
         </p>
       </div>
@@ -160,4 +203,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function dateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function dayLabel(label: string) {
+  if (label === "dia mais ativo") return "Voce gastou mais que o previsto";
+  if (label === "dia menos ativo") return "Voce se movimentou menos que o previsto";
+  return "Seu dia esta dentro do esperado";
 }

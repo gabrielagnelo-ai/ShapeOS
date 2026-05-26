@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { estimateActivityCalories, findActivityPreset } from "@/lib/activity";
+import { estimateActivityCalories, estimateMetByEffort, findActivityEffort, findActivityPreset } from "@/lib/activity";
 import { prisma } from "@/lib/prisma";
 
 export async function addPhysicalActivityAction(formData: FormData) {
@@ -14,8 +14,11 @@ export async function addPhysicalActivityAction(formData: FormData) {
 
   const activityKey = String(formData.get("activityKey") ?? "walk_fast");
   const preset = findActivityPreset(activityKey);
+  const effortKey = String(formData.get("effort") ?? "moderate");
+  const effort = findActivityEffort(effortKey);
   const customName = String(formData.get("customName") ?? "").trim();
-  const met = clamp(parsePositiveNumber(formData.get("met")) ?? preset.met, 1, 18);
+  const advancedMet = parsePositiveNumber(formData.get("met"));
+  const met = clamp(advancedMet ?? estimateMetByEffort(preset.met, effort.key), 1, 18);
   const durationMinutes = Math.round(clamp(parsePositiveNumber(formData.get("durationMinutes")) ?? 0, 1, 600));
   const date = parseDate(String(formData.get("date") ?? "")) ?? startOfToday();
   const note = String(formData.get("note") ?? "").trim();
@@ -30,7 +33,7 @@ export async function addPhysicalActivityAction(formData: FormData) {
       met,
       durationMinutes,
       caloriesKcal: estimateActivityCalories({ met, weightKg: profile.weightKg, durationMinutes }),
-      intensity: preset.intensity,
+      intensity: effort.label,
       note: note || null,
     },
   });

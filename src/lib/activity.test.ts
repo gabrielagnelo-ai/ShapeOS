@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateActivityCalories, tdeeCheck } from "./activity";
+import { estimateActivityCalories, estimateMetByEffort, tdeeCheck } from "./activity";
 
 describe("activity estimates", () => {
   it("estimates calories from MET, body weight and duration", () => {
@@ -13,5 +13,11 @@ describe("activity estimates", () => {
     expect(result.checkedTdee).toBe(3250);
     expect(result.delta).toBe(250);
     expect(result.label).toBe("dia mais ativo");
+  });
+
+  it("adjusts activity intensity without exposing technical fields", () => {
+    expect(estimateMetByEffort(5, "light")).toBe(4.3);
+    expect(estimateMetByEffort(5, "moderate")).toBe(5);
+    expect(estimateMetByEffort(5, "hard")).toBe(5.9);
   });
 });
