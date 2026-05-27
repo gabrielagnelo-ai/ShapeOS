@@ -255,7 +255,7 @@ export default async function DashboardPage() {
         </span>
       </a>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-7">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
         <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
         <MetricTile icon={<Scale size={18} />} label="Peso" value={`${profile.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />

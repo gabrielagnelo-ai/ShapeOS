@@ -26,6 +26,26 @@ body {
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+main,
+section,
+article,
+aside,
+form {
+  min-width: 0;
 }
 
 body::before {
@@ -74,6 +94,11 @@ input,
 select,
 textarea {
   -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
 }
 
 input,
@@ -176,4 +201,33 @@ input:-webkit-autofill:focus {
 
 .animate-fade-scale {
   animation: fadeScale 500ms ease-out both;
+}
+
+@media (max-width: 640px) {
+  h1 {
+    font-size: 2.5rem !important;
+    line-height: 1.05 !important;
+  }
+
+  h2 {
+    line-height: 1.12 !important;
+  }
+
+  p,
+  li {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (min-width: 1920px) {
+  body {
+    font-size: 17px;
+  }
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }

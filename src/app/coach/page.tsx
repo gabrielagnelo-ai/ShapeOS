@@ -260,13 +260,13 @@ export default async function CoachPage() {
 
 function Signal({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string; detail: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-3xl bg-black/25 p-4">
+    <div className="flex flex-col gap-3 rounded-3xl bg-black/25 p-4 sm:flex-row sm:items-center">
       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lime-300">{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-zinc-500">{label}</p>
         <p className="mt-1 font-semibold">{value}</p>
       </div>
-      <p className="max-w-36 text-right text-xs leading-5 text-zinc-500">{detail}</p>
+      <p className="text-xs leading-5 text-zinc-500 sm:max-w-36 sm:text-right">{detail}</p>
     </div>
   );
 }
