@@ -299,37 +299,44 @@ export default async function DashboardPage() {
         </div>
       </GlassCard>
 
-      <GlassCard className="mt-5 border-lime-300/20 bg-lime-300/[0.05]">
-        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex items-start gap-4">
-            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">
-              <CalendarDays size={22} />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold">Composição corporal</h2>
-                <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100" title="A confiança aumenta conforme mais check-ins corporais são registrados.">confiança {bodyComposition.confidenceLabel}</span>
+      <GlassCard className="mt-5 border-lime-300/25 bg-[radial-gradient(circle_at_0%_0%,rgba(184,255,0,.10),transparent_34%),linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.03))]">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">
+                <CalendarDays size={22} />
               </div>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">
-                {bodyComposition.hasGoal
-                  ? compositionSummary(bodyComposition)
-                  : "Defina BF alvo e cintura para o ShapeOS projetar como seu físico pode ficar, não apenas quanto você pesaria."}
-              </p>
-              <BodyFatRangeBar projection={bodyComposition} />
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <MiniComposition label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatNumber(bodyComposition.currentLeanMassKg)} kg` : "pendente"} />
-                <MiniComposition label="Gordura atual" value={bodyComposition.currentFatMassKg ? `${formatNumber(bodyComposition.currentFatMassKg)} kg` : "pendente"} />
-                <MiniComposition label="Gordura alvo" value={bodyComposition.targetFatMassKg ? `${formatNumber(bodyComposition.targetFatMassKg)} kg` : "pendente"} />
-                <MiniComposition label="A perder" value={bodyComposition.fatMassToLoseKg ? `${formatNumber(bodyComposition.fatMassToLoseKg)} kg` : "pendente"} />
-                <MiniComposition label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} />
-                <MiniComposition label="BF alvo" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}%` : "defina"} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-semibold tracking-tight">Composição corporal</h2>
+                  <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100" title="A confiança aumenta conforme mais check-ins corporais são registrados.">confiança {bodyComposition.confidenceLabel}</span>
+                </div>
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
+                  {bodyComposition.hasGoal
+                    ? compositionSummary(bodyComposition)
+                    : "Defina BF alvo e cintura para o ShapeOS projetar como seu físico pode ficar, não apenas quanto você pesaria."}
+                </p>
               </div>
             </div>
+            <a href="/configuracoes" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black transition hover:bg-lime-200">
+              Ajustar meta
+              <ArrowRight size={15} />
+            </a>
           </div>
-          <a href="/configuracoes" className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
-            Ajustar meta
-            <ArrowRight size={15} />
-          </a>
+
+          <BodyFatRangeBar projection={bodyComposition} />
+
+          <div className="grid gap-3 lg:grid-cols-3">
+            <CompositionMetric label="Massa magra estimada" value={bodyComposition.currentLeanMassKg ? `${formatNumber(bodyComposition.currentLeanMassKg)} kg` : "pendente"} detail="referência principal para projetar o físico" featured />
+            <CompositionMetric label="Gordura atual" value={bodyComposition.currentFatMassKg ? `${formatNumber(bodyComposition.currentFatMassKg)} kg` : "pendente"} detail="estimada pelo BF atual" featured />
+            <CompositionMetric label="Gordura a perder" value={bodyComposition.fatMassToLoseKg ? `${formatNumber(bodyComposition.fatMassToLoseKg)} kg` : "pendente"} detail="até o BF alvo mantendo massa magra" featured />
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <CompositionMetric label="Gordura alvo" value={bodyComposition.targetFatMassKg ? `${formatNumber(bodyComposition.targetFatMassKg)} kg` : "pendente"} detail="massa gorda no BF alvo" />
+            <CompositionMetric label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} detail="variação de água e glicogênio" />
+            <CompositionMetric label="BF alvo" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}%` : "defina"} detail="meta visual principal" />
+          </div>
         </div>
       </GlassCard>
 
@@ -611,11 +618,12 @@ function confidenceLabel(value: string) {
   return labels[value] ?? "media";
 }
 
-function MiniComposition({ label, value }: { label: string; value: string }) {
+function CompositionMetric({ label, value, detail, featured = false }: { label: string; value: string; detail: string; featured?: boolean }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+    <div className={`rounded-3xl border px-4 py-4 ${featured ? "border-lime-300/20 bg-lime-300/[0.075]" : "border-white/10 bg-black/20"}`}>
       <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
+      <p className={`${featured ? "mt-2 text-3xl" : "mt-1 text-xl"} font-semibold tracking-tight text-zinc-100`}>{value}</p>
+      <p className="mt-2 text-xs leading-5 text-zinc-500">{detail}</p>
     </div>
   );
 }
@@ -625,14 +633,14 @@ function BodyFatRangeBar({ projection }: { projection: ReturnType<typeof buildBo
   if (currentBodyFatPct == null || targetBodyFatPct == null) return null;
 
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3" title="A barra recalcula automaticamente conforme novos check-ins corporais são registrados.">
-      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-zinc-400">
-        <span>{formatNumber(currentBodyFatPct)}%</span>
-        <span>{formatNumber(targetBodyFatPct)}%</span>
+    <div className="rounded-[28px] border border-white/10 bg-black/25 p-4" title="A barra recalcula automaticamente conforme novos check-ins corporais são registrados.">
+      <div className="mb-3 flex items-center justify-between gap-4 text-sm font-semibold text-zinc-400">
+        <span className="rounded-full bg-white/10 px-3 py-1">{formatNumber(currentBodyFatPct)}% atual</span>
+        <span className="rounded-full bg-lime-300/15 px-3 py-1 text-lime-100">{formatNumber(targetBodyFatPct)}% alvo</span>
       </div>
-      <div className="relative h-2 rounded-full bg-white/10">
+      <div className="relative h-3 rounded-full bg-white/10">
         <div className="absolute inset-y-0 left-0 rounded-full bg-lime-300/70" style={{ width: `${progressPct}%` }} />
-        <div className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-lime-300 shadow-[0_0_22px_rgba(184,255,0,.45)]" style={{ left: `${progressPct}%` }} />
+        <div className="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-lime-300 shadow-[0_0_22px_rgba(184,255,0,.45)]" style={{ left: `${progressPct}%` }} />
       </div>
     </div>
   );
@@ -642,7 +650,9 @@ function compositionSummary(projection: ReturnType<typeof buildBodyCompositionPr
   const realistic = projection.scenarios.find((scenario) => scenario.key === "realistic");
   if (projection.recomposition.detected) return "Seu físico está mudando mesmo sem grande queda de peso. Cintura e BF têm prioridade sobre o peso isolado.";
   if (realistic) {
-    return `${projection.primaryMessage} Peso projetado por BF: ${realistic.projectedWeightKg ? `${formatNumber(realistic.projectedWeightKg)} kg` : "pendente"}.`;
+    const fatLoss = projection.fatMassToLoseKg ? `reduzir cerca de ${formatNumber(projection.fatMassToLoseKg)} kg de gordura` : "reduzir gordura";
+    const range = projection.probableWeightRangeKg ? `Faixa provável: ${formatNumber(projection.probableWeightRangeKg.minKg)}-${formatNumber(projection.probableWeightRangeKg.maxKg)} kg.` : "";
+    return `Para chegar em ${formatNumber(projection.targetBodyFatPct ?? realistic.bodyFatPct)}% BF, o foco é ${fatLoss} mantendo massa magra. ${range}`.trim();
   }
   return projection.primaryMessage;
 }
