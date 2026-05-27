@@ -4,7 +4,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DeficitAdvisor } from "@/components/onboarding/deficit-advisor";
 import { getCurrentUser } from "@/lib/auth";
-import { buildBodyGoalProjection } from "@/lib/body-goal";
+import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics } from "@/lib/profile";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
@@ -31,15 +31,17 @@ export default async function ConfiguracoesPage() {
   const macroCalories = metrics.targets.proteinG * 4 + metrics.targets.fatG * 9 + metrics.targets.carbsG * 4;
   const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
   const checkins = await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "asc" }, take: 8 });
-  const bodyGoal = buildBodyGoalProjection({
+  const bodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
+  const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: profile.weightKg,
     currentWaistCm: profile.waistCm,
-    currentBodyFatPct: metrics.bodyFat.percentage,
-    targetWeightKg: profile.targetWeightKg,
+    currentBodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
     targetWaistCm: profile.targetWaistCm,
     targetBodyFatPct: profile.targetBodyFatPct,
     targetDate: profile.targetDate,
     checkins,
+    snapshots: bodySnapshots,
+    deficitPct,
   });
 
   return (
@@ -137,18 +139,15 @@ export default async function ConfiguracoesPage() {
 
           <SectionCard
             icon={<CalendarDays size={20} />}
-            title="Meta corporal"
-            text="Defina onde quer chegar. O ShapeOS estima prazo usando sua tendência semanal de peso e cintura."
+            title="Composição corporal"
+            text="Defina BF alvo e cintura. O peso projetado sai da massa magra estimada, não de IMC ou de um número fixo na balança."
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Peso alvo em kg" help="Ex: 100. Deixe vazio se não quiser usar peso como meta.">
-                <input name="targetWeightKg" defaultValue={profile.targetWeightKg ? formatInput(profile.targetWeightKg) : ""} inputMode="decimal" className={inputClass} />
-              </Field>
-              <Field label="Cintura alvo em cm" help="Boa métrica para cutting, principalmente quando o peso oscila.">
-                <input name="targetWaistCm" defaultValue={profile.targetWaistCm ? formatInput(profile.targetWaistCm) : ""} inputMode="decimal" className={inputClass} />
-              </Field>
-              <Field label="BF alvo %" help="Opcional. Depende da qualidade das medidas corporais.">
+              <Field label="BF alvo %" help="Principal meta visual. Ex: 15 para projetar peso pela massa magra atual.">
                 <input name="targetBodyFatPct" defaultValue={profile.targetBodyFatPct ? formatInput(profile.targetBodyFatPct) : ""} inputMode="decimal" className={inputClass} />
+              </Field>
+              <Field label="Cintura alvo em cm" help="Métrica principal para validar recomposição e perda de gordura.">
+                <input name="targetWaistCm" defaultValue={profile.targetWaistCm ? formatInput(profile.targetWaistCm) : ""} inputMode="decimal" className={inputClass} />
               </Field>
               <Field label="Data desejada" help="Opcional. Serve para comparar se o ritmo atual está coerente.">
                 <input name="targetDate" type="date" defaultValue={profile.targetDate ? dateInputValue(profile.targetDate) : ""} className={inputClass} />
@@ -196,7 +195,9 @@ export default async function ConfiguracoesPage() {
               <SummaryLine label="Macros" value={`${macroCalories} kcal`} detail="P 4 / C 4 / G 9 kcal por g" />
               <SummaryLine label="Água" value={formatLiters(waterTarget)} detail={`consumo ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
               <SummaryLine label="BF estimado" value={metrics.bodyFat.percentage == null ? "pendente" : `${metrics.bodyFat.percentage}%`} detail="método da Marinha" />
-              <SummaryLine label="Prazo da meta" value={bodyGoal.estimatedDate ? bodyGoal.estimatedDate.toLocaleDateString("pt-BR") : "pendente"} detail={bodyGoal.hasGoal ? bodyGoal.paceLabel : "defina uma meta corporal"} />
+              <SummaryLine label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatInput(bodyComposition.currentLeanMassKg)} kg` : "pendente"} detail={bodyComposition.muscleSignal.label} />
+              <SummaryLine label="Peso por BF alvo" value={bodyComposition.targetWeightKg ? `${formatInput(bodyComposition.targetWeightKg)} kg` : "pendente"} detail={`confiança corporal ${bodyComposition.confidenceLabel}`} />
+              <SummaryLine label="Cenário realista" value={scenarioDate(bodyComposition)} detail={bodyComposition.primaryMessage} />
             </div>
           </GlassCard>
 
@@ -290,6 +291,11 @@ function formatLiters(valueMl: number) {
 
 function dateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function scenarioDate(composition: ReturnType<typeof buildBodyCompositionProjection>) {
+  const realistic = composition.scenarios.find((scenario) => scenario.key === "realistic");
+  return realistic?.estimatedDate ? realistic.estimatedDate.toLocaleDateString("pt-BR") : "pendente";
 }
 
 function confidenceLabel(value: string) {

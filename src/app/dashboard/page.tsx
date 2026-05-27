@@ -6,7 +6,7 @@ import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
-import { buildBodyGoalProjection } from "@/lib/body-goal";
+import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
@@ -47,10 +47,12 @@ export default async function DashboardPage() {
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
   });
   const activePlanMeals = activePlan ? sortMeals(activePlan.meals) : [];
-  const latestBody = await prisma.bodyCompositionSnapshot.findFirst({
+  const bodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
     where: { userId: user.id },
     orderBy: { measuredAt: "desc" },
+    take: 12,
   });
+  const latestBody = bodySnapshots[0];
   const waterLogs = await prisma.waterLog.findMany({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
     select: { amountMl: true },
@@ -158,15 +160,17 @@ export default async function DashboardPage() {
     averageIntakeKcal,
     checkins: weeklyCheckins,
   });
-  const bodyGoal = buildBodyGoalProjection({
+  const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: profile.weightKg,
     currentWaistCm: profile.waistCm,
     currentBodyFatPct: latestBody?.bodyFatPct,
-    targetWeightKg: profile.targetWeightKg,
     targetWaistCm: profile.targetWaistCm,
     targetBodyFatPct: profile.targetBodyFatPct,
     targetDate: profile.targetDate,
     checkins: weeklyCheckins,
+    snapshots: bodySnapshots,
+    proteinHitRate: proteinHitRate(recentFoodLogs, targets.proteinG),
+    deficitPct: goal === "fat_loss" && tdee ? Math.round(((tdee - targets.calories) / tdee) * 100) : 0,
   });
   const activePlanTotals = activePlan
     ? activePlanMeals.flatMap((meal) => meal.items).reduce(
@@ -303,14 +307,19 @@ export default async function DashboardPage() {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold">Meta corporal</h2>
-                {bodyGoal.hasGoal ? <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100">{bodyGoal.paceLabel}</span> : null}
+                <h2 className="text-xl font-semibold">Composição corporal</h2>
+                <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100">confiança {bodyComposition.confidenceLabel}</span>
               </div>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                {bodyGoal.hasGoal
-                  ? goalSummary(profile, bodyGoal)
-                  : "Defina peso, cintura ou BF alvo para o ShapeOS estimar quando voce pode chegar la."}
+                {bodyComposition.hasGoal
+                  ? compositionSummary(bodyComposition)
+                  : "Defina BF alvo e cintura para o ShapeOS projetar como seu físico pode ficar, não apenas quanto você pesaria."}
               </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <MiniComposition label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatNumber(bodyComposition.currentLeanMassKg)} kg` : "pendente"} />
+                <MiniComposition label="BF alvo" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}%` : "defina"} />
+                <MiniComposition label="Peso por BF" value={bodyComposition.targetWeightKg ? `${formatNumber(bodyComposition.targetWeightKg)} kg` : "pendente"} />
+              </div>
             </div>
           </div>
           <a href="/configuracoes" className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
@@ -598,23 +607,34 @@ function confidenceLabel(value: string) {
   return labels[value] ?? "media";
 }
 
-function goalSummary(
-  profile: {
-    targetWeightKg: number | null;
-    targetWaistCm: number | null;
-    targetBodyFatPct: number | null;
-    targetDate: Date | null;
-  },
-  projection: ReturnType<typeof buildBodyGoalProjection>,
-) {
-  const targets = [
-    profile.targetWeightKg ? `${profile.targetWeightKg.toLocaleString("pt-BR")} kg` : null,
-    profile.targetWaistCm ? `${profile.targetWaistCm.toLocaleString("pt-BR")} cm de cintura` : null,
-    profile.targetBodyFatPct ? `${profile.targetBodyFatPct.toLocaleString("pt-BR")}% BF` : null,
-  ].filter(Boolean);
-  const targetText = targets.length ? targets.join(" / ") : "meta definida";
-  const dateText = projection.estimatedDate ? `Estimativa: ${projection.estimatedDate.toLocaleDateString("pt-BR")}` : "Ainda precisa de mais check-ins para estimar melhor.";
-  const desired = profile.targetDate ? `Prazo desejado: ${profile.targetDate.toLocaleDateString("pt-BR")}.` : "";
+function MiniComposition({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
+    </div>
+  );
+}
 
-  return `${targetText}. ${dateText} ${desired}`.trim();
+function compositionSummary(projection: ReturnType<typeof buildBodyCompositionProjection>) {
+  const realistic = projection.scenarios.find((scenario) => scenario.key === "realistic");
+  if (projection.recomposition.detected) return "Seu físico está mudando mesmo sem grande queda de peso. Cintura e BF têm prioridade sobre o peso isolado.";
+  if (realistic) {
+    return `${projection.primaryMessage} Peso projetado por BF: ${realistic.projectedWeightKg ? `${formatNumber(realistic.projectedWeightKg)} kg` : "pendente"}.`;
+  }
+  return projection.primaryMessage;
+}
+
+function proteinHitRate(logs: Array<{ items: Array<{ grams: number; food: { proteinPer100g: number } }> }>, targetProteinG: number) {
+  const days = logs.filter((log) => log.items.length);
+  if (!days.length || !targetProteinG) return null;
+  const hitDays = days.filter((log) => {
+    const protein = log.items.reduce((sum, item) => sum + (item.food.proteinPer100g * item.grams) / 100, 0);
+    return protein >= targetProteinG * 0.9;
+  }).length;
+  return hitDays / days.length;
+}
+
+function formatNumber(value: number) {
+  return (Math.round(value * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 }

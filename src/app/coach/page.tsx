@@ -1,8 +1,8 @@
 ﻿import Link from "next/link";
-import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Utensils } from "lucide-react";
+import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
-import { buildBodyGoalProjection } from "@/lib/body-goal";
+import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { prisma } from "@/lib/prisma";
@@ -33,22 +33,17 @@ export default async function CoachPage() {
   });
   const topInsight = insights[0];
   const latestCheckin = checkins[0];
-  const projections = buildProjections({
-    checkins,
-    snapshots: bodySnapshots,
-    currentWeightKg: latestCheckin?.averageWeightKg ?? profile.weightKg,
-    currentWaistCm: latestCheckin?.waistCm ?? profile.waistCm,
-    bodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
-  });
-  const bodyGoal = buildBodyGoalProjection({
+  const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: latestCheckin?.averageWeightKg ?? profile.weightKg,
     currentWaistCm: latestCheckin?.waistCm ?? profile.waistCm,
     currentBodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
-    targetWeightKg: profile.targetWeightKg,
     targetWaistCm: profile.targetWaistCm,
     targetBodyFatPct: profile.targetBodyFatPct,
     targetDate: profile.targetDate,
     checkins: [...checkins].reverse(),
+    snapshots: bodySnapshots,
+    proteinHitRate: proteinHitRate(foodLogs, metrics.targets.proteinG),
+    deficitPct: context.currentDeficitPct,
   });
 
   return (
@@ -101,7 +96,7 @@ export default async function CoachPage() {
             <Signal icon={<ShieldAlert size={18} />} label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} detail={tdeeValidation.message} />
             <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
             <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
-            <Signal icon={<LineChart size={18} />} label="Meta corporal" value={bodyGoal.estimatedDate ? bodyGoal.estimatedDate.toLocaleDateString("pt-BR") : "pendente"} detail={bodyGoal.hasGoal ? bodyGoal.paceLabel : "defina em metas"} />
+            <Signal icon={<LineChart size={18} />} label="Composição" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}% BF` : "pendente"} detail={`confiança ${bodyComposition.confidenceLabel}`} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
           </div>
         </GlassCard>
@@ -158,7 +153,7 @@ export default async function CoachPage() {
               </div>
             </div>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
-              Projeções usam seus check-ins. Registre peso e cintura semanalmente para ver tendências mais confiáveis.
+              Projeções usam BF alvo, cintura, massa magra estimada e tendência real. Peso é consequência da composição, não a meta principal.
             </p>
           </div>
           <Link href="/acompanhamento" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
@@ -167,49 +162,45 @@ export default async function CoachPage() {
           </Link>
         </div>
 
-        {projections.ready ? (
-          <div className="mt-6 grid gap-3 lg:grid-cols-5">
+        {bodyComposition.scenarios.length ? (
+          <div className="mt-6 grid gap-3 lg:grid-cols-3">
             <ProjectionCard
-              icon={<Scale size={18} />}
-              label="Peso"
-              value={`${formatSigned(projections.weightChangePerWeekKg)} kg/sem`}
-              detail={`Em 4 semanas: ${formatNumber(projections.projectedWeight4wKg)} kg`}
-              tone={projectionTone(projections.weightLossPctPerWeek)}
+              icon={<Dumbbell size={18} />}
+              label="Massa magra estimada"
+              value={bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg`}
+              detail={bodyComposition.muscleSignal.label}
+              tone={bodyComposition.muscleSignal.score >= 55 ? "good" : "warning"}
             />
             <ProjectionCard
               icon={<Ruler size={18} />}
               label="Cintura"
-              value={projections.waistChangePerWeekCm == null ? "sem dados" : `${formatSigned(projections.waistChangePerWeekCm)} cm/sem`}
-              detail={projections.projectedWaist4wCm == null ? "registre cintura nos check-ins" : `Em 4 semanas: ${formatNumber(projections.projectedWaist4wCm)} cm`}
-              tone="neutral"
-            />
-            <ProjectionCard
-              icon={<Activity size={18} />}
-              label="BF estimado"
-              value={projections.bodyFatPct == null ? "pendente" : `${formatNumber(projections.bodyFatPct)}%`}
-              detail={projections.bodyFatChangePerWeekPct == null ? "precisa histórico de medidas" : `${formatSigned(projections.bodyFatChangePerWeekPct)} p.p./sem`}
-              tone="neutral"
-            />
-            <ProjectionCard
-              icon={<Dumbbell size={18} />}
-              label="Massa magra est."
-              value={projections.leanMassKg == null ? "pendente" : `${formatNumber(projections.leanMassKg)} kg`}
-              detail={projections.leanMassChangePerWeekKg == null ? "precisa histórico de BF" : `${formatSigned(projections.leanMassChangePerWeekKg)} kg/sem`}
-              tone={leanMassTone(projections.leanMassChangePerWeekKg)}
+              value={bodyComposition.trends.waistCmPerWeek == null ? "sem tendência" : `${formatSigned(bodyComposition.trends.waistCmPerWeek)} cm/sem`}
+              detail={bodyComposition.recomposition.message}
+              tone={bodyComposition.recomposition.detected ? "good" : "neutral"}
             />
             <ProjectionCard
               icon={<ShieldAlert size={18} />}
-              label="Conferencia"
-              value={projectionLabel(projections.weightLossPctPerWeek)}
-              detail={projectionMessage(projections)}
-              tone={projectionTone(projections.weightLossPctPerWeek)}
+              label="Confiança corporal"
+              value={bodyComposition.confidenceLabel}
+              detail="baseada em check-ins, cintura, BF e frequência de dados"
+              tone={bodyComposition.confidenceLabel === "alta" ? "good" : bodyComposition.confidenceLabel === "media" ? "warning" : "danger"}
             />
+            {bodyComposition.scenarios.map((scenario) => (
+              <ProjectionCard
+                key={scenario.key}
+                icon={scenario.key === "aggressive" ? <Activity size={18} /> : scenario.key === "realistic" ? <Target size={18} /> : <Scale size={18} />}
+                label={scenario.label}
+                value={scenario.estimatedDate ? scenario.estimatedDate.toLocaleDateString("pt-BR") : "pendente"}
+                detail={`${formatNumber(scenario.bodyFatPct)}% BF, ${scenario.projectedWeightKg ? `${formatNumber(scenario.projectedWeightKg)} kg` : "peso pendente"}, LBM ${scenario.projectedLeanMassKg ? formatNumber(scenario.projectedLeanMassKg) : "?"} kg. Confiança ${scenario.confidence}.`}
+                tone={scenario.key === "aggressive" ? "warning" : scenario.key === "realistic" ? "good" : "neutral"}
+              />
+            ))}
           </div>
         ) : (
           <div className="mt-6 rounded-3xl bg-black/25 p-5">
             <p className="font-semibold">Ainda falta histórico.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Faça pelo menos dois check-ins semanais com peso médio. Para cintura e massa magra estimada, informe cintura e medidas de BF nas configurações.
+              Defina um BF alvo em Metas e registre cintura semanalmente. O ShapeOS vai projetar o físico por massa magra, BF e cintura.
             </p>
             <Link href="/acompanhamento" className="mt-4 inline-flex rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">
               Registrar peso e medidas
@@ -323,6 +314,16 @@ function proteinDetail(values: number[]) {
   return `${values.join("%, ")}% nos últimos dias`;
 }
 
+function proteinHitRate(logs: Array<{ items: Array<{ grams: number; food: { proteinPer100g: number } }> }>, targetProteinG: number) {
+  const days = logs.filter((log) => log.items.length);
+  if (!days.length || !targetProteinG) return null;
+  const hitDays = days.filter((log) => {
+    const protein = log.items.reduce((sum, item) => sum + (item.food.proteinPer100g * item.grams) / 100, 0);
+    return protein >= targetProteinG * 0.9;
+  }).length;
+  return hitDays / days.length;
+}
+
 function ProjectionCard({
   icon,
   label,
@@ -355,102 +356,6 @@ function ProjectionCard({
       <p className="mt-2 text-sm leading-5 text-zinc-400">{detail}</p>
     </div>
   );
-}
-
-function buildProjections(input: {
-  checkins: Array<{ averageWeightKg: number; waistCm: number | null; weekStart: Date }>;
-  snapshots: Array<{
-    measuredAt: Date;
-    weightKg: number;
-    waistCm: number | null;
-    bodyFatPct: number | null;
-    leanMassKg: number | null;
-    fatMassKg: number | null;
-  }>;
-  currentWeightKg: number;
-  currentWaistCm?: number | null;
-  bodyFatPct: number | null;
-}) {
-  const orderedSnapshots = [...input.snapshots].sort((a, b) => a.measuredAt.getTime() - b.measuredAt.getTime());
-  const orderedCheckins = [...input.checkins].sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
-  const weightSeries = orderedSnapshots.length >= 2
-    ? orderedSnapshots.map((item) => ({ date: item.measuredAt, value: item.weightKg }))
-    : orderedCheckins.map((item) => ({ date: item.weekStart, value: item.averageWeightKg }));
-  if (weightSeries.length < 2) return { ready: false as const };
-
-  const first = weightSeries[0];
-  const last = weightSeries[weightSeries.length - 1];
-  const weeks = weeksBetween(first.date, last.date);
-  const weightChangePerWeekKg = (last.value - first.value) / weeks;
-  const weightLossPctPerWeek = input.currentWeightKg > 0 ? (-weightChangePerWeekKg / input.currentWeightKg) * 100 : 0;
-
-  const waistEntries = orderedSnapshots.length >= 2
-    ? orderedSnapshots.filter((snapshot) => typeof snapshot.waistCm === "number").map((snapshot) => ({ date: snapshot.measuredAt, value: snapshot.waistCm! }))
-    : orderedCheckins.filter((checkin) => typeof checkin.waistCm === "number").map((checkin) => ({ date: checkin.weekStart, value: checkin.waistCm! }));
-  const waistTrend = waistEntries.length >= 2
-    ? (waistEntries[waistEntries.length - 1].value - waistEntries[0].value) / weeksBetween(waistEntries[0].date, waistEntries[waistEntries.length - 1].date)
-    : null;
-
-  const bfEntries = orderedSnapshots.filter((snapshot) => typeof snapshot.bodyFatPct === "number");
-  const leanEntries = orderedSnapshots.filter((snapshot) => typeof snapshot.leanMassKg === "number");
-  const latestSnapshot = orderedSnapshots[orderedSnapshots.length - 1];
-  const leanMassKg = latestSnapshot?.leanMassKg ?? (input.bodyFatPct == null ? null : input.currentWeightKg * (1 - input.bodyFatPct / 100));
-  const fatMassKg = latestSnapshot?.fatMassKg ?? (input.bodyFatPct == null ? null : input.currentWeightKg * (input.bodyFatPct / 100));
-  const bodyFatPct = latestSnapshot?.bodyFatPct ?? input.bodyFatPct;
-  const bodyFatChangePerWeekPct = bfEntries.length >= 2
-    ? (bfEntries[bfEntries.length - 1].bodyFatPct! - bfEntries[0].bodyFatPct!) / weeksBetween(bfEntries[0].measuredAt, bfEntries[bfEntries.length - 1].measuredAt)
-    : null;
-  const leanMassChangePerWeekKg = leanEntries.length >= 2
-    ? (leanEntries[leanEntries.length - 1].leanMassKg! - leanEntries[0].leanMassKg!) / weeksBetween(leanEntries[0].measuredAt, leanEntries[leanEntries.length - 1].measuredAt)
-    : null;
-
-  return {
-    ready: true as const,
-    weightChangePerWeekKg,
-    weightLossPctPerWeek,
-    projectedWeight4wKg: input.currentWeightKg + weightChangePerWeekKg * 4,
-    waistChangePerWeekCm: waistTrend,
-    projectedWaist4wCm: waistTrend == null || !input.currentWaistCm ? null : input.currentWaistCm + waistTrend * 4,
-    bodyFatPct,
-    bodyFatChangePerWeekPct,
-    leanMassKg,
-    fatMassKg,
-    leanMassChangePerWeekKg,
-  };
-}
-
-function weeksBetween(start: Date, end: Date) {
-  return Math.max(1, (end.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
-}
-
-function projectionTone(weightLossPctPerWeek: number) {
-  if (weightLossPctPerWeek > 1) return "danger" as const;
-  if (weightLossPctPerWeek >= 0.5) return "good" as const;
-  if (weightLossPctPerWeek > 0) return "warning" as const;
-  return "neutral" as const;
-}
-
-function projectionLabel(weightLossPctPerWeek: number) {
-  if (weightLossPctPerWeek > 1) return "muito rápido";
-  if (weightLossPctPerWeek >= 0.5) return "boa faixa";
-  if (weightLossPctPerWeek > 0) return "conservador";
-  return "sem perda";
-}
-
-function projectionMessage(projections: ReturnType<typeof buildProjections>) {
-  if (!projections.ready) return "faltam check-ins";
-  if (projections.weightLossPctPerWeek > 1) return "ritmo rápido; acompanhe fome, treino e medidas";
-  if (projections.weightLossPctPerWeek >= 0.5) return "ritmo coerente para cutting";
-  if (projections.weightLossPctPerWeek > 0) return "perda lenta, boa se aderência estiver difícil";
-  if ((projections.waistChangePerWeekCm ?? 0) < 0) return "peso estável com cintura caindo pode indicar recomposição";
-  return "se o objetivo é perda, revise aderência e calorias";
-}
-
-function leanMassTone(value: number | null) {
-  if (value == null) return "neutral" as const;
-  if (value < -0.2) return "warning" as const;
-  if (value >= 0) return "good" as const;
-  return "neutral" as const;
 }
 
 function snapshotSource(value: string) {
