@@ -142,6 +142,10 @@ model Profile {
   tdeeCalculationMode TdeeCalculationMode @default(COEFFICIENT) @map("tdee_calculation_mode")
   tdeeConfidence      TdeeConfidence      @default(MEDIUM) @map("tdee_confidence")
   tdeeAdjustmentKcal  Int                 @default(0) @map("tdee_adjustment_kcal")
+  targetWeightKg      Float?              @map("target_weight_kg")
+  targetWaistCm       Float?              @map("target_waist_cm")
+  targetBodyFatPct    Float?              @map("target_body_fat_pct")
+  targetDate          DateTime?           @map("target_date")
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 

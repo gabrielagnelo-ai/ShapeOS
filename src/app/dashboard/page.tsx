@@ -1,11 +1,12 @@
 ﻿import { redirect } from "next/navigation";
-import { Activity, Apple, ArrowRight, BarChart3, Droplets, Flame, FlaskConical, Gauge, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
+import { Activity, Apple, ArrowRight, BarChart3, CalendarDays, Droplets, Flame, FlaskConical, Gauge, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
+import { buildBodyGoalProjection } from "@/lib/body-goal";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
@@ -157,6 +158,16 @@ export default async function DashboardPage() {
     averageIntakeKcal,
     checkins: weeklyCheckins,
   });
+  const bodyGoal = buildBodyGoalProjection({
+    currentWeightKg: profile.weightKg,
+    currentWaistCm: profile.waistCm,
+    currentBodyFatPct: latestBody?.bodyFatPct,
+    targetWeightKg: profile.targetWeightKg,
+    targetWaistCm: profile.targetWaistCm,
+    targetBodyFatPct: profile.targetBodyFatPct,
+    targetDate: profile.targetDate,
+    checkins: weeklyCheckins,
+  });
   const activePlanTotals = activePlan
     ? activePlanMeals.flatMap((meal) => meal.items).reduce(
         (acc, item) => {
@@ -281,6 +292,31 @@ export default async function DashboardPage() {
             ))}
             <WaterReminder targetMl={waterTarget} />
           </div>
+        </div>
+      </GlassCard>
+
+      <GlassCard className="mt-5 border-lime-300/20 bg-lime-300/[0.05]">
+        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-start gap-4">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">
+              <CalendarDays size={22} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold">Meta corporal</h2>
+                {bodyGoal.hasGoal ? <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100">{bodyGoal.paceLabel}</span> : null}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                {bodyGoal.hasGoal
+                  ? goalSummary(profile, bodyGoal)
+                  : "Defina peso, cintura ou BF alvo para o ShapeOS estimar quando voce pode chegar la."}
+              </p>
+            </div>
+          </div>
+          <a href="/configuracoes" className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
+            Ajustar meta
+            <ArrowRight size={15} />
+          </a>
         </div>
       </GlassCard>
 
@@ -560,4 +596,25 @@ function confidenceLabel(value: string) {
   };
 
   return labels[value] ?? "media";
+}
+
+function goalSummary(
+  profile: {
+    targetWeightKg: number | null;
+    targetWaistCm: number | null;
+    targetBodyFatPct: number | null;
+    targetDate: Date | null;
+  },
+  projection: ReturnType<typeof buildBodyGoalProjection>,
+) {
+  const targets = [
+    profile.targetWeightKg ? `${profile.targetWeightKg.toLocaleString("pt-BR")} kg` : null,
+    profile.targetWaistCm ? `${profile.targetWaistCm.toLocaleString("pt-BR")} cm de cintura` : null,
+    profile.targetBodyFatPct ? `${profile.targetBodyFatPct.toLocaleString("pt-BR")}% BF` : null,
+  ].filter(Boolean);
+  const targetText = targets.length ? targets.join(" / ") : "meta definida";
+  const dateText = projection.estimatedDate ? `Estimativa: ${projection.estimatedDate.toLocaleDateString("pt-BR")}` : "Ainda precisa de mais check-ins para estimar melhor.";
+  const desired = profile.targetDate ? `Prazo desejado: ${profile.targetDate.toLocaleDateString("pt-BR")}.` : "";
+
+  return `${targetText}. ${dateText} ${desired}`.trim();
 }

@@ -37,6 +37,10 @@ export async function updateGoalsAction(formData: FormData) {
   const dietPreference = String(formData.get("dietPreference") ?? profile.dietPreference ?? "balanced");
   const waterPreference = normalizeWaterPreference(String(formData.get("waterPreference") ?? profile.waterPreference ?? "medium"));
   const tdeeCalculationMode = normalizeTdeeMode(String(formData.get("tdeeCalculationMode") ?? profile.tdeeCalculationMode));
+  const targetWeightKg = optionalDecimal(formData.get("targetWeightKg"));
+  const targetWaistCm = optionalDecimal(formData.get("targetWaistCm"));
+  const targetBodyFatPct = optionalDecimal(formData.get("targetBodyFatPct"));
+  const targetDate = optionalDate(String(formData.get("targetDate") ?? ""));
 
   const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg });
   const tdee = calculateTdee(bmr, activityFactor) + profile.tdeeAdjustmentKcal;
@@ -77,6 +81,10 @@ export async function updateGoalsAction(formData: FormData) {
       dietPreference,
       waterPreference,
       tdeeCalculationMode,
+      targetWeightKg,
+      targetWaistCm,
+      targetBodyFatPct,
+      targetDate,
     },
   });
 
@@ -115,4 +123,10 @@ function normalizeWaterPreference(value: string) {
 
 function normalizeTdeeMode(value: string) {
   return value === "ADDITIVE" ? "ADDITIVE" : "COEFFICIENT";
+}
+
+function optionalDate(value: string) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }

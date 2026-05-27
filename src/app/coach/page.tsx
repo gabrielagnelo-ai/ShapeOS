@@ -2,6 +2,7 @@
 import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { buildBodyGoalProjection } from "@/lib/body-goal";
 import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { prisma } from "@/lib/prisma";
@@ -38,6 +39,16 @@ export default async function CoachPage() {
     currentWeightKg: latestCheckin?.averageWeightKg ?? profile.weightKg,
     currentWaistCm: latestCheckin?.waistCm ?? profile.waistCm,
     bodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
+  });
+  const bodyGoal = buildBodyGoalProjection({
+    currentWeightKg: latestCheckin?.averageWeightKg ?? profile.weightKg,
+    currentWaistCm: latestCheckin?.waistCm ?? profile.waistCm,
+    currentBodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
+    targetWeightKg: profile.targetWeightKg,
+    targetWaistCm: profile.targetWaistCm,
+    targetBodyFatPct: profile.targetBodyFatPct,
+    targetDate: profile.targetDate,
+    checkins: [...checkins].reverse(),
   });
 
   return (
@@ -90,6 +101,7 @@ export default async function CoachPage() {
             <Signal icon={<ShieldAlert size={18} />} label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} detail={tdeeValidation.message} />
             <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
             <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
+            <Signal icon={<LineChart size={18} />} label="Meta corporal" value={bodyGoal.estimatedDate ? bodyGoal.estimatedDate.toLocaleDateString("pt-BR") : "pendente"} detail={bodyGoal.hasGoal ? bodyGoal.paceLabel : "defina em metas"} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
           </div>
         </GlassCard>
