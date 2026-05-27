@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildBodyCompositionProjection, estimateLeanMass, projectedWeightByBodyFat } from "./bodyCompositionEngine";
+import { buildBodyCompositionProjection, estimateFatMass, estimateLeanMass, projectedWeightByBodyFat } from "./bodyCompositionEngine";
 
 describe("body composition engine", () => {
   it("calcula massa magra e peso projetado por BF alvo", () => {
     expect(estimateLeanMass(117, 26)).toBe(86.6);
+    expect(estimateFatMass(117, 26)).toBe(30.4);
     expect(projectedWeightByBodyFat(86.6, 15)).toBe(101.9);
     expect(projectedWeightByBodyFat(86.6, 12)).toBe(98.4);
   });
@@ -21,9 +22,33 @@ describe("body composition engine", () => {
     });
 
     expect(projection.targetWeightKg).toBe(101.9);
+    expect(projection.currentFatMassKg).toBe(30.4);
+    expect(projection.targetFatMassKg).toBe(15.3);
+    expect(projection.fatMassToLoseKg).toBe(15.1);
+    expect(projection.probableWeightRangeKg).toEqual({ minKg: 98.7, maxKg: 102.4 });
     expect(projection.scenarios).toHaveLength(3);
     expect(projection.scenarios.map((scenario) => scenario.key)).toEqual(["conservative", "realistic", "aggressive"]);
     expect(projection.scenarios[2].estimatedWeeks).toBeLessThan(projection.scenarios[0].estimatedWeeks ?? 999);
+  });
+
+  it("calcula progresso visual de BF usando snapshots", () => {
+    const projection = buildBodyCompositionProjection({
+      currentWeightKg: 110,
+      currentBodyFatPct: 22,
+      targetBodyFatPct: 12,
+      checkins: [],
+      snapshots: [
+        { measuredAt: new Date("2026-05-01"), weightKg: 117, bodyFatPct: 26 },
+        { measuredAt: new Date("2026-05-15"), weightKg: 110, bodyFatPct: 22 },
+      ],
+    });
+
+    expect(projection.bodyFatProgress).toEqual({
+      startBodyFatPct: 26,
+      currentBodyFatPct: 22,
+      targetBodyFatPct: 12,
+      progressPct: 29,
+    });
   });
 
   it("detecta recomposição quando cintura e BF caem com peso estável", () => {

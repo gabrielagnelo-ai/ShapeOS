@@ -196,7 +196,10 @@ export default async function ConfiguracoesPage() {
               <SummaryLine label="Água" value={formatLiters(waterTarget)} detail={`consumo ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
               <SummaryLine label="BF estimado" value={metrics.bodyFat.percentage == null ? "pendente" : `${metrics.bodyFat.percentage}%`} detail="método da Marinha" />
               <SummaryLine label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatInput(bodyComposition.currentLeanMassKg)} kg` : "pendente"} detail={bodyComposition.muscleSignal.label} />
-              <SummaryLine label="Peso por BF alvo" value={bodyComposition.targetWeightKg ? `${formatInput(bodyComposition.targetWeightKg)} kg` : "pendente"} detail={`confiança corporal ${bodyComposition.confidenceLabel}`} />
+              <SummaryLine label="Massa gorda atual" value={bodyComposition.currentFatMassKg ? `${formatInput(bodyComposition.currentFatMassKg)} kg` : "pendente"} detail={bodyComposition.fatMassToLoseKg ? `${formatInput(bodyComposition.fatMassToLoseKg)} kg a perder` : "defina BF alvo"} />
+              <SummaryLine label="Massa gorda alvo" value={bodyComposition.targetFatMassKg ? `${formatInput(bodyComposition.targetFatMassKg)} kg` : "pendente"} detail="calculada pelo BF alvo" />
+              <SummaryLine label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatInput(bodyComposition.probableWeightRangeKg.minKg)}-${formatInput(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} detail="água, glicogênio e retenção" />
+              <SummaryLine label="Confiança corporal" value={bodyComposition.confidenceLabel} detail="passe o mouse para entender" tooltip="A confiança aumenta conforme mais check-ins corporais são registrados." />
               <SummaryLine label="Cenário realista" value={scenarioDate(bodyComposition)} detail={bodyComposition.primaryMessage} />
             </div>
           </GlassCard>
@@ -260,7 +263,19 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SummaryLine({ label, value, detail, tone = "neutral" }: { label: string; value: string; detail: string; tone?: "neutral" | "good" | "warning" | "danger" }) {
+function SummaryLine({
+  label,
+  value,
+  detail,
+  tone = "neutral",
+  tooltip,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "neutral" | "good" | "warning" | "danger";
+  tooltip?: string;
+}) {
   const toneClass =
     tone === "danger"
       ? "border-red-400/20 bg-red-400/10 text-red-100"
@@ -271,7 +286,7 @@ function SummaryLine({ label, value, detail, tone = "neutral" }: { label: string
           : "border-white/10 bg-white/[0.04] text-zinc-100";
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
+    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`} title={tooltip}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-zinc-400">{label}</p>
         <p className="font-semibold">{value}</p>

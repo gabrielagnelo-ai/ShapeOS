@@ -31,6 +31,11 @@ export function estimateLeanMass(weightKg: number, bodyFatPct?: number | null) {
   return round1(weightKg * (1 - bodyFatPct / 100));
 }
 
+export function estimateFatMass(weightKg: number, bodyFatPct?: number | null) {
+  if (!weightKg || bodyFatPct == null) return null;
+  return round1(weightKg * (bodyFatPct / 100));
+}
+
 export function projectedWeightByBodyFat(leanMassKg: number, targetBodyFatPct: number) {
   if (!leanMassKg || targetBodyFatPct <= 0 || targetBodyFatPct >= 50) return null;
   return round1(leanMassKg / (1 - targetBodyFatPct / 100));
@@ -49,6 +54,7 @@ export function buildBodyCompositionProjection(input: {
   deficitPct?: number | null;
 }) {
   const currentLeanMassKg = estimateLeanMass(input.currentWeightKg, input.currentBodyFatPct);
+  const currentFatMassKg = estimateFatMass(input.currentWeightKg, input.currentBodyFatPct);
   const targetBodyFatPct = input.targetBodyFatPct ?? null;
   const trends = buildTrends(input);
   const confidenceScore = bodyDataConfidence({
@@ -80,12 +86,25 @@ export function buildBodyCompositionProjection(input: {
         bfTrendPctPerWeek: trends.bodyFatPctPerWeek,
       })
     : [];
+  const targetFatMassKg = targetBodyFatPct && currentLeanMassKg ? estimateTargetFatMass(currentLeanMassKg, targetBodyFatPct) : null;
+  const fatMassToLoseKg = currentFatMassKg != null && targetFatMassKg != null ? round1(Math.max(0, currentFatMassKg - targetFatMassKg)) : null;
+  const probableWeightRangeKg = probableWeightRange(scenarios);
+  const bodyFatProgress = buildBodyFatProgress({
+    currentBodyFatPct: input.currentBodyFatPct ?? null,
+    targetBodyFatPct,
+    snapshots: input.snapshots,
+  });
 
   return {
     hasGoal: Boolean(targetBodyFatPct || input.targetWaistCm),
     currentLeanMassKg,
+    currentFatMassKg,
     targetBodyFatPct,
     targetWeightKg: targetBodyFatPct && currentLeanMassKg ? projectedWeightByBodyFat(currentLeanMassKg, targetBodyFatPct) : null,
+    targetFatMassKg,
+    fatMassToLoseKg,
+    probableWeightRangeKg,
+    bodyFatProgress,
     trends,
     confidenceScore,
     confidenceLabel: confidenceLabel(confidenceScore),
@@ -93,6 +112,42 @@ export function buildBodyCompositionProjection(input: {
     muscleSignal,
     scenarios,
     primaryMessage: primaryMessage({ recomposition, scenarios, targetBodyFatPct }),
+  };
+}
+
+function estimateTargetFatMass(leanMassKg: number, targetBodyFatPct: number) {
+  const targetWeight = projectedWeightByBodyFat(leanMassKg, targetBodyFatPct);
+  return targetWeight == null ? null : round1(targetWeight * (targetBodyFatPct / 100));
+}
+
+function probableWeightRange(scenarios: ProjectionScenario[]) {
+  const weights = scenarios.map((scenario) => scenario.projectedWeightKg).filter((value): value is number => typeof value === "number");
+  if (!weights.length) return null;
+  const min = Math.floor((Math.min(...weights) - 1.2) * 10) / 10;
+  const max = Math.ceil((Math.max(...weights) + 1.2) * 10) / 10;
+  return { minKg: min, maxKg: max };
+}
+
+function buildBodyFatProgress(input: {
+  currentBodyFatPct: number | null;
+  targetBodyFatPct: number | null;
+  snapshots: CompositionSnapshot[];
+}) {
+  if (input.currentBodyFatPct == null || input.targetBodyFatPct == null) {
+    return { startBodyFatPct: null, currentBodyFatPct: input.currentBodyFatPct, targetBodyFatPct: input.targetBodyFatPct, progressPct: 0 };
+  }
+  const orderedSnapshots = [...input.snapshots]
+    .filter((snapshot) => snapshot.bodyFatPct != null)
+    .sort((a, b) => a.measuredAt.getTime() - b.measuredAt.getTime());
+  const startBodyFatPct = orderedSnapshots[0]?.bodyFatPct ?? input.currentBodyFatPct;
+  const totalDropNeeded = Math.max(0.1, startBodyFatPct - input.targetBodyFatPct);
+  const achievedDrop = Math.max(0, startBodyFatPct - input.currentBodyFatPct);
+
+  return {
+    startBodyFatPct: round1(startBodyFatPct),
+    currentBodyFatPct: round1(input.currentBodyFatPct),
+    targetBodyFatPct: round1(input.targetBodyFatPct),
+    progressPct: Math.round(clamp((achievedDrop / totalDropNeeded) * 100, 0, 100)),
   };
 }
 

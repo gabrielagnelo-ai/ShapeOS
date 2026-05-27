@@ -308,17 +308,21 @@ export default async function DashboardPage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-semibold">Composição corporal</h2>
-                <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100">confiança {bodyComposition.confidenceLabel}</span>
+                <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100" title="A confiança aumenta conforme mais check-ins corporais são registrados.">confiança {bodyComposition.confidenceLabel}</span>
               </div>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
                 {bodyComposition.hasGoal
                   ? compositionSummary(bodyComposition)
                   : "Defina BF alvo e cintura para o ShapeOS projetar como seu físico pode ficar, não apenas quanto você pesaria."}
               </p>
+              <BodyFatRangeBar projection={bodyComposition} />
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <MiniComposition label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatNumber(bodyComposition.currentLeanMassKg)} kg` : "pendente"} />
+                <MiniComposition label="Gordura atual" value={bodyComposition.currentFatMassKg ? `${formatNumber(bodyComposition.currentFatMassKg)} kg` : "pendente"} />
+                <MiniComposition label="Gordura alvo" value={bodyComposition.targetFatMassKg ? `${formatNumber(bodyComposition.targetFatMassKg)} kg` : "pendente"} />
+                <MiniComposition label="A perder" value={bodyComposition.fatMassToLoseKg ? `${formatNumber(bodyComposition.fatMassToLoseKg)} kg` : "pendente"} />
+                <MiniComposition label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} />
                 <MiniComposition label="BF alvo" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}%` : "defina"} />
-                <MiniComposition label="Peso por BF" value={bodyComposition.targetWeightKg ? `${formatNumber(bodyComposition.targetWeightKg)} kg` : "pendente"} />
               </div>
             </div>
           </div>
@@ -612,6 +616,24 @@ function MiniComposition({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
       <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{label}</p>
       <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
+    </div>
+  );
+}
+
+function BodyFatRangeBar({ projection }: { projection: ReturnType<typeof buildBodyCompositionProjection> }) {
+  const { currentBodyFatPct, targetBodyFatPct, progressPct } = projection.bodyFatProgress;
+  if (currentBodyFatPct == null || targetBodyFatPct == null) return null;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3" title="A barra recalcula automaticamente conforme novos check-ins corporais são registrados.">
+      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-zinc-400">
+        <span>{formatNumber(currentBodyFatPct)}%</span>
+        <span>{formatNumber(targetBodyFatPct)}%</span>
+      </div>
+      <div className="relative h-2 rounded-full bg-white/10">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-lime-300/70" style={{ width: `${progressPct}%` }} />
+        <div className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-lime-300 shadow-[0_0_22px_rgba(184,255,0,.45)]" style={{ left: `${progressPct}%` }} />
+      </div>
     </div>
   );
 }

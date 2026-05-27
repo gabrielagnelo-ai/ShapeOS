@@ -163,6 +163,8 @@ export default async function CoachPage() {
         </div>
 
         {bodyComposition.scenarios.length ? (
+          <>
+          <BodyFatRangeBar projection={bodyComposition} />
           <div className="mt-6 grid gap-3 lg:grid-cols-3">
             <ProjectionCard
               icon={<Dumbbell size={18} />}
@@ -185,6 +187,27 @@ export default async function CoachPage() {
               detail="baseada em check-ins, cintura, BF e frequência de dados"
               tone={bodyComposition.confidenceLabel === "alta" ? "good" : bodyComposition.confidenceLabel === "media" ? "warning" : "danger"}
             />
+            <ProjectionCard
+              icon={<Activity size={18} />}
+              label="Massa gorda atual"
+              value={bodyComposition.currentFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentFatMassKg)} kg`}
+              detail={bodyComposition.fatMassToLoseKg == null ? "defina BF alvo para estimar gordura a perder" : `${formatNumber(bodyComposition.fatMassToLoseKg)} kg estimados até o alvo`}
+              tone="neutral"
+            />
+            <ProjectionCard
+              icon={<Target size={18} />}
+              label="Massa gorda alvo"
+              value={bodyComposition.targetFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.targetFatMassKg)} kg`}
+              detail="calculada pelo BF alvo e pela massa magra estimada"
+              tone="good"
+            />
+            <ProjectionCard
+              icon={<Scale size={18} />}
+              label="Faixa provável"
+              value={bodyComposition.probableWeightRangeKg == null ? "pendente" : `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg`}
+              detail="inclui variação esperada de água, glicogênio e retenção"
+              tone="neutral"
+            />
             {bodyComposition.scenarios.map((scenario) => (
               <ProjectionCard
                 key={scenario.key}
@@ -196,6 +219,7 @@ export default async function CoachPage() {
               />
             ))}
           </div>
+          </>
         ) : (
           <div className="mt-6 rounded-3xl bg-black/25 p-5">
             <p className="font-semibold">Ainda falta histórico.</p>
@@ -354,6 +378,33 @@ function ProjectionCard({
       </div>
       <p className="mt-4 text-2xl font-semibold">{value}</p>
       <p className="mt-2 text-sm leading-5 text-zinc-400">{detail}</p>
+    </div>
+  );
+}
+
+function BodyFatRangeBar({ projection }: { projection: ReturnType<typeof buildBodyCompositionProjection> }) {
+  const { currentBodyFatPct, targetBodyFatPct, progressPct } = projection.bodyFatProgress;
+  if (currentBodyFatPct == null || targetBodyFatPct == null) return null;
+
+  return (
+    <div className="mt-6 rounded-3xl border border-lime-300/20 bg-lime-300/[0.05] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-lime-200">Linha de BF</p>
+          <p className="mt-1 text-xs text-zinc-500">Recalcula automaticamente conforme novos check-ins corporais entram.</p>
+        </div>
+        <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400" title="A confiança aumenta conforme mais check-ins corporais são registrados.">
+          confiança {projection.confidenceLabel}
+        </span>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <span className="w-12 text-sm font-semibold">{formatNumber(currentBodyFatPct)}%</span>
+        <div className="relative h-2 flex-1 rounded-full bg-white/10">
+          <div className="absolute inset-y-0 left-0 rounded-full bg-lime-300/70" style={{ width: `${progressPct}%` }} />
+          <div className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-lime-300 shadow-[0_0_22px_rgba(184,255,0,.45)]" style={{ left: `${progressPct}%` }} />
+        </div>
+        <span className="w-12 text-right text-sm font-semibold text-lime-200">{formatNumber(targetBodyFatPct)}%</span>
+      </div>
     </div>
   );
 }
