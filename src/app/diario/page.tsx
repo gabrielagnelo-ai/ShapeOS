@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
 import { addFoodLogAction, deleteFoodLogItemAction } from "./actions";
+import { FoodSearchField } from "./food-search-field";
 
 export default async function DiarioPage() {
   const { user, profile } = await requireUserProfile();
@@ -67,22 +68,13 @@ export default async function DiarioPage() {
         <GlassCard>
           <h2 className="text-xl font-semibold">Registrar alimento</h2>
           <form action={addFoodLogAction} className="mt-5 grid gap-3">
-            <input
-              name="foodQuery"
-              list="diario-food-options"
-              className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none"
-              placeholder="Digite o alimento. Ex: frango, arroz, banana"
-              required
-            />
+            <FoodSearchField foods={foods} />
             <input name="grams" inputMode="decimal" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none" placeholder="Gramas. Ex: 150" required />
             <select name="mealName" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none">
               {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
             </select>
             <button className="rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Adicionar ao dia</button>
           </form>
-          <datalist id="diario-food-options">
-            {foods.map((food) => <option key={food.id} value={food.name} label={food.category} />)}
-          </datalist>
           <p className="mt-3 text-sm leading-6 text-zinc-500">
             A busca funciona como um Ctrl+F: digite parte do nome e confirme as gramas.
           </p>
