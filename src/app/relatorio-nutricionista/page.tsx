@@ -6,6 +6,7 @@ import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
+import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { PrintReportButton } from "./print-button";
 
 export default async function NutritionistReportPage() {
@@ -71,7 +72,12 @@ export default async function NutritionistReportPage() {
     proteinHitRate: proteinHitRate(recentFoodTotals, metrics.targets.proteinG),
     deficitPct: metrics.tdee ? Math.round(((metrics.tdee - metrics.targets.calories) / metrics.tdee) * 100) : null,
   });
-  const waterAverageMl = average(waterLogs.map((log) => log.amountMl));
+  const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
+  const todayWaterMl = waterLogs.filter((log) => log.date >= todayStart && log.date <= todayEnd).reduce((sum, log) => sum + log.amountMl, 0);
+  const waterTotalsByDay = groupWaterByDay(waterLogs);
+  const totalWaterMl = waterLogs.reduce((sum, log) => sum + log.amountMl, 0);
+  const averageWaterOnLoggedDaysMl = average([...waterTotalsByDay.values()]);
+  const averageWaterOverPeriodMl = Math.round(totalWaterMl / 30);
   const activitiesTotals = {
     raw: Math.round(activities.reduce((sum, item) => sum + item.caloriesKcal, 0)),
     conservative: Math.round(activities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
@@ -270,7 +276,11 @@ export default async function NutritionistReportPage() {
               <Info label="Kcal conservadora" value={`${activitiesTotals.conservative} kcal / 30 dias`} />
               <Info label="Media conservadora" value={`${averageConservativeActivityKcal} kcal/dia`} />
               <Info label="Extras validos hoje" value={`${tdeeResult.activityKcal} kcal`} />
-              <Info label="Agua media registrada" value={`${Math.round(waterAverageMl)} ml/dia`} />
+              <Info label="Agua hoje" value={`${todayWaterMl} ml`} />
+              <Info label="Meta agua" value={`${waterTarget} ml/dia (${waterPreferenceLabel(profile.waterPreference)})`} />
+              <Info label="Media dias registrados" value={`${Math.round(averageWaterOnLoggedDaysMl)} ml/dia`} />
+              <Info label="Media 30 dias" value={`${averageWaterOverPeriodMl} ml/dia`} />
+              <Info label="Dias com agua" value={`${waterTotalsByDay.size}/30`} />
               <Info label="Dias Apple/Health" value={`${healthSummaries.length}`} />
             </InfoGrid>
             <p className="mt-3 text-xs leading-5 text-zinc-400">
@@ -439,6 +449,14 @@ function proteinHitRate(days: Array<{ totals: ReturnType<typeof sumNutrients> }>
 
 function average(values: number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+function groupWaterByDay(logs: Array<{ date: Date; amountMl: number }>) {
+  return logs.reduce((days, log) => {
+    const key = log.date.toISOString().slice(0, 10);
+    days.set(key, (days.get(key) ?? 0) + log.amountMl);
+    return days;
+  }, new Map<string, number>());
 }
 
 function formatDate(date: Date) {
