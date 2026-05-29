@@ -240,9 +240,9 @@ input:-webkit-autofill:focus {
 
   html,
   body {
-    background: #ffffff !important;
-    color: #111111 !important;
-    color-scheme: light;
+    background: #070807 !important;
+    color: #f5f5f7 !important;
+    color-scheme: dark;
     overflow: visible !important;
   }
 

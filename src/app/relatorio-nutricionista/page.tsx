@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
@@ -72,207 +73,228 @@ export default async function NutritionistReportPage() {
     raw: Math.round(activities.reduce((sum, item) => sum + item.caloriesKcal, 0)),
     conservative: Math.round(activities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
   };
+  const heroMetrics = [
+    { label: "Meta calorica", value: `${metrics.targets.calories} kcal` },
+    { label: "TDEE efetivo", value: `${tdeeResult.total} kcal` },
+    { label: "BF atual", value: bodyComposition.bodyFatProgress.currentBodyFatPct == null ? "pendente" : `${formatNumber(bodyComposition.bodyFatProgress.currentBodyFatPct)}%` },
+    { label: "Massa magra", value: bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg` },
+  ];
 
   return (
-    <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950 print:bg-white print:px-0 print:py-0">
-      <div className="mx-auto max-w-5xl rounded-[28px] bg-white p-6 shadow-2xl shadow-black/10 print:max-w-none print:rounded-none print:p-0 print:shadow-none">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700">
+    <main className="min-h-screen bg-[#070807] px-4 py-8 text-zinc-100 print:bg-[#070807] print:px-0 print:py-0">
+      <div className="mx-auto max-w-5xl overflow-hidden rounded-[36px] border border-lime-300/20 bg-[#10110f] shadow-2xl shadow-lime-950/20 print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-6 py-5 backdrop-blur print:hidden">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/12">
             <ArrowLeft size={16} />
             Voltar
           </Link>
           <PrintReportButton />
         </div>
 
-        <header className="border-b border-zinc-300 pb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">ShapeOS - relatório técnico para nutricionista</p>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{user.name}</h1>
-              <p className="mt-1 text-sm text-zinc-600">{user.email}</p>
+        <header className="relative overflow-hidden border-b border-lime-300/20 bg-[radial-gradient(circle_at_15%_0%,rgba(184,255,0,.22),transparent_35%),linear-gradient(135deg,#080908_0%,#151712_58%,#0b0c0b_100%)] px-6 py-8 sm:px-8 print:px-7 print:py-7">
+          <div className="absolute right-[-90px] top-[-110px] size-72 rounded-full border border-lime-300/20 bg-lime-300/10 blur-3xl" />
+          <div className="relative flex flex-wrap items-start justify-between gap-6">
+            <div className="max-w-2xl">
+              <Image src="/shapeos-logo.png" alt="ShapeOS" width={260} height={67} className="mb-7 h-auto w-56 sm:w-64 print:w-48" priority />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-lime-300">Relatorio tecnico para nutricionista</p>
+              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl print:text-4xl">{user.name}</h1>
+              <p className="mt-2 text-sm text-zinc-300">{user.email}</p>
             </div>
-            <div className="text-right text-sm text-zinc-600">
-              <p>Emitido em {formatDate(new Date())}</p>
-              <p>Período alimentar: últimos 30 dias</p>
+            <div className="rounded-[24px] border border-white/10 bg-black/35 p-4 text-left text-sm text-zinc-300 shadow-2xl shadow-black/25 backdrop-blur">
+              <p className="text-zinc-500">Emitido em</p>
+              <p className="font-semibold text-white">{formatDate(new Date())}</p>
+              <p className="mt-3 text-zinc-500">Janela de analise</p>
+              <p className="font-semibold text-white">Ultimos 30 dias</p>
             </div>
           </div>
-          <p className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-            Documento informativo gerado a partir de registros do usuário. Não substitui consulta, diagnóstico ou prescrição profissional.
+
+          <div className="relative mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
+            {heroMetrics.map((metric) => (
+              <div key={metric.label} className="rounded-[22px] border border-white/10 bg-white/[0.07] p-4 shadow-inner shadow-white/5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">{metric.label}</p>
+                <p className="mt-2 text-2xl font-black text-white">{metric.value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="relative mt-6 rounded-[22px] border border-amber-300/45 bg-amber-300/10 px-4 py-3 text-xs leading-5 text-amber-100">
+            Documento informativo gerado a partir de registros do usuario. Nao substitui consulta, diagnostico ou prescricao profissional.
           </p>
         </header>
 
-        <ReportSection title="1. Perfil e objetivos">
-          <InfoGrid>
-            <Info label="Sexo" value={profile.sex === "MALE" ? "Masculino" : "Feminino"} />
-            <Info label="Idade" value={`${profile.age} anos`} />
-            <Info label="Altura" value={`${formatNumber(profile.heightCm)} cm`} />
-            <Info label="Peso atual" value={`${formatNumber(profile.weightKg)} kg`} />
-            <Info label="Objetivo" value={goalLabel(profile.goal)} />
-            <Info label="Experiência" value={experienceLabel(profile.experience)} />
-            <Info label="Modo" value={profile.mode === "ADVANCED" ? "Avançado" : "Guiado"} />
-            <Info label="Preferência alimentar" value={profile.dietPreference ?? "não informado"} />
-          </InfoGrid>
-          <TextBlock label="Restrições / alergias / condições" value={[
-            `Restrições: ${profile.restrictions.join(", ") || "nenhuma"}`,
-            `Alergias: ${profile.allergies.join(", ") || "nenhuma"}`,
-            `Não gosta: ${profile.dislikedFoods.join(", ") || "nenhum"}`,
-            `Condições relevantes: ${profile.medicalConditions.join(", ") || "nenhuma informada"}`,
-          ].join("\n")} />
-        </ReportSection>
+        <div className="space-y-7 px-6 py-7 sm:px-8 print:px-7 print:py-6">
+          <ReportSection title="1. Perfil e objetivos">
+            <InfoGrid>
+              <Info label="Sexo" value={profile.sex === "MALE" ? "Masculino" : "Feminino"} />
+              <Info label="Idade" value={`${profile.age} anos`} />
+              <Info label="Altura" value={`${formatNumber(profile.heightCm)} cm`} />
+              <Info label="Peso atual" value={`${formatNumber(profile.weightKg)} kg`} />
+              <Info label="Objetivo" value={goalLabel(profile.goal)} />
+              <Info label="Experiencia" value={experienceLabel(profile.experience)} />
+              <Info label="Modo" value={profile.mode === "ADVANCED" ? "Avancado" : "Guiado"} />
+              <Info label="Preferencia alimentar" value={profile.dietPreference ?? "nao informado"} />
+            </InfoGrid>
+            <TextBlock label="Restricoes / alergias / condicoes" value={[
+              `Restricoes: ${profile.restrictions.join(", ") || "nenhuma"}`,
+              `Alergias: ${profile.allergies.join(", ") || "nenhuma"}`,
+              `Nao gosta: ${profile.dislikedFoods.join(", ") || "nenhum"}`,
+              `Condicoes relevantes: ${profile.medicalConditions.join(", ") || "nenhuma informada"}`,
+            ].join("\n")} />
+          </ReportSection>
 
-        <ReportSection title="2. Cálculos metabólicos e metas">
-          <InfoGrid>
-            <Info label="BMR Mifflin-St Jeor" value={`${metrics.bmr} kcal`} />
-            <Info label="Fator atividade" value={`${formatNumber(profile.activityFactor)} (${profile.tdeeCalculationMode})`} />
-            <Info label="TDEE base" value={`${metrics.tdee} kcal`} />
-            <Info label="TDEE efetivo hoje" value={`${tdeeResult.total} kcal`} />
-            <Info label="Ajuste adaptativo" value={`${profile.tdeeAdjustmentKcal} kcal`} />
-            <Info label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} />
-            <Info label="Meta calórica" value={`${metrics.targets.calories} kcal`} />
-            <Info label="Déficit/superávit" value={`${metrics.targets.calories - metrics.tdee} kcal/dia`} />
-          </InfoGrid>
-          <InfoGrid>
-            <Info label="Proteína" value={`${metrics.targets.proteinG} g (${formatNumber(profile.proteinPerKg ?? 1.8)} g/kg)`} />
-            <Info label="Carboidratos" value={`${metrics.targets.carbsG} g`} />
-            <Info label="Gorduras" value={`${metrics.targets.fatG} g (${formatNumber(profile.fatPerKg ?? 0.8)} g/kg)`} />
-            <Info label="Fibra alvo" value={metrics.targets.fiberG ? `${metrics.targets.fiberG} g` : "não definido"} />
-            <Info label="Sódio limite" value={metrics.targets.sodiumMg ? `${metrics.targets.sodiumMg} mg` : "não definido"} />
-          </InfoGrid>
-          <p className="mt-3 text-xs leading-5 text-zinc-600">{tdeeValidation.message}</p>
-        </ReportSection>
+          <ReportSection title="2. Calculos metabolicos e metas">
+            <InfoGrid>
+              <Info label="BMR Mifflin-St Jeor" value={`${metrics.bmr} kcal`} />
+              <Info label="Fator atividade" value={`${formatNumber(profile.activityFactor)} (${profile.tdeeCalculationMode})`} />
+              <Info label="TDEE base" value={`${metrics.tdee} kcal`} />
+              <Info label="TDEE efetivo hoje" value={`${tdeeResult.total} kcal`} />
+              <Info label="Ajuste adaptativo" value={`${profile.tdeeAdjustmentKcal} kcal`} />
+              <Info label="Confianca TDEE" value={confidenceLabel(tdeeValidation.confidence)} />
+              <Info label="Meta calorica" value={`${metrics.targets.calories} kcal`} />
+              <Info label="Deficit/superavit" value={`${metrics.targets.calories - metrics.tdee} kcal/dia`} />
+            </InfoGrid>
+            <InfoGrid>
+              <Info label="Proteina" value={`${metrics.targets.proteinG} g (${formatNumber(profile.proteinPerKg ?? 1.8)} g/kg)`} />
+              <Info label="Carboidratos" value={`${metrics.targets.carbsG} g`} />
+              <Info label="Gorduras" value={`${metrics.targets.fatG} g (${formatNumber(profile.fatPerKg ?? 0.8)} g/kg)`} />
+              <Info label="Fibra alvo" value={metrics.targets.fiberG ? `${metrics.targets.fiberG} g` : "nao definido"} />
+              <Info label="Sodio limite" value={metrics.targets.sodiumMg ? `${metrics.targets.sodiumMg} mg` : "nao definido"} />
+            </InfoGrid>
+            <p className="mt-3 text-xs leading-5 text-zinc-400">{tdeeValidation.message}</p>
+          </ReportSection>
 
-        <ReportSection title="3. Composição corporal">
-          <InfoGrid>
-            <Info label="BF atual" value={bodyComposition.bodyFatProgress.currentBodyFatPct == null ? "pendente" : `${formatNumber(bodyComposition.bodyFatProgress.currentBodyFatPct)}%`} />
-            <Info label="Massa magra estimada" value={bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg`} />
-            <Info label="Massa gorda atual" value={bodyComposition.currentFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentFatMassKg)} kg`} />
-            <Info label="BF alvo" value={bodyComposition.targetBodyFatPct == null ? "não definido" : `${formatNumber(bodyComposition.targetBodyFatPct)}%`} />
-            <Info label="Gordura alvo" value={bodyComposition.targetFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.targetFatMassKg)} kg`} />
-            <Info label="Gordura a perder" value={bodyComposition.fatMassToLoseKg == null ? "pendente" : `${formatNumber(bodyComposition.fatMassToLoseKg)} kg`} />
-            <Info label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} />
-            <Info label="Confiança corporal" value={bodyComposition.confidenceLabel} />
-          </InfoGrid>
-          <p className="mt-3 text-xs leading-5 text-zinc-600">{bodyComposition.recomposition.message}</p>
-          <Table
-            columns={["Data", "Peso", "Cintura", "Pescoço", "Quadril", "BF", "Massa magra", "Fonte"]}
-            rows={bodySnapshots.map((item) => [
-              formatDate(item.measuredAt),
-              `${formatNumber(item.weightKg)} kg`,
-              formatNullable(item.waistCm, "cm"),
-              formatNullable(item.neckCm, "cm"),
-              formatNullable(item.hipCm, "cm"),
-              formatNullable(item.bodyFatPct, "%"),
-              formatNullable(item.leanMassKg, "kg"),
-              item.source,
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="4. Consumo alimentar recente">
-          <InfoGrid>
-            <Info label="Média kcal" value={`${Math.round(averageIntake.kcal)} kcal/dia`} />
-            <Info label="Média proteína" value={`${formatNumber(averageIntake.proteinG)} g/dia`} />
-            <Info label="Média carbo" value={`${formatNumber(averageIntake.carbsG)} g/dia`} />
-            <Info label="Média gordura" value={`${formatNumber(averageIntake.fatG)} g/dia`} />
-            <Info label="Média fibra" value={`${formatNumber(averageIntake.fiberG)} g/dia`} />
-            <Info label="Média sódio" value={`${formatNumber(averageIntake.sodiumMg)} mg/dia`} />
-          </InfoGrid>
-          <Table
-            columns={["Data", "Kcal", "Proteína", "Carbo", "Gordura", "Fibra", "Sódio"]}
-            rows={recentFoodTotals.slice(0, 14).map((day) => [
-              formatDate(day.date),
-              String(Math.round(day.totals.kcal)),
-              `${formatNumber(day.totals.proteinG)} g`,
-              `${formatNumber(day.totals.carbsG)} g`,
-              `${formatNumber(day.totals.fatG)} g`,
-              `${formatNumber(day.totals.fiberG)} g`,
-              `${formatNumber(day.totals.sodiumMg)} mg`,
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="5. Plano alimentar ativo">
-          {activePlan ? (
-            <>
-              <InfoGrid>
-                <Info label="Nome" value={activePlan.name} />
-                <Info label="Meta kcal" value={`${activePlan.targetCalories} kcal`} />
-                <Info label="Proteína alvo" value={`${formatNumber(activePlan.targetProteinG)} g`} />
-                <Info label="Carbo alvo" value={`${formatNumber(activePlan.targetCarbsG)} g`} />
-                <Info label="Gordura alvo" value={`${formatNumber(activePlan.targetFatG)} g`} />
-                <Info label="Total calculado" value={planTotals ? `${Math.round(planTotals.kcal)} kcal` : "pendente"} />
-              </InfoGrid>
-              {activePlan.meals.map((meal) => (
-                <div key={meal.id} className="mt-4 break-inside-avoid">
-                  <h3 className="font-semibold">{meal.name}</h3>
-                  <Table
-                    compact
-                    columns={["Alimento", "Gramas", "Kcal", "P", "C", "G"]}
-                    rows={meal.items.map((item) => {
-                      const n = sumNutrients([{ food: toFoodNutrients(item.food), grams: item.grams }]);
-                      return [item.food.name, `${formatNumber(item.grams)} g`, String(Math.round(n.kcal)), `${formatNumber(n.proteinG)} g`, `${formatNumber(n.carbsG)} g`, `${formatNumber(n.fatG)} g`];
-                    })}
-                  />
-                </div>
-              ))}
-            </>
-          ) : <p className="text-sm text-zinc-600">Nenhum plano alimentar ativo.</p>}
-        </ReportSection>
-
-        <ReportSection title="6. Check-ins semanais">
-          <Table
-            columns={["Semana", "Peso médio", "Cintura", "Aderência", "Fome", "Energia", "Sono", "Treino", "Obs."]}
-            rows={checkins.map((item) => [
-              formatDate(item.weekStart),
-              `${formatNumber(item.averageWeightKg)} kg`,
-              formatNullable(item.waistCm, "cm"),
-              `${formatNumber(item.adherencePct)}%`,
-              `${item.hunger}/10`,
-              `${item.energy}/10`,
-              `${item.sleep}/10`,
-              item.trainingDone ? "sim" : "não",
-              item.notes ?? "",
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="7. Atividade, hidratação e saúde integrada">
-          <InfoGrid>
-            <Info label="Atividades registradas" value={`${activities.length}`} />
-            <Info label="Kcal atividade bruta" value={`${activitiesTotals.raw} kcal / 30 dias`} />
-            <Info label="Kcal conservadora" value={`${activitiesTotals.conservative} kcal / 30 dias`} />
-            <Info label="Água média registrada" value={`${Math.round(waterAverageMl)} ml/dia`} />
-            <Info label="Dias Apple/Health" value={`${healthSummaries.length}`} />
-          </InfoGrid>
-          <Table
-            compact
-            columns={["Data", "Atividade", "Duração", "Distância", "Kcal cons.", "Conta TDEE"]}
-            rows={activities.slice(0, 20).map((item) => [
-              formatDate(item.date),
-              item.name,
-              `${item.durationMinutes} min`,
-              item.distanceKm ? `${formatNumber(item.distanceKm)} km` : "-",
-              `${Math.round(item.conservativeCaloriesKcal ?? item.caloriesKcal)}`,
-              item.countsTowardTdee ? "sim" : "não",
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="8. Suplementos monitorados">
-          {supplementPlans.length ? (
+          <ReportSection title="3. Composicao corporal">
+            <InfoGrid>
+              <Info label="BF atual" value={bodyComposition.bodyFatProgress.currentBodyFatPct == null ? "pendente" : `${formatNumber(bodyComposition.bodyFatProgress.currentBodyFatPct)}%`} />
+              <Info label="Massa magra estimada" value={bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg`} />
+              <Info label="Massa gorda atual" value={bodyComposition.currentFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentFatMassKg)} kg`} />
+              <Info label="BF alvo" value={bodyComposition.targetBodyFatPct == null ? "nao definido" : `${formatNumber(bodyComposition.targetBodyFatPct)}%`} />
+              <Info label="Gordura alvo" value={bodyComposition.targetFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.targetFatMassKg)} kg`} />
+              <Info label="Gordura a perder" value={bodyComposition.fatMassToLoseKg == null ? "pendente" : `${formatNumber(bodyComposition.fatMassToLoseKg)} kg`} />
+              <Info label="Faixa provavel" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} />
+              <Info label="Confianca corporal" value={bodyComposition.confidenceLabel} />
+            </InfoGrid>
+            <p className="mt-3 text-xs leading-5 text-zinc-400">{bodyComposition.recomposition.message}</p>
             <Table
-              columns={["Suplemento", "Protocolo", "Dose/dia", "Início", "Ativo", "Registros recentes"]}
-              rows={supplementPlans.map((plan) => [
-                plan.name,
-                plan.protocol,
-                `${formatNumber(plan.dailyDoseG)} g`,
-                formatDate(plan.startedAt),
-                plan.isActive ? "sim" : "não",
-                plan.logs.map((log) => `${formatDate(log.date)} ${formatNumber(log.doseG)}g`).join("; "),
+              columns={["Data", "Peso", "Cintura", "Pescoco", "Quadril", "BF", "Massa magra", "Fonte"]}
+              rows={bodySnapshots.map((item) => [
+                formatDate(item.measuredAt),
+                `${formatNumber(item.weightKg)} kg`,
+                formatNullable(item.waistCm, "cm"),
+                formatNullable(item.neckCm, "cm"),
+                formatNullable(item.hipCm, "cm"),
+                formatNullable(item.bodyFatPct, "%"),
+                formatNullable(item.leanMassKg, "kg"),
+                item.source,
               ])}
             />
-          ) : <p className="text-sm text-zinc-600">Nenhum suplemento registrado.</p>}
-        </ReportSection>
+          </ReportSection>
+
+          <ReportSection title="4. Consumo alimentar recente">
+            <InfoGrid>
+              <Info label="Media kcal" value={`${Math.round(averageIntake.kcal)} kcal/dia`} />
+              <Info label="Media proteina" value={`${formatNumber(averageIntake.proteinG)} g/dia`} />
+              <Info label="Media carbo" value={`${formatNumber(averageIntake.carbsG)} g/dia`} />
+              <Info label="Media gordura" value={`${formatNumber(averageIntake.fatG)} g/dia`} />
+              <Info label="Media fibra" value={`${formatNumber(averageIntake.fiberG)} g/dia`} />
+              <Info label="Media sodio" value={`${formatNumber(averageIntake.sodiumMg)} mg/dia`} />
+            </InfoGrid>
+            <Table
+              columns={["Data", "Kcal", "Proteina", "Carbo", "Gordura", "Fibra", "Sodio"]}
+              rows={recentFoodTotals.slice(0, 14).map((day) => [
+                formatDate(day.date),
+                String(Math.round(day.totals.kcal)),
+                `${formatNumber(day.totals.proteinG)} g`,
+                `${formatNumber(day.totals.carbsG)} g`,
+                `${formatNumber(day.totals.fatG)} g`,
+                `${formatNumber(day.totals.fiberG)} g`,
+                `${formatNumber(day.totals.sodiumMg)} mg`,
+              ])}
+            />
+          </ReportSection>
+
+          <ReportSection title="5. Plano alimentar ativo">
+            {activePlan ? (
+              <>
+                <InfoGrid>
+                  <Info label="Nome" value={activePlan.name} />
+                  <Info label="Meta kcal" value={`${activePlan.targetCalories} kcal`} />
+                  <Info label="Proteina alvo" value={`${formatNumber(activePlan.targetProteinG)} g`} />
+                  <Info label="Carbo alvo" value={`${formatNumber(activePlan.targetCarbsG)} g`} />
+                  <Info label="Gordura alvo" value={`${formatNumber(activePlan.targetFatG)} g`} />
+                  <Info label="Total calculado" value={planTotals ? `${Math.round(planTotals.kcal)} kcal` : "pendente"} />
+                </InfoGrid>
+                {activePlan.meals.map((meal) => (
+                  <div key={meal.id} className="mt-4 break-inside-avoid">
+                    <h3 className="font-semibold text-zinc-100">{meal.name}</h3>
+                    <Table
+                      compact
+                      columns={["Alimento", "Gramas", "Kcal", "P", "C", "G"]}
+                      rows={meal.items.map((item) => {
+                        const n = sumNutrients([{ food: toFoodNutrients(item.food), grams: item.grams }]);
+                        return [item.food.name, `${formatNumber(item.grams)} g`, String(Math.round(n.kcal)), `${formatNumber(n.proteinG)} g`, `${formatNumber(n.carbsG)} g`, `${formatNumber(n.fatG)} g`];
+                      })}
+                    />
+                  </div>
+                ))}
+              </>
+            ) : <p className="text-sm text-zinc-500">Nenhum plano alimentar ativo.</p>}
+          </ReportSection>
+
+          <ReportSection title="6. Check-ins semanais">
+            <Table
+              columns={["Semana", "Peso medio", "Cintura", "Aderencia", "Fome", "Energia", "Sono", "Treino", "Obs."]}
+              rows={checkins.map((item) => [
+                formatDate(item.weekStart),
+                `${formatNumber(item.averageWeightKg)} kg`,
+                formatNullable(item.waistCm, "cm"),
+                `${formatNumber(item.adherencePct)}%`,
+                `${item.hunger}/10`,
+                `${item.energy}/10`,
+                `${item.sleep}/10`,
+                item.trainingDone ? "sim" : "nao",
+                item.notes ?? "",
+              ])}
+            />
+          </ReportSection>
+
+          <ReportSection title="7. Atividade, hidratacao e saude integrada">
+            <InfoGrid>
+              <Info label="Atividades registradas" value={`${activities.length}`} />
+              <Info label="Kcal atividade bruta" value={`${activitiesTotals.raw} kcal / 30 dias`} />
+              <Info label="Kcal conservadora" value={`${activitiesTotals.conservative} kcal / 30 dias`} />
+              <Info label="Agua media registrada" value={`${Math.round(waterAverageMl)} ml/dia`} />
+              <Info label="Dias Apple/Health" value={`${healthSummaries.length}`} />
+            </InfoGrid>
+            <Table
+              compact
+              columns={["Data", "Atividade", "Duracao", "Distancia", "Kcal cons.", "Conta TDEE"]}
+              rows={activities.slice(0, 20).map((item) => [
+                formatDate(item.date),
+                item.name,
+                `${item.durationMinutes} min`,
+                item.distanceKm ? `${formatNumber(item.distanceKm)} km` : "-",
+                `${Math.round(item.conservativeCaloriesKcal ?? item.caloriesKcal)}`,
+                item.countsTowardTdee ? "sim" : "nao",
+              ])}
+            />
+          </ReportSection>
+
+          <ReportSection title="8. Suplementos monitorados">
+            {supplementPlans.length ? (
+              <Table
+                columns={["Suplemento", "Protocolo", "Dose/dia", "Inicio", "Ativo", "Registros recentes"]}
+                rows={supplementPlans.map((plan) => [
+                  plan.name,
+                  plan.protocol,
+                  `${formatNumber(plan.dailyDoseG)} g`,
+                  formatDate(plan.startedAt),
+                  plan.isActive ? "sim" : "nao",
+                  plan.logs.map((log) => `${formatDate(log.date)} ${formatNumber(log.doseG)}g`).join("; "),
+                ])}
+              />
+            ) : <p className="text-sm text-zinc-500">Nenhum suplemento registrado.</p>}
+          </ReportSection>
+        </div>
       </div>
     </main>
   );
@@ -280,8 +302,11 @@ export default async function NutritionistReportPage() {
 
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-7 break-inside-avoid">
-      <h2 className="border-b border-zinc-200 pb-2 text-lg font-bold">{title}</h2>
+    <section className="break-inside-avoid rounded-[28px] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
+      <h2 className="flex items-center gap-3 border-b border-white/10 pb-3 text-lg font-bold text-white">
+        <span className="size-2 rounded-full bg-lime-300 shadow-[0_0_16px_rgba(184,255,0,.75)]" />
+        {title}
+      </h2>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -293,40 +318,40 @@ function InfoGrid({ children }: { children: React.ReactNode }) {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+    <div className="rounded-[18px] border border-white/10 bg-black/25 px-3 py-3 shadow-inner shadow-white/5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-zinc-950">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
     </div>
   );
 }
 
 function TextBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+    <div className="mt-3 rounded-[18px] border border-white/10 bg-black/25 px-3 py-3">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-800">{value}</p>
+      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-200">{value}</p>
     </div>
   );
 }
 
 function Table({ columns, rows, compact = false }: { columns: string[]; rows: string[][]; compact?: boolean }) {
-  if (!rows.length) return <p className="text-sm text-zinc-600">Sem dados registrados.</p>;
+  if (!rows.length) return <p className="text-sm text-zinc-500">Sem dados registrados.</p>;
 
   return (
-    <div className="mt-3 overflow-x-auto">
+    <div className="mt-3 overflow-x-auto rounded-[18px] border border-white/10">
       <table className="w-full border-collapse text-left text-xs">
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column} className="border border-zinc-200 bg-zinc-100 px-2 py-2 font-semibold text-zinc-700">{column}</th>
+              <th key={column} className="border-b border-white/10 bg-lime-300/10 px-2 py-2 font-semibold text-lime-100">{column}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
+            <tr key={rowIndex} className="odd:bg-white/[0.025]">
               {row.map((cell, cellIndex) => (
-                <td key={`${rowIndex}-${cellIndex}`} className={`border border-zinc-200 px-2 align-top ${compact ? "py-1.5" : "py-2"}`}>{cell || "-"}</td>
+                <td key={`${rowIndex}-${cellIndex}`} className={`border-b border-white/8 px-2 align-top text-zinc-200 ${compact ? "py-1.5" : "py-2"}`}>{cell || "-"}</td>
               ))}
             </tr>
           ))}
@@ -418,16 +443,16 @@ function formatNullable(value: number | null | undefined, unit: string) {
 }
 
 function goalLabel(value: string) {
-  const labels: Record<string, string> = { FAT_LOSS: "Perda de gordura", MAINTENANCE: "Manutenção", MUSCLE_GAIN: "Ganho de massa" };
+  const labels: Record<string, string> = { FAT_LOSS: "Perda de gordura", MAINTENANCE: "Manutencao", MUSCLE_GAIN: "Ganho de massa" };
   return labels[value] ?? value;
 }
 
 function experienceLabel(value: string) {
-  const labels: Record<string, string> = { BEGINNER: "Iniciante", INTERMEDIATE: "Intermediário", ADVANCED: "Avançado" };
+  const labels: Record<string, string> = { BEGINNER: "Iniciante", INTERMEDIATE: "Intermediario", ADVANCED: "Avancado" };
   return labels[value] ?? value;
 }
 
 function confidenceLabel(value: string) {
-  const labels: Record<string, string> = { HIGH: "alta", MEDIUM: "média", LOW: "baixa" };
+  const labels: Record<string, string> = { HIGH: "alta", MEDIUM: "media", LOW: "baixa" };
   return labels[value] ?? value;
 }
