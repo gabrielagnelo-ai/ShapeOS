@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
-import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
+import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
 import { PrintReportButton } from "./print-button";
 
@@ -44,12 +44,15 @@ export default async function NutritionistReportPage() {
   }));
   const averageIntake = averageNutrition(recentFoodTotals.map((day) => day.totals));
   const planTotals = activePlan ? sumNutrients(activePlan.meals.flatMap((meal) => meal.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams })))) : null;
+  const todayStart = startOfToday();
+  const todayEnd = endOfToday();
+  const todayActivities = activities.filter((activity) => activity.date >= todayStart && activity.date <= todayEnd);
   const tdeeResult = effectiveTdee({
     bmr: metrics.bmr,
     activityFactor: profile.activityFactor,
     adjustmentKcal: profile.tdeeAdjustmentKcal,
     mode: profile.tdeeCalculationMode,
-    activities,
+    activities: todayActivities,
   });
   const tdeeValidation = validateTdeeTrend({
     tdee: metrics.tdee,
@@ -72,10 +75,12 @@ export default async function NutritionistReportPage() {
   const activitiesTotals = {
     raw: Math.round(activities.reduce((sum, item) => sum + item.caloriesKcal, 0)),
     conservative: Math.round(activities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
+    todayConservative: Math.round(todayActivities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
   };
+  const averageConservativeActivityKcal = Math.round(activitiesTotals.conservative / 30);
   const heroMetrics = [
     { label: "Meta calorica", value: `${metrics.targets.calories} kcal` },
-    { label: "TDEE efetivo", value: `${tdeeResult.total} kcal` },
+    { label: "TDEE hoje", value: `${tdeeResult.total} kcal` },
     { label: "BF atual", value: bodyComposition.bodyFatProgress.currentBodyFatPct == null ? "pendente" : `${formatNumber(bodyComposition.bodyFatProgress.currentBodyFatPct)}%` },
     { label: "Massa magra", value: bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg` },
   ];
@@ -147,6 +152,7 @@ export default async function NutritionistReportPage() {
               <Info label="Fator atividade" value={`${formatNumber(profile.activityFactor)} (${profile.tdeeCalculationMode})`} />
               <Info label="TDEE base" value={`${metrics.tdee} kcal`} />
               <Info label="TDEE efetivo hoje" value={`${tdeeResult.total} kcal`} />
+              <Info label="Extras validos hoje" value={`${tdeeResult.activityKcal} kcal`} />
               <Info label="Ajuste adaptativo" value={`${profile.tdeeAdjustmentKcal} kcal`} />
               <Info label="Confianca TDEE" value={confidenceLabel(tdeeValidation.confidence)} />
               <Info label="Meta calorica" value={`${metrics.targets.calories} kcal`} />
@@ -262,9 +268,14 @@ export default async function NutritionistReportPage() {
               <Info label="Atividades registradas" value={`${activities.length}`} />
               <Info label="Kcal atividade bruta" value={`${activitiesTotals.raw} kcal / 30 dias`} />
               <Info label="Kcal conservadora" value={`${activitiesTotals.conservative} kcal / 30 dias`} />
+              <Info label="Media conservadora" value={`${averageConservativeActivityKcal} kcal/dia`} />
+              <Info label="Extras validos hoje" value={`${tdeeResult.activityKcal} kcal`} />
               <Info label="Agua media registrada" value={`${Math.round(waterAverageMl)} ml/dia`} />
               <Info label="Dias Apple/Health" value={`${healthSummaries.length}`} />
             </InfoGrid>
+            <p className="mt-3 text-xs leading-5 text-zinc-400">
+              TDEE efetivo hoje usa apenas atividades validas registradas hoje. O total de 30 dias serve para analise de tendencia e nao deve ser tratado como gasto diario fixo.
+            </p>
             <Table
               compact
               columns={["Data", "Atividade", "Duracao", "Distancia", "Kcal cons.", "Conta TDEE"]}
