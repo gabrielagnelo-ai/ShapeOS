@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Activity, Apple, BarChart3, Calculator, ChefHat, FlaskConical, Home, LogOut, Settings, Sparkles, Utensils } from "lucide-react";
+import { Activity, Apple, BarChart3, Calculator, ChefHat, FileText, FlaskConical, Home, LogOut, Settings, Sparkles, Utensils } from "lucide-react";
 
 const links = [
   { href: "/dashboard", label: "Hoje", icon: Home },
@@ -11,6 +11,7 @@ const links = [
   { href: "/alimentos", label: "Alimentos", icon: Activity },
   { href: "/receitas", label: "Receitas", icon: ChefHat },
   { href: "/suplementos", label: "Suplementos", icon: FlaskConical },
+  { href: "/relatorio-nutricionista", label: "Relatório", icon: FileText },
   { href: "/coach", label: "Coach", icon: Sparkles },
   { href: "/configuracoes", label: "Metas", icon: Settings },
 ];

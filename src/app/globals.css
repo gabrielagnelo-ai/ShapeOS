@@ -231,3 +231,28 @@ input:-webkit-autofill:focus {
     padding-right: env(safe-area-inset-right);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+    color-scheme: light;
+    overflow: visible !important;
+  }
+
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
