@@ -85,6 +85,37 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function deleteWeeklyCheckinAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const checkinId = String(formData.get("checkinId") ?? "");
+  if (!checkinId) return;
+
+  const checkin = await prisma.weeklyCheckin.findFirst({
+    where: { id: checkinId, userId: user.id },
+    select: { id: true, weekStart: true },
+  });
+  if (!checkin) return;
+
+  await prisma.$transaction([
+    prisma.weeklyCheckin.delete({ where: { id: checkin.id } }),
+    prisma.bodyCompositionSnapshot.deleteMany({
+      where: {
+        userId: user.id,
+        source: "weekly_checkin",
+        measuredAt: checkin.weekStart,
+      },
+    }),
+  ]);
+
+  revalidatePath("/acompanhamento");
+  revalidatePath("/coach");
+  revalidatePath("/dashboard");
+  revalidatePath("/configuracoes");
+  revalidatePath("/relatorio-nutricionista");
+}
+
 function parseDecimal(value: string) {
   return Number(value.replace(",", "."));
 }
