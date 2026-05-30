@@ -43,6 +43,47 @@ export async function createBodyCompositionSnapshot(input: SnapshotInput) {
   });
 }
 
+type SnapshotBodyComposition = {
+  weightKg: number;
+  neckCm?: number | null;
+  waistCm?: number | null;
+  hipCm?: number | null;
+  bodyFatPct?: number | null;
+  leanMassKg?: number | null;
+  fatMassKg?: number | null;
+  limitation?: string | null;
+};
+
+export function recalculateBodyCompositionSnapshot<T extends SnapshotBodyComposition>(
+  snapshot: T,
+  input: { sex: Sex; heightCm: number },
+): T {
+  const bodyFat = estimateBodyFat({
+    sex: input.sex,
+    heightCm: input.heightCm,
+    neckCm: snapshot.neckCm,
+    waistCm: snapshot.waistCm,
+    hipCm: snapshot.hipCm,
+  });
+
+  if (bodyFat.percentage == null) return snapshot;
+
+  return {
+    ...snapshot,
+    bodyFatPct: bodyFat.percentage,
+    leanMassKg: round(snapshot.weightKg * (1 - bodyFat.percentage / 100)),
+    fatMassKg: round(snapshot.weightKg * (bodyFat.percentage / 100)),
+    limitation: bodyFat.limitation,
+  };
+}
+
+export function recalculateBodyCompositionSnapshots<T extends SnapshotBodyComposition>(
+  snapshots: T[],
+  input: { sex: Sex; heightCm: number },
+) {
+  return snapshots.map((snapshot) => recalculateBodyCompositionSnapshot(snapshot, input));
+}
+
 function round(value: number) {
   return Math.round(value * 10) / 10;
 }

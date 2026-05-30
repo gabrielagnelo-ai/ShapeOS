@@ -2,6 +2,7 @@
 import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
@@ -15,7 +16,8 @@ export default async function CoachPage() {
   const { user, profile } = await requireUserProfile();
   const metrics = computeProfileMetrics(profile);
   const checkins = await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 });
-  const bodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
+  const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
+  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
   const foodLogs = await prisma.foodLog.findMany({ where: { userId: user.id }, include: { items: { include: { food: true } } }, orderBy: { date: "desc" }, take: 7 });
   const context = buildCoachContext({
     goal: goalMap[profile.goal],

@@ -6,6 +6,7 @@ import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
+import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
@@ -47,12 +48,11 @@ export default async function DashboardPage() {
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
   });
   const activePlanMeals = activePlan ? sortMeals(activePlan.meals) : [];
-  const bodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
+  const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
     where: { userId: user.id },
     orderBy: { measuredAt: "desc" },
     take: 12,
   });
-  const latestBody = bodySnapshots[0];
   const waterLogs = await prisma.waterLog.findMany({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
     select: { amountMl: true },
@@ -63,6 +63,8 @@ export default async function DashboardPage() {
 
   const sex = sexMap[profile.sex] as Sex;
   const goal = goalMap[profile.goal] as Goal;
+  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex, heightCm: profile.heightCm });
+  const latestBody = bodySnapshots[0];
   const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
   const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
   const bmi = calculateBmi(profile.weightKg, profile.heightCm);

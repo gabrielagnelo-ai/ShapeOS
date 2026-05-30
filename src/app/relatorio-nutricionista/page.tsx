@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +16,7 @@ export default async function NutritionistReportPage() {
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const [bodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans] = await Promise.all([
+  const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans] = await Promise.all([
     prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 }),
     prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 12 }),
     prisma.foodLog.findMany({
@@ -38,6 +39,7 @@ export default async function NutritionistReportPage() {
     }),
   ]);
 
+  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
   const latestBody = bodySnapshots[0];
   const recentFoodTotals = foodLogs.map((log) => ({
     date: log.date,
