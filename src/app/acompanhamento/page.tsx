@@ -55,7 +55,11 @@ export default async function AcompanhamentoPage() {
           <h2 className="text-xl font-semibold">Novo check-in</h2>
           <form action={saveWeeklyCheckinAction} className="mt-5 grid gap-3">
             <input name="averageWeightKg" inputMode="decimal" className={inputClass} placeholder="Peso medio da semana" required />
-            <input name="waistCm" inputMode="decimal" className={inputClass} placeholder="Cintura em cm (opcional)" />
+            <div className={`grid gap-3 ${profile.sex === "FEMALE" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+              <input name="waistCm" inputMode="decimal" className={inputClass} placeholder="Cintura em cm" defaultValue={formatInput(profile.waistCm)} required />
+              <input name="neckCm" inputMode="decimal" className={inputClass} placeholder="Pescoco em cm" defaultValue={formatInput(profile.neckCm)} required />
+              {profile.sex === "FEMALE" ? <input name="hipCm" inputMode="decimal" className={inputClass} placeholder="Quadril em cm" defaultValue={formatInput(profile.hipCm)} required /> : null}
+            </div>
             <input name="adherencePct" inputMode="decimal" className={inputClass} placeholder="Adesao a dieta %" required />
             <div className="grid gap-3 sm:grid-cols-3">
               <input name="hunger" type="number" min="1" max="10" className={inputClass} placeholder="Fome 1-10" required />
@@ -95,4 +99,8 @@ export default async function AcompanhamentoPage() {
       </div>
     </AppShell>
   );
+}
+
+function formatInput(value?: number | null) {
+  return typeof value === "number" ? String(value).replace(".", ",") : "";
 }

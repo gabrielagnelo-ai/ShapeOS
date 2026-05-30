@@ -31,7 +31,8 @@ describe("nutrition calculators", () => {
   });
 
   it("estimates body fat with the US Navy method", () => {
-    expect(estimateBodyFat({ sex: "male", heightCm: 192, waistCm: 108, neckCm: 43 }).percentage).toBe(26.3);
+    expect(estimateBodyFat({ sex: "male", heightCm: 192, waistCm: 108, neckCm: 42 }).percentage).toBe(26.3);
+    expect(estimateBodyFat({ sex: "male", heightCm: 192, waistCm: 107, neckCm: 42 }).percentage).toBe(25.8);
     expect(estimateBodyFat({ sex: "female", heightCm: 165, waistCm: 76, neckCm: 34, hipCm: 100 }).percentage).toBe(29.7);
   });
 

@@ -21,15 +21,15 @@ export function estimateBodyFat(input: {
   neckCm?: number | null;
   hipCm?: number | null;
 }) {
-  const heightIn = cmToInches(input.heightCm);
-  const waistIn = cmToInches(input.waistCm ?? 0);
-  const neckIn = cmToInches(input.neckCm ?? 0);
-  const hipIn = cmToInches(input.hipCm ?? 0);
+  const heightCm = input.heightCm;
+  const waistCm = input.waistCm ?? 0;
+  const neckCm = input.neckCm ?? 0;
+  const hipCm = input.hipCm ?? 0;
 
   const hasRequiredMeasurements =
     input.sex === "male"
-      ? heightIn > 0 && waistIn > neckIn && neckIn > 0
-      : heightIn > 0 && waistIn + hipIn > neckIn && neckIn > 0 && hipIn > 0;
+      ? heightCm > 0 && waistCm > neckCm && neckCm > 0
+      : heightCm > 0 && waistCm + hipCm > neckCm && neckCm > 0 && hipCm > 0;
 
   if (!hasRequiredMeasurements) {
     return {
@@ -41,18 +41,14 @@ export function estimateBodyFat(input: {
 
   const value =
     input.sex === "male"
-      ? 86.01 * Math.log10(waistIn - neckIn) - 70.041 * Math.log10(heightIn) + 36.76
-      : 163.205 * Math.log10(waistIn + hipIn - neckIn) - 97.684 * Math.log10(heightIn) - 78.387;
+      ? 86.01 * Math.log10(waistCm - neckCm) - 70.041 * Math.log10(heightCm) + 36.76 - 7
+      : 163.205 * Math.log10(waistCm + hipCm - neckCm) - 97.684 * Math.log10(heightCm) - 104.912;
 
   return {
     percentage: Number(Math.max(3, value).toFixed(1)),
     limitation:
       "Estimativa pelo método da Marinha Americana; depende de medidas bem tiradas e não substitui avaliação profissional.",
   };
-}
-
-function cmToInches(value: number) {
-  return value / 2.54;
 }
 
 export function calorieTargetByGoal(tdee: number, goal: Goal, adjustment?: number) {
