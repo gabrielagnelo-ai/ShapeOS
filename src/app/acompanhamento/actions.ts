@@ -8,6 +8,9 @@ import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { validateTdeeTrend } from "@/lib/tdee";
 
+const MAX_BODY_PHOTOS_PER_CHECKIN = 8;
+const MAX_BODY_PHOTO_BYTES = 5 * 1024 * 1024;
+
 export async function saveWeeklyCheckinAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
@@ -28,7 +31,7 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
   const resolvedNeckCm = neckCm ?? profile.neckCm;
   const resolvedHipCm = profile.sex === "FEMALE" ? hipCm ?? profile.hipCm : null;
 
-  await prisma.weeklyCheckin.create({
+  const checkin = await prisma.weeklyCheckin.create({
     data: {
       userId: user.id,
       weekStart,
@@ -41,6 +44,12 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
       trainingDone: String(formData.get("trainingDone") ?? "") === "on",
       notes: String(formData.get("notes") ?? ""),
     },
+  });
+
+  await saveBodyPhotos({
+    userId: user.id,
+    checkinId: checkin.id,
+    files: formData.getAll("bodyPhotos"),
   });
 
   await createBodyCompositionSnapshot({
@@ -139,6 +148,44 @@ export async function deleteWeeklyCheckinAction(formData: FormData) {
   revalidatePath("/relatorio-nutricionista");
 }
 
+export async function uploadCheckinPhotosAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const checkinId = String(formData.get("checkinId") ?? "");
+  if (!checkinId) return;
+
+  const checkin = await prisma.weeklyCheckin.findFirst({
+    where: { id: checkinId, userId: user.id },
+    select: { id: true },
+  });
+  if (!checkin) return;
+
+  await saveBodyPhotos({
+    userId: user.id,
+    checkinId: checkin.id,
+    files: formData.getAll("bodyPhotos"),
+  });
+
+  revalidatePath("/acompanhamento");
+  revalidatePath("/relatorio-nutricionista");
+}
+
+export async function deleteBodyPhotoAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const photoId = String(formData.get("photoId") ?? "");
+  if (!photoId) return;
+
+  await prisma.bodyPhoto.deleteMany({
+    where: { id: photoId, userId: user.id },
+  });
+
+  revalidatePath("/acompanhamento");
+  revalidatePath("/relatorio-nutricionista");
+}
+
 function parseDecimal(value: string) {
   return Number(value.replace(",", "."));
 }
@@ -151,4 +198,34 @@ function optionalDecimal(value: FormDataEntryValue | null) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; checkinId: string; files: FormDataEntryValue[] }) {
+  const validFiles = files.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  if (!validFiles.length) return;
+
+  const currentCount = await prisma.bodyPhoto.count({
+    where: { userId, weeklyCheckinId: checkinId },
+  });
+  const remainingSlots = Math.max(0, MAX_BODY_PHOTOS_PER_CHECKIN - currentCount);
+  if (!remainingSlots) return;
+
+  const photos = await Promise.all(validFiles.slice(0, remainingSlots).map(async (file, index) => {
+    if (!file.type.startsWith("image/") || file.size > MAX_BODY_PHOTO_BYTES) return null;
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    return {
+      userId,
+      weeklyCheckinId: checkinId,
+      fileName: file.name || `foto-${currentCount + index + 1}`,
+      imageMimeType: file.type,
+      imageData: bytes,
+      position: currentCount + index,
+    };
+  }));
+
+  const data = photos.filter((photo): photo is NonNullable<typeof photo> => photo !== null);
+  if (!data.length) return;
+
+  await prisma.bodyPhoto.createMany({ data });
 }

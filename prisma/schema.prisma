@@ -78,6 +78,7 @@ model User {
   healthDailySummaries HealthDailySummary[]
   physicalActivityLogs PhysicalActivityLog[]
   mealPhotoEstimates MealPhotoEstimate[]
+  bodyPhotos     BodyPhoto[]
   supplementPlans SupplementPlan[]
   weeklyCheckins WeeklyCheckin[]
   bodyCompositionSnapshots BodyCompositionSnapshot[]
@@ -429,9 +430,28 @@ model WeeklyCheckin {
   createdAt       DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bodyPhotos BodyPhoto[]
 
   @@index([userId, weekStart])
   @@map("weekly_checkins")
+}
+
+model BodyPhoto {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  weeklyCheckinId String @map("weekly_checkin_id")
+  fileName       String   @map("file_name")
+  imageMimeType  String   @map("image_mime_type")
+  imageData      Bytes    @map("image_data")
+  pose           String?
+  position       Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weeklyCheckin WeeklyCheckin @relation(fields: [weeklyCheckinId], references: [id], onDelete: Cascade)
+
+  @@index([userId, weeklyCheckinId])
+  @@map("body_photos")
 }
 
 model BodyCompositionSnapshot {

@@ -20,7 +20,12 @@ export default async function NutritionistReportPage() {
 
   const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans] = await Promise.all([
     prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 }),
-    prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 12 }),
+    prisma.weeklyCheckin.findMany({
+      where: { userId: user.id },
+      include: { bodyPhotos: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } },
+      orderBy: { weekStart: "desc" },
+      take: 12,
+    }),
     prisma.foodLog.findMany({
       where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
       include: { items: { include: { food: true } } },
@@ -294,7 +299,39 @@ export default async function NutritionistReportPage() {
             />
           </ReportSection>
 
-          <ReportSection title="7. Atividade, hidratacao e saude integrada">
+          <ReportSection title="7. Comparativo visual dos check-ins">
+            {checkins.some((checkin) => checkin.bodyPhotos.length) ? (
+              <div className="grid gap-4">
+                {checkins.filter((checkin) => checkin.bodyPhotos.length).map((checkin, checkinIndex) => (
+                  <div key={checkin.id} className="break-inside-avoid rounded-[22px] border border-white/10 bg-black/20 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-100">Semana {checkins.length - checkinIndex} - check-in de {formatDate(checkin.weekStart)}</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Peso {formatNumber(checkin.averageWeightKg)} kg
+                          {checkin.waistCm ? ` - cintura ${formatNumber(checkin.waistCm)} cm` : ""}
+                          {` - adesao ${formatNumber(checkin.adherencePct)}%`}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-lime-300/12 px-3 py-1 text-xs font-semibold text-lime-100">{checkin.bodyPhotos.length}/8 fotos</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
+                      {checkin.bodyPhotos.map((photo, index) => (
+                        <figure key={photo.id} className="overflow-hidden rounded-[18px] border border-white/10 bg-[#080908]">
+                          <Image src={bodyPhotoSrc(photo)} alt={`Foto ${index + 1} do check-in ${formatDate(checkin.weekStart)}`} width={360} height={480} unoptimized className="aspect-[3/4] w-full object-cover" />
+                          <figcaption className="px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                            Foto {index + 1} - {formatDate(checkin.weekStart)}
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-zinc-500">Nenhuma foto corporal anexada aos check-ins.</p>}
+          </ReportSection>
+
+          <ReportSection title="8. Atividade, hidratacao e saude integrada">
             <InfoGrid>
               <Info label="Atividades registradas" value={`${activities.length}`} />
               <Info label="Kcal atividade bruta" value={`${activitiesTotals.raw} kcal / 30 dias`} />
@@ -328,7 +365,7 @@ export default async function NutritionistReportPage() {
             />
           </ReportSection>
 
-          <ReportSection title="8. Suplementos monitorados">
+          <ReportSection title="9. Suplementos monitorados">
             {supplementPlans.length ? (
               <Table
                 columns={["Suplemento", "Protocolo", "Dose/dia", "Inicio", "Ativo", "Registros recentes"]}
@@ -460,6 +497,10 @@ function formatDate(date: Date) {
 function periodTitle(value: string) {
   const labels: Record<string, string> = { month: "Mes atual", quarter: "Trimestre", semester: "Semestre" };
   return labels[value] ?? value;
+}
+
+function bodyPhotoSrc(photo: { imageMimeType: string; imageData: Uint8Array }) {
+  return `data:${photo.imageMimeType};base64,${Buffer.from(photo.imageData).toString("base64")}`;
 }
 
 function formatNumber(value: number) {
