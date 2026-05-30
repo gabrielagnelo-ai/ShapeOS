@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
+import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
@@ -13,6 +14,7 @@ import { PrintReportButton } from "./print-button";
 export default async function NutritionistReportPage() {
   const { user, profile } = await requireUserProfile();
   let metrics = computeProfileMetrics(profile);
+  const periods = calendarPeriods();
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
@@ -20,17 +22,16 @@ export default async function NutritionistReportPage() {
     prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 }),
     prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 12 }),
     prisma.foodLog.findMany({
-      where: { userId: user.id, date: { gte: since } },
+      where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
       include: { items: { include: { food: true } } },
       orderBy: { date: "desc" },
-      take: 30,
     }),
     prisma.dietPlan.findFirst({
       where: { userId: user.id, isActive: true },
       include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
     }),
     prisma.physicalActivityLog.findMany({ where: { userId: user.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 60 }),
-    prisma.waterLog.findMany({ where: { userId: user.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 120 }),
+    prisma.waterLog.findMany({ where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } }, orderBy: { date: "desc" } }),
     prisma.healthDailySummary.findMany({ where: { userId: user.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 30 }),
     prisma.supplementPlan.findMany({
       where: { userId: user.id },
@@ -43,11 +44,14 @@ export default async function NutritionistReportPage() {
   const latestBody = bodySnapshots[0];
   const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
   metrics = computeProfileMetrics(profile, currentBody);
-  const recentFoodTotals = foodLogs.map((log) => ({
+  const foodLogsForPeriod = foodLogs.map((log) => ({
     date: log.date,
-    totals: sumNutrients(log.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams }))),
+    items: log.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams })),
   }));
-  const averageIntake = averageNutrition(recentFoodTotals.map((day) => day.totals));
+  const foodMonth = foodPeriodSummary(foodLogsForPeriod, periods.month);
+  const foodQuarter = foodPeriodSummary(foodLogsForPeriod, periods.quarter);
+  const foodSemester = foodPeriodSummary(foodLogsForPeriod, periods.semester);
+  const averageIntake = foodMonth.average;
   const planTotals = activePlan ? sumNutrients(activePlan.meals.flatMap((meal) => meal.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams })))) : null;
   const todayStart = startOfToday();
   const todayEnd = endOfToday();
@@ -73,15 +77,14 @@ export default async function NutritionistReportPage() {
     targetDate: profile.targetDate,
     checkins: [...checkins].reverse(),
     snapshots: bodySnapshots,
-    proteinHitRate: proteinHitRate(recentFoodTotals, metrics.targets.proteinG),
+    proteinHitRate: proteinHitRate(foodMonth.dayTotals, metrics.targets.proteinG),
     deficitPct: metrics.tdee ? Math.round(((metrics.tdee - metrics.targets.calories) / metrics.tdee) * 100) : null,
   });
   const waterTarget = waterTargetMl(currentBody.weightKg, profile.waterPreference);
   const todayWaterMl = waterLogs.filter((log) => log.date >= todayStart && log.date <= todayEnd).reduce((sum, log) => sum + log.amountMl, 0);
-  const waterTotalsByDay = groupWaterByDay(waterLogs);
-  const totalWaterMl = waterLogs.reduce((sum, log) => sum + log.amountMl, 0);
-  const averageWaterOnLoggedDaysMl = average([...waterTotalsByDay.values()]);
-  const averageWaterOverPeriodMl = Math.round(totalWaterMl / 30);
+  const waterMonth = waterPeriodSummary(waterLogs, periods.month);
+  const waterQuarter = waterPeriodSummary(waterLogs, periods.quarter);
+  const waterSemester = waterPeriodSummary(waterLogs, periods.semester);
   const activitiesTotals = {
     raw: Math.round(activities.reduce((sum, item) => sum + item.caloriesKcal, 0)),
     conservative: Math.round(activities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
@@ -119,7 +122,7 @@ export default async function NutritionistReportPage() {
               <p className="text-zinc-500">Emitido em</p>
               <p className="font-semibold text-white">{formatDate(new Date())}</p>
               <p className="mt-3 text-zinc-500">Janela de analise</p>
-              <p className="font-semibold text-white">Ultimos 30 dias</p>
+              <p className="font-semibold text-white">Mes atual + trimestre/semestre</p>
             </div>
           </div>
 
@@ -205,18 +208,36 @@ export default async function NutritionistReportPage() {
             />
           </ReportSection>
 
-          <ReportSection title="4. Consumo alimentar recente">
+          <ReportSection title="4. Consumo alimentar por periodo">
             <InfoGrid>
-              <Info label="Media kcal" value={`${Math.round(averageIntake.kcal)} kcal/dia`} />
-              <Info label="Media proteina" value={`${formatNumber(averageIntake.proteinG)} g/dia`} />
-              <Info label="Media carbo" value={`${formatNumber(averageIntake.carbsG)} g/dia`} />
-              <Info label="Media gordura" value={`${formatNumber(averageIntake.fatG)} g/dia`} />
-              <Info label="Media fibra" value={`${formatNumber(averageIntake.fiberG)} g/dia`} />
-              <Info label="Media sodio" value={`${formatNumber(averageIntake.sodiumMg)} mg/dia`} />
+              <Info label="Media kcal mes" value={`${Math.round(foodMonth.average.kcal)} kcal/dia`} />
+              <Info label="Proteina mes" value={`${formatNumber(foodMonth.average.proteinG)} g/dia`} />
+              <Info label="Dias lancados mes" value={`${foodMonth.registeredDays}`} />
+              <Info label="Media kcal trimestre" value={`${Math.round(foodQuarter.average.kcal)} kcal/dia`} />
+              <Info label="Dias lancados trimestre" value={`${foodQuarter.registeredDays}`} />
+              <Info label="Media kcal semestre" value={`${Math.round(foodSemester.average.kcal)} kcal/dia`} />
+              <Info label="Dias lancados semestre" value={`${foodSemester.registeredDays}`} />
             </InfoGrid>
+            <p className="mt-3 text-xs leading-5 text-zinc-400">
+              Alimentacao e agua usam somente dias com registro. Dias sem lancamento nao entram como zero.
+            </p>
+            <Table
+              columns={["Periodo", "Janela", "Dias", "Kcal media", "Proteina", "Carbo", "Gordura", "Fibra", "Sodio"]}
+              rows={[foodMonth, foodQuarter, foodSemester].map((summary) => [
+                periodTitle(summary.period.key),
+                summary.period.label,
+                String(summary.registeredDays),
+                `${Math.round(summary.average.kcal)} kcal`,
+                `${formatNumber(summary.average.proteinG)} g`,
+                `${formatNumber(summary.average.carbsG)} g`,
+                `${formatNumber(summary.average.fatG)} g`,
+                `${formatNumber(summary.average.fiberG)} g`,
+                `${formatNumber(summary.average.sodiumMg)} mg`,
+              ])}
+            />
             <Table
               columns={["Data", "Kcal", "Proteina", "Carbo", "Gordura", "Fibra", "Sodio"]}
-              rows={recentFoodTotals.slice(0, 14).map((day) => [
+              rows={foodMonth.dayTotals.slice(0, 14).map((day) => [
                 formatDate(day.date),
                 String(Math.round(day.totals.kcal)),
                 `${formatNumber(day.totals.proteinG)} g`,
@@ -282,13 +303,16 @@ export default async function NutritionistReportPage() {
               <Info label="Extras validos hoje" value={`${tdeeResult.activityKcal} kcal`} />
               <Info label="Agua hoje" value={`${todayWaterMl} ml`} />
               <Info label="Meta agua" value={`${waterTarget} ml/dia (${waterPreferenceLabel(profile.waterPreference)})`} />
-              <Info label="Media dias registrados" value={`${Math.round(averageWaterOnLoggedDaysMl)} ml/dia`} />
-              <Info label="Media 30 dias" value={`${averageWaterOverPeriodMl} ml/dia`} />
-              <Info label="Dias com agua" value={`${waterTotalsByDay.size}/30`} />
+              <Info label="Media agua mes" value={`${waterMonth.averageMl} ml/dia`} />
+              <Info label="Dias agua mes" value={`${waterMonth.registeredDays}`} />
+              <Info label="Media agua trimestre" value={`${waterQuarter.averageMl} ml/dia`} />
+              <Info label="Dias agua trimestre" value={`${waterQuarter.registeredDays}`} />
+              <Info label="Media agua semestre" value={`${waterSemester.averageMl} ml/dia`} />
+              <Info label="Dias agua semestre" value={`${waterSemester.registeredDays}`} />
               <Info label="Dias Apple/Health" value={`${healthSummaries.length}`} />
             </InfoGrid>
             <p className="mt-3 text-xs leading-5 text-zinc-400">
-              TDEE efetivo hoje usa apenas atividades validas registradas hoje. O total de 30 dias serve para analise de tendencia e nao deve ser tratado como gasto diario fixo.
+              TDEE efetivo hoje usa apenas atividades validas registradas hoje. Medias de alimentacao e agua consideram apenas dias lancados no periodo.
             </p>
             <Table
               compact
@@ -424,47 +448,18 @@ function toFoodNutrients(food: DbFoodNutrients): FoodNutrients {
   };
 }
 
-function averageNutrition(days: ReturnType<typeof sumNutrients>[]) {
-  if (!days.length) return sumNutrients([]);
-  const totals = days.reduce((acc, day) => ({
-    kcal: acc.kcal + day.kcal,
-    proteinG: acc.proteinG + day.proteinG,
-    carbsG: acc.carbsG + day.carbsG,
-    fatG: acc.fatG + day.fatG,
-    fiberG: acc.fiberG + day.fiberG,
-    sodiumMg: acc.sodiumMg + day.sodiumMg,
-    calciumMg: acc.calciumMg + day.calciumMg,
-    ironMg: acc.ironMg + day.ironMg,
-    magnesiumMg: acc.magnesiumMg + day.magnesiumMg,
-    potassiumMg: acc.potassiumMg + day.potassiumMg,
-    zincMg: acc.zincMg + day.zincMg,
-    vitaminCMg: acc.vitaminCMg + day.vitaminCMg,
-    vitaminDMcg: acc.vitaminDMcg + day.vitaminDMcg,
-    vitaminB12Mcg: acc.vitaminB12Mcg + day.vitaminB12Mcg,
-  }), sumNutrients([]));
-
-  return Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, Number((value / days.length).toFixed(1))])) as ReturnType<typeof sumNutrients>;
-}
-
 function proteinHitRate(days: Array<{ totals: ReturnType<typeof sumNutrients> }>, targetProteinG: number) {
   if (!days.length || !targetProteinG) return null;
   return days.filter((day) => day.totals.proteinG >= targetProteinG * 0.9).length / days.length;
 }
 
-function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
-}
-
-function groupWaterByDay(logs: Array<{ date: Date; amountMl: number }>) {
-  return logs.reduce((days, log) => {
-    const key = log.date.toISOString().slice(0, 10);
-    days.set(key, (days.get(key) ?? 0) + log.amountMl);
-    return days;
-  }, new Map<string, number>());
-}
-
 function formatDate(date: Date) {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function periodTitle(value: string) {
+  const labels: Record<string, string> = { month: "Mes atual", quarter: "Trimestre", semester: "Semestre" };
+  return labels[value] ?? value;
 }
 
 function formatNumber(value: number) {

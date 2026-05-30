@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createBodyCompositionSnapshot } from "@/lib/body-composition";
 import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
+import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { validateTdeeTrend } from "@/lib/tdee";
 
@@ -54,15 +55,30 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
     measuredAt: weekStart,
   });
 
+  const periods = calendarPeriods();
   const [checkins, foodLogs] = await Promise.all([
     prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "asc" }, take: 8 }),
     prisma.foodLog.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, date: { gte: periods.month.start, lt: periods.month.end } },
       include: { items: { include: { food: true } } },
       orderBy: { date: "desc" },
-      take: 14,
     }),
   ]);
+  const monthlyFood = foodPeriodSummary(foodLogs.map((log) => ({
+    date: log.date,
+    items: log.items.map((item) => ({
+      grams: item.grams,
+      food: {
+        name: item.food.name,
+        kcalPer100g: item.food.kcalPer100g,
+        proteinPer100g: item.food.proteinPer100g,
+        carbsPer100g: item.food.carbsPer100g,
+        fatPer100g: item.food.fatPer100g,
+        fiberPer100g: item.food.fiberPer100g ?? 0,
+        sodiumPer100g: item.food.sodiumPer100g ?? 0,
+      },
+    })),
+  })), periods.month);
   const bmr = calculateBmr({
     sex: (profile.sex === "MALE" ? "male" : "female") as Sex,
     age: profile.age,
@@ -72,7 +88,7 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
   const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
   const validation = validateTdeeTrend({
     tdee,
-    averageIntakeKcal: averageFoodLogCalories(foodLogs),
+    averageIntakeKcal: Math.round(monthlyFood.average.kcal),
     checkins,
   });
   const nextAdjustment = clamp(profile.tdeeAdjustmentKcal + validation.suggestedAdjustmentKcal, -500, 500);
@@ -131,17 +147,6 @@ function optionalDecimal(value: FormDataEntryValue | null) {
   if (!value) return null;
   const parsed = parseDecimal(String(value));
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function averageFoodLogCalories(logs: Array<{ items: Array<{ grams: number; food: { kcalPer100g: number } }> }>) {
-  const days = logs.filter((log) => log.items.length);
-  if (!days.length) return 0;
-
-  const total = days.reduce((sum, log) => (
-    sum + log.items.reduce((dayTotal, item) => dayTotal + (item.food.kcalPer100g * item.grams) / 100, 0)
-  ), 0);
-
-  return Math.round(total / days.length);
 }
 
 function clamp(value: number, min: number, max: number) {

@@ -12,6 +12,7 @@ import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/co
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
+import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/period-averages";
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");
 
+  const periods = calendarPeriods();
   const todayLog = await prisma.foodLog.findFirst({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
     include: { items: { include: { food: true } } },
@@ -43,6 +45,11 @@ export default async function DashboardPage() {
     orderBy: { date: "desc" },
     take: 7,
   });
+  const periodFoodLogs = await prisma.foodLog.findMany({
+    where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
+    include: { items: { include: { food: true } } },
+    orderBy: { date: "desc" },
+  });
   const activePlan = await prisma.dietPlan.findFirst({
     where: { userId: user.id, isActive: true },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
@@ -54,8 +61,8 @@ export default async function DashboardPage() {
     take: 12,
   });
   const waterLogs = await prisma.waterLog.findMany({
-    where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
-    select: { amountMl: true },
+    where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
+    select: { date: true, amountMl: true },
   });
   const physicalActivities = await prisma.physicalActivityLog.findMany({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
@@ -87,8 +94,35 @@ export default async function DashboardPage() {
     sodiumMg: profile.sodiumLimitMg ?? 2300,
   });
   const waterTarget = waterTargetMl(currentBody.weightKg, profile.waterPreference);
-  const waterConsumed = waterLogs.reduce((total, log) => total + log.amountMl, 0);
+  const waterConsumed = waterLogs.filter((log) => log.date >= startOfToday() && log.date <= endOfToday()).reduce((total, log) => total + log.amountMl, 0);
   const waterPct = percent(waterConsumed, waterTarget);
+  const periodFood = periodFoodLogs.map((log) => ({
+    date: log.date,
+    items: log.items.map((item) => ({
+      grams: item.grams,
+      food: {
+        name: item.food.name,
+        kcalPer100g: item.food.kcalPer100g,
+        proteinPer100g: item.food.proteinPer100g,
+        carbsPer100g: item.food.carbsPer100g,
+        fatPer100g: item.food.fatPer100g,
+        fiberPer100g: item.food.fiberPer100g ?? 0,
+        sodiumPer100g: item.food.sodiumPer100g ?? 0,
+        calciumPer100g: item.food.calciumPer100g ?? 0,
+        ironPer100g: item.food.ironPer100g ?? 0,
+        magnesiumPer100g: item.food.magnesiumPer100g ?? 0,
+        potassiumPer100g: item.food.potassiumPer100g ?? 0,
+        zincPer100g: item.food.zincPer100g ?? 0,
+        vitaminCPer100g: item.food.vitaminCPer100g ?? 0,
+        vitaminDPer100g: item.food.vitaminDPer100g ?? 0,
+        vitaminB12Per100g: item.food.vitaminB12Per100g ?? 0,
+      },
+    })),
+  }));
+  const foodMonth = foodPeriodSummary(periodFood, periods.month);
+  const waterMonth = waterPeriodSummary(waterLogs, periods.month);
+  const waterQuarter = waterPeriodSummary(waterLogs, periods.quarter);
+  const waterSemester = waterPeriodSummary(waterLogs, periods.semester);
   const tdeeResult = effectiveTdee({
     bmr,
     activityFactor: profile.activityFactor,
@@ -157,7 +191,7 @@ export default async function DashboardPage() {
     carbs: percent(consumed.carbsG, targets.carbsG),
     fat: percent(consumed.fatG, targets.fatG),
   };
-  const averageIntakeKcal = averageFoodLogCalories(recentFoodLogs);
+  const averageIntakeKcal = Math.round(foodMonth.average.kcal);
   const trendValidation = validateTdeeTrend({
     tdee,
     averageIntakeKcal,
@@ -172,7 +206,7 @@ export default async function DashboardPage() {
     targetDate: profile.targetDate,
     checkins: weeklyCheckins,
     snapshots: bodySnapshots,
-    proteinHitRate: proteinHitRate(recentFoodLogs, targets.proteinG),
+    proteinHitRate: proteinHitRate(foodMonth.dayTotals, targets.proteinG),
     deficitPct: goal === "fat_loss" && tdee ? Math.round(((tdee - targets.calories) / tdee) * 100) : 0,
   });
   const activePlanTotals = activePlan
@@ -265,7 +299,7 @@ export default async function DashboardPage() {
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
         <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`${tdeeResult.ignoredActivityKcal} kcal ignoradas`} />
         <MetricTile icon={<Gauge size={18} />} label="Conf. TDEE" value={confidenceLabel(trendValidation.confidence)} detail={trendValidation.message} />
-        <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`meta ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
+        <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`média mês ${formatLiters(waterMonth.averageMl)} em ${waterMonth.registeredDays} dias`} />
       </div>
 
       <GlassCard className="mt-5 border-sky-300/20 bg-sky-300/[0.06]">
@@ -280,10 +314,16 @@ export default async function DashboardPage() {
                 <span className="rounded-full bg-sky-300/15 px-3 py-1 text-xs font-semibold text-sky-100">{waterPct}%</span>
               </div>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                Meta diária: {formatLiters(waterTarget)}. Você registrou {formatLiters(waterConsumed)} hoje.
+                Meta diária: {formatLiters(waterTarget)} ({waterPreferenceLabel(profile.waterPreference).toLowerCase()}). Hoje: {formatLiters(waterConsumed)}.
+                Média de {periods.month.label}: {formatLiters(waterMonth.averageMl)} em {waterMonth.registeredDays} dias lançados.
               </p>
               <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
                 <div className="h-full rounded-full bg-sky-300" style={{ width: `${waterPct}%` }} />
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <MiniStat label="Mês" value={formatLiters(waterMonth.averageMl)} detail={`${waterMonth.registeredDays} dias`} />
+                <MiniStat label="Trimestre" value={formatLiters(waterQuarter.averageMl)} detail={`${waterQuarter.registeredDays} dias`} />
+                <MiniStat label="Semestre" value={formatLiters(waterSemester.averageMl)} detail={`${waterSemester.registeredDays} dias`} />
               </div>
             </div>
           </div>
@@ -498,6 +538,16 @@ function PlanTotal({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MiniStat({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
+      <p className="mt-0.5 text-xs text-zinc-500">{detail}</p>
+    </div>
+  );
+}
+
 function MealRow({
   name,
   items,
@@ -600,17 +650,6 @@ function percent(value: number, target: number) {
   return Math.max(0, Math.min(100, Math.round((value / target) * 100)));
 }
 
-function averageFoodLogCalories(logs: Array<{ items: Array<{ grams: number; food: { kcalPer100g: number } }> }>) {
-  const days = logs.filter((log) => log.items.length);
-  if (!days.length) return 0;
-
-  const total = days.reduce((sum, log) => (
-    sum + log.items.reduce((dayTotal, item) => dayTotal + (item.food.kcalPer100g * item.grams) / 100, 0)
-  ), 0);
-
-  return Math.round(total / days.length);
-}
-
 function confidenceLabel(value: string) {
   const labels: Record<string, string> = {
     HIGH: "alta",
@@ -660,13 +699,9 @@ function compositionSummary(projection: ReturnType<typeof buildBodyCompositionPr
   return projection.primaryMessage;
 }
 
-function proteinHitRate(logs: Array<{ items: Array<{ grams: number; food: { proteinPer100g: number } }> }>, targetProteinG: number) {
-  const days = logs.filter((log) => log.items.length);
+function proteinHitRate(days: Array<{ totals: { proteinG: number } }>, targetProteinG: number) {
   if (!days.length || !targetProteinG) return null;
-  const hitDays = days.filter((log) => {
-    const protein = log.items.reduce((sum, item) => sum + (item.food.proteinPer100g * item.grams) / 100, 0);
-    return protein >= targetProteinG * 0.9;
-  }).length;
+  const hitDays = days.filter((day) => day.totals.proteinG >= targetProteinG * 0.9).length;
   return hitDays / days.length;
 }
 

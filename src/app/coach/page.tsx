@@ -6,6 +6,7 @@ import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
+import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { validateTdeeTrend } from "@/lib/tdee";
@@ -15,12 +16,41 @@ const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN:
 export default async function CoachPage() {
   const { user, profile } = await requireUserProfile();
   let metrics = computeProfileMetrics(profile);
+  const periods = calendarPeriods();
   const checkins = await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 });
   const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
   const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
   const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
   metrics = computeProfileMetrics(profile, currentBody);
   const foodLogs = await prisma.foodLog.findMany({ where: { userId: user.id }, include: { items: { include: { food: true } } }, orderBy: { date: "desc" }, take: 7 });
+  const periodFoodLogs = await prisma.foodLog.findMany({
+    where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
+    include: { items: { include: { food: true } } },
+    orderBy: { date: "desc" },
+  });
+  const foodMonth = foodPeriodSummary(periodFoodLogs.map((log) => ({
+    date: log.date,
+    items: log.items.map((item) => ({
+      grams: item.grams,
+      food: {
+        name: item.food.name,
+        kcalPer100g: item.food.kcalPer100g,
+        proteinPer100g: item.food.proteinPer100g,
+        carbsPer100g: item.food.carbsPer100g,
+        fatPer100g: item.food.fatPer100g,
+        fiberPer100g: item.food.fiberPer100g ?? 0,
+        sodiumPer100g: item.food.sodiumPer100g ?? 0,
+        calciumPer100g: item.food.calciumPer100g ?? 0,
+        ironPer100g: item.food.ironPer100g ?? 0,
+        magnesiumPer100g: item.food.magnesiumPer100g ?? 0,
+        potassiumPer100g: item.food.potassiumPer100g ?? 0,
+        zincPer100g: item.food.zincPer100g ?? 0,
+        vitaminCPer100g: item.food.vitaminCPer100g ?? 0,
+        vitaminDPer100g: item.food.vitaminDPer100g ?? 0,
+        vitaminB12Per100g: item.food.vitaminB12Per100g ?? 0,
+      },
+    })),
+  })), periods.month);
   const context = buildCoachContext({
     goal: goalMap[profile.goal],
     tdee: metrics.tdee,
@@ -32,7 +62,7 @@ export default async function CoachPage() {
   const insights = hasEnoughCoachData(context) ? generateCoachInsights(context) : [];
   const tdeeValidation = validateTdeeTrend({
     tdee: metrics.tdee,
-    averageIntakeKcal: averageFoodLogCalories(foodLogs),
+    averageIntakeKcal: Math.round(foodMonth.average.kcal),
     checkins: [...checkins].reverse(),
   });
   const topInsight = insights[0];
@@ -46,7 +76,7 @@ export default async function CoachPage() {
     targetDate: profile.targetDate,
     checkins: [...checkins].reverse(),
     snapshots: bodySnapshots,
-    proteinHitRate: proteinHitRate(foodLogs, metrics.targets.proteinG),
+    proteinHitRate: proteinHitRate(foodMonth.dayTotals, metrics.targets.proteinG),
     deficitPct: context.currentDeficitPct,
   });
 
@@ -342,13 +372,9 @@ function proteinDetail(values: number[]) {
   return `${values.join("%, ")}% nos últimos dias`;
 }
 
-function proteinHitRate(logs: Array<{ items: Array<{ grams: number; food: { proteinPer100g: number } }> }>, targetProteinG: number) {
-  const days = logs.filter((log) => log.items.length);
+function proteinHitRate(days: Array<{ totals: { proteinG: number } }>, targetProteinG: number) {
   if (!days.length || !targetProteinG) return null;
-  const hitDays = days.filter((log) => {
-    const protein = log.items.reduce((sum, item) => sum + (item.food.proteinPer100g * item.grams) / 100, 0);
-    return protein >= targetProteinG * 0.9;
-  }).length;
+  const hitDays = days.filter((day) => day.totals.proteinG >= targetProteinG * 0.9).length;
   return hitDays / days.length;
 }
 
@@ -429,17 +455,6 @@ function formatSigned(value: number) {
 
 function formatNumber(value: number) {
   return (Math.round(value * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-}
-
-function averageFoodLogCalories(logs: Array<{ items: Array<{ grams: number; food: { kcalPer100g: number } }> }>) {
-  const days = logs.filter((log) => log.items.length);
-  if (!days.length) return 0;
-
-  const total = days.reduce((sum, log) => (
-    sum + log.items.reduce((dayTotal, item) => dayTotal + (item.food.kcalPer100g * item.grams) / 100, 0)
-  ), 0);
-
-  return Math.round(total / days.length);
 }
 
 function confidenceLabel(value: string) {
