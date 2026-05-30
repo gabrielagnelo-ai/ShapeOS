@@ -2,6 +2,7 @@ import { Calculator, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { activityEfforts, activityPresets, tdeeCheck } from "@/lib/activity";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
@@ -23,7 +24,14 @@ export default async function AtividadesPage() {
     orderBy: { date: "desc" },
     take: 12,
   });
-  const bmr = calculateBmr({ sex: sexMap[profile.sex] as Sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
+  const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
+    where: { userId: user.id },
+    orderBy: { measuredAt: "desc" },
+    take: 12,
+  });
+  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: sexMap[profile.sex] as Sex, heightCm: profile.heightCm });
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
+  const bmr = calculateBmr({ sex: sexMap[profile.sex] as Sex, age: profile.age, heightCm: profile.heightCm, weightKg: currentBody.weightKg });
   const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
   const tdeeResult = effectiveTdee({
     bmr,

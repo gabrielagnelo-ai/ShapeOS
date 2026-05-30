@@ -6,7 +6,7 @@ import { ProgressChart } from "@/components/ui/progress-chart";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
-import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
@@ -65,9 +65,10 @@ export default async function DashboardPage() {
   const goal = goalMap[profile.goal] as Goal;
   const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex, heightCm: profile.heightCm });
   const latestBody = bodySnapshots[0];
-  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
+  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: currentBody.weightKg });
   const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
-  const bmi = calculateBmi(profile.weightKg, profile.heightCm);
+  const bmi = calculateBmi(currentBody.weightKg, profile.heightCm);
   const suggestedMicros = suggestedMicronutrientTargets({ sex, age: profile.age });
   const micronutrientTargets = {
     calciumMg: profile.calciumTargetMg ?? suggestedMicros.calciumMg,
@@ -76,7 +77,7 @@ export default async function DashboardPage() {
     potassiumMg: profile.potassiumTargetMg ?? suggestedMicros.potassiumMg,
   };
   const targets = guidedMacroTargets({
-    weightKg: profile.weightKg,
+    weightKg: currentBody.weightKg,
     tdee,
     goal,
     calorieAdjustment: goal === "fat_loss" ? -(profile.calorieDeficitKcal ?? 400) : undefined,
@@ -85,7 +86,7 @@ export default async function DashboardPage() {
     fiberG: profile.fiberTargetG ?? 30,
     sodiumMg: profile.sodiumLimitMg ?? 2300,
   });
-  const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
+  const waterTarget = waterTargetMl(currentBody.weightKg, profile.waterPreference);
   const waterConsumed = waterLogs.reduce((total, log) => total + log.amountMl, 0);
   const waterPct = percent(waterConsumed, waterTarget);
   const tdeeResult = effectiveTdee({
@@ -136,7 +137,7 @@ export default async function DashboardPage() {
   const dayPct = Math.min(100, Math.round((consumed.kcal / targets.calories) * 100));
   const remainingCalories = Math.max(0, Math.round(targets.calories - consumed.kcal));
   const briefing = dailyBriefing({
-    averageWeightKg: profile.weightKg,
+    averageWeightKg: currentBody.weightKg,
     adherencePct: 88,
     macroCompletionPct: dayPct,
     sleepScore: 7,
@@ -163,8 +164,8 @@ export default async function DashboardPage() {
     checkins: weeklyCheckins,
   });
   const bodyComposition = buildBodyCompositionProjection({
-    currentWeightKg: profile.weightKg,
-    currentWaistCm: profile.waistCm,
+    currentWeightKg: currentBody.weightKg,
+    currentWaistCm: currentBody.waistCm,
     currentBodyFatPct: latestBody?.bodyFatPct,
     targetWaistCm: profile.targetWaistCm,
     targetBodyFatPct: profile.targetBodyFatPct,
@@ -260,7 +261,7 @@ export default async function DashboardPage() {
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
         <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
-        <MetricTile icon={<Scale size={18} />} label="Peso" value={`${profile.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
+        <MetricTile icon={<Scale size={18} />} label="Peso" value={`${currentBody.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
         <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`${tdeeResult.ignoredActivityKcal} kcal ignoradas`} />
         <MetricTile icon={<Gauge size={18} />} label="Conf. TDEE" value={confidenceLabel(trendValidation.confidence)} detail={trendValidation.message} />

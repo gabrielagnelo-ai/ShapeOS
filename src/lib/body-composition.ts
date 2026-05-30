@@ -54,6 +54,16 @@ type SnapshotBodyComposition = {
   limitation?: string | null;
 };
 
+export type BodyMeasurementState = {
+  weightKg: number;
+  neckCm?: number | null;
+  waistCm?: number | null;
+  hipCm?: number | null;
+  bodyFatPct?: number | null;
+  leanMassKg?: number | null;
+  fatMassKg?: number | null;
+};
+
 export function recalculateBodyCompositionSnapshot<T extends SnapshotBodyComposition>(
   snapshot: T,
   input: { sex: Sex; heightCm: number },
@@ -82,6 +92,24 @@ export function recalculateBodyCompositionSnapshots<T extends SnapshotBodyCompos
   input: { sex: Sex; heightCm: number },
 ) {
   return snapshots.map((snapshot) => recalculateBodyCompositionSnapshot(snapshot, input));
+}
+
+export function bodyStateFromLatestSnapshot(
+  profile: BodyMeasurementState,
+  snapshots: BodyMeasurementState[],
+): BodyMeasurementState {
+  const latest = snapshots[0];
+  if (!latest) return profile;
+
+  return {
+    weightKg: latest.weightKg,
+    neckCm: latest.neckCm ?? profile.neckCm,
+    waistCm: latest.waistCm ?? profile.waistCm,
+    hipCm: latest.hipCm ?? profile.hipCm,
+    bodyFatPct: latest.bodyFatPct,
+    leanMassKg: latest.leanMassKg,
+    fatMassKg: latest.fatMassKg,
+  };
 }
 
 function round(value: number) {

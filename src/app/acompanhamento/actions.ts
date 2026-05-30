@@ -80,10 +80,6 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
   await prisma.profile.update({
     where: { userId: user.id },
     data: {
-      weightKg: averageWeightKg,
-      neckCm: resolvedNeckCm,
-      waistCm: resolvedWaistCm,
-      hipCm: resolvedHipCm,
       tdeeConfidence: validation.confidence,
       tdeeAdjustmentKcal: nextAdjustment,
     },
@@ -119,7 +115,6 @@ export async function deleteWeeklyCheckinAction(formData: FormData) {
       },
     }),
   ]);
-  await syncProfileFromLatestSnapshot(user.id);
 
   revalidatePath("/acompanhamento");
   revalidatePath("/coach");
@@ -136,25 +131,6 @@ function optionalDecimal(value: FormDataEntryValue | null) {
   if (!value) return null;
   const parsed = parseDecimal(String(value));
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-async function syncProfileFromLatestSnapshot(userId: string) {
-  const latest = await prisma.bodyCompositionSnapshot.findFirst({
-    where: { userId },
-    orderBy: { measuredAt: "desc" },
-    select: { weightKg: true, neckCm: true, waistCm: true, hipCm: true },
-  });
-  if (!latest) return;
-
-  await prisma.profile.update({
-    where: { userId },
-    data: {
-      weightKg: latest.weightKg,
-      neckCm: latest.neckCm,
-      waistCm: latest.waistCm,
-      hipCm: latest.hipCm,
-    },
-  });
 }
 
 function averageFoodLogCalories(logs: Array<{ items: Array<{ grams: number; food: { kcalPer100g: number } }> }>) {

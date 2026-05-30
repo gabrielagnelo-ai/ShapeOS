@@ -2,7 +2,7 @@
 import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
-import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
@@ -14,10 +14,12 @@ const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN:
 
 export default async function CoachPage() {
   const { user, profile } = await requireUserProfile();
-  const metrics = computeProfileMetrics(profile);
+  let metrics = computeProfileMetrics(profile);
   const checkins = await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 });
   const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
   const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
+  metrics = computeProfileMetrics(profile, currentBody);
   const foodLogs = await prisma.foodLog.findMany({ where: { userId: user.id }, include: { items: { include: { food: true } } }, orderBy: { date: "desc" }, take: 7 });
   const context = buildCoachContext({
     goal: goalMap[profile.goal],
@@ -36,8 +38,8 @@ export default async function CoachPage() {
   const topInsight = insights[0];
   const latestCheckin = checkins[0];
   const bodyComposition = buildBodyCompositionProjection({
-    currentWeightKg: latestCheckin?.averageWeightKg ?? profile.weightKg,
-    currentWaistCm: latestCheckin?.waistCm ?? profile.waistCm,
+    currentWeightKg: latestCheckin?.averageWeightKg ?? currentBody.weightKg,
+    currentWaistCm: latestCheckin?.waistCm ?? currentBody.waistCm,
     currentBodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
     targetWaistCm: profile.targetWaistCm,
     targetBodyFatPct: profile.targetBodyFatPct,

@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { createBodyCompositionSnapshot } from "@/lib/body-composition";
 import { prisma } from "@/lib/prisma";
 import { advancedMacroTargets, calculateBmr, calculateTdee, guidedMacroTargets, type Goal, type Sex } from "@/lib/nutrition";
 
@@ -23,6 +22,11 @@ export async function updateGoalsAction(formData: FormData) {
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");
+  const latestBody = await prisma.bodyCompositionSnapshot.findFirst({
+    where: { userId: user.id },
+    orderBy: { measuredAt: "desc" },
+    select: { weightKg: true },
+  });
 
   const goal = goalMap[profile.goal] as Goal;
   const sex = sexMap[profile.sex] as Sex;
@@ -30,7 +34,8 @@ export async function updateGoalsAction(formData: FormData) {
   const calorieDeficitKcal = clampNumber(Number(formData.get("calorieDeficitKcal") ?? profile.calorieDeficitKcal ?? 400), 100, 1000);
   const proteinPerKg = clampNumber(parseDecimal(String(formData.get("proteinPerKg") ?? profile.proteinPerKg ?? 1.8)), 1.2, 3);
   const fatPerKg = clampNumber(parseDecimal(String(formData.get("fatPerKg") ?? profile.fatPerKg ?? 0.8)), 0.4, 1.5);
-  const weightKg = clampNumber(parseDecimal(String(formData.get("weightKg") ?? profile.weightKg)), 30, 350);
+  const initialWeightKg = clampNumber(parseDecimal(String(formData.get("weightKg") ?? profile.weightKg)), 30, 350);
+  const currentWeightKg = latestBody?.weightKg ?? initialWeightKg;
   const neckCm = optionalDecimal(formData.get("neckCm"));
   const waistCm = optionalDecimal(formData.get("waistCm"));
   const hipCm = profile.sex === "FEMALE" ? optionalDecimal(formData.get("hipCm")) : null;
@@ -42,13 +47,13 @@ export async function updateGoalsAction(formData: FormData) {
   const targetBodyFatPct = optionalDecimal(formData.get("targetBodyFatPct"));
   const targetDate = optionalDate(String(formData.get("targetDate") ?? ""));
 
-  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg });
+  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: currentWeightKg });
   const tdee = calculateTdee(bmr, activityFactor) + profile.tdeeAdjustmentKcal;
   const targets =
     profile.mode === "ADVANCED"
       ? advancedMacroTargets({
           calories: goal === "fat_loss" ? tdee - calorieDeficitKcal : goal === "muscle_gain" ? tdee + 300 : tdee,
-          weightKg,
+          weightKg: currentWeightKg,
           proteinPerKg,
           fatPerKg,
           useRemainingCarbs: true,
@@ -56,7 +61,7 @@ export async function updateGoalsAction(formData: FormData) {
           sodiumMg: profile.sodiumLimitMg ?? 2300,
         })
       : guidedMacroTargets({
-          weightKg,
+          weightKg: currentWeightKg,
           tdee,
           goal,
           calorieAdjustment: goal === "fat_loss" ? -calorieDeficitKcal : undefined,
@@ -72,7 +77,7 @@ export async function updateGoalsAction(formData: FormData) {
       activityFactor,
       calorieDeficitKcal: goal === "fat_loss" ? calorieDeficitKcal : null,
       targetCalories: targets.calories,
-      weightKg,
+      weightKg: initialWeightKg,
       proteinPerKg,
       fatPerKg,
       neckCm,
@@ -86,17 +91,6 @@ export async function updateGoalsAction(formData: FormData) {
       targetBodyFatPct,
       targetDate,
     },
-  });
-
-  await createBodyCompositionSnapshot({
-    userId: user.id,
-    source: "profile_update",
-    sex,
-    heightCm: profile.heightCm,
-    weightKg,
-    neckCm,
-    waistCm,
-    hipCm,
   });
 
   redirect("/dashboard");

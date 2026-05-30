@@ -25,25 +25,32 @@ export async function requireUserProfile() {
   return { user, profile };
 }
 
-export function computeProfileMetrics(profile: Awaited<ReturnType<typeof requireUserProfile>>["profile"]) {
+export function computeProfileMetrics(
+  profile: Awaited<ReturnType<typeof requireUserProfile>>["profile"],
+  body?: { weightKg?: number; neckCm?: number | null; waistCm?: number | null; hipCm?: number | null },
+) {
   const sex = sexMap[profile.sex] as Sex;
   const goal = goalMap[profile.goal] as Goal;
-  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: profile.weightKg });
+  const weightKg = body?.weightKg ?? profile.weightKg;
+  const neckCm = body?.neckCm ?? profile.neckCm;
+  const waistCm = body?.waistCm ?? profile.waistCm;
+  const hipCm = body?.hipCm ?? profile.hipCm;
+  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg });
   const tdee = calculateBaseTdee({
     bmr,
     activityFactor: profile.activityFactor,
     adjustmentKcal: profile.tdeeAdjustmentKcal,
   });
-  const bmi = calculateBmi(profile.weightKg, profile.heightCm);
+  const bmi = calculateBmi(weightKg, profile.heightCm);
   const bodyFat = estimateBodyFat({
     sex,
     heightCm: profile.heightCm,
-    waistCm: profile.waistCm,
-    neckCm: profile.neckCm,
-    hipCm: profile.hipCm,
+    waistCm,
+    neckCm,
+    hipCm,
   });
   const targets = guidedMacroTargets({
-    weightKg: profile.weightKg,
+    weightKg,
     tdee,
     goal,
     calorieAdjustment: goal === "fat_loss" ? -(profile.calorieDeficitKcal ?? 400) : undefined,

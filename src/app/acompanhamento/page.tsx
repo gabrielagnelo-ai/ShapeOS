@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import { suggestCalorieAdjustment, type Goal } from "@/lib/nutrition";
@@ -16,6 +17,16 @@ export default async function AcompanhamentoPage() {
     orderBy: { weekStart: "desc" },
     take: 8,
   });
+  const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
+    where: { userId: user.id },
+    orderBy: { measuredAt: "desc" },
+    take: 12,
+  });
+  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, {
+    sex: profile.sex === "MALE" ? "male" : "female",
+    heightCm: profile.heightCm,
+  });
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
   const latest = checkins[0];
   const adjustment = suggestCalorieAdjustment({
     goal: goalMap[profile.goal] as Goal,
@@ -56,9 +67,9 @@ export default async function AcompanhamentoPage() {
           <form action={saveWeeklyCheckinAction} className="mt-5 grid gap-3">
             <input name="averageWeightKg" inputMode="decimal" className={inputClass} placeholder="Peso medio da semana" required />
             <div className={`grid gap-3 ${profile.sex === "FEMALE" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-              <input name="waistCm" inputMode="decimal" className={inputClass} placeholder="Cintura em cm" defaultValue={formatInput(profile.waistCm)} required />
-              <input name="neckCm" inputMode="decimal" className={inputClass} placeholder="Pescoco em cm" defaultValue={formatInput(profile.neckCm)} required />
-              {profile.sex === "FEMALE" ? <input name="hipCm" inputMode="decimal" className={inputClass} placeholder="Quadril em cm" defaultValue={formatInput(profile.hipCm)} required /> : null}
+              <input name="waistCm" inputMode="decimal" className={inputClass} placeholder="Cintura em cm" defaultValue={formatInput(currentBody.waistCm)} required />
+              <input name="neckCm" inputMode="decimal" className={inputClass} placeholder="Pescoco em cm" defaultValue={formatInput(currentBody.neckCm)} required />
+              {profile.sex === "FEMALE" ? <input name="hipCm" inputMode="decimal" className={inputClass} placeholder="Quadril em cm" defaultValue={formatInput(currentBody.hipCm)} required /> : null}
             </div>
             <input name="adherencePct" inputMode="decimal" className={inputClass} placeholder="Adesao a dieta %" required />
             <div className="grid gap-3 sm:grid-cols-3">

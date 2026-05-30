@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +12,7 @@ import { PrintReportButton } from "./print-button";
 
 export default async function NutritionistReportPage() {
   const { user, profile } = await requireUserProfile();
-  const metrics = computeProfileMetrics(profile);
+  let metrics = computeProfileMetrics(profile);
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
@@ -41,6 +41,8 @@ export default async function NutritionistReportPage() {
 
   const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
   const latestBody = bodySnapshots[0];
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
+  metrics = computeProfileMetrics(profile, currentBody);
   const recentFoodTotals = foodLogs.map((log) => ({
     date: log.date,
     totals: sumNutrients(log.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams }))),
@@ -63,8 +65,8 @@ export default async function NutritionistReportPage() {
     checkins: [...checkins].reverse(),
   });
   const bodyComposition = buildBodyCompositionProjection({
-    currentWeightKg: profile.weightKg,
-    currentWaistCm: profile.waistCm,
+    currentWeightKg: currentBody.weightKg,
+    currentWaistCm: currentBody.waistCm,
     currentBodyFatPct: latestBody?.bodyFatPct ?? metrics.bodyFat.percentage,
     targetBodyFatPct: profile.targetBodyFatPct,
     targetWaistCm: profile.targetWaistCm,
@@ -74,7 +76,7 @@ export default async function NutritionistReportPage() {
     proteinHitRate: proteinHitRate(recentFoodTotals, metrics.targets.proteinG),
     deficitPct: metrics.tdee ? Math.round(((metrics.tdee - metrics.targets.calories) / metrics.tdee) * 100) : null,
   });
-  const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
+  const waterTarget = waterTargetMl(currentBody.weightKg, profile.waterPreference);
   const todayWaterMl = waterLogs.filter((log) => log.date >= todayStart && log.date <= todayEnd).reduce((sum, log) => sum + log.amountMl, 0);
   const waterTotalsByDay = groupWaterByDay(waterLogs);
   const totalWaterMl = waterLogs.reduce((sum, log) => sum + log.amountMl, 0);
@@ -140,7 +142,7 @@ export default async function NutritionistReportPage() {
               <Info label="Sexo" value={profile.sex === "MALE" ? "Masculino" : "Feminino"} />
               <Info label="Idade" value={`${profile.age} anos`} />
               <Info label="Altura" value={`${formatNumber(profile.heightCm)} cm`} />
-              <Info label="Peso atual" value={`${formatNumber(profile.weightKg)} kg`} />
+              <Info label="Peso atual" value={`${formatNumber(currentBody.weightKg)} kg`} />
               <Info label="Objetivo" value={goalLabel(profile.goal)} />
               <Info label="Experiencia" value={experienceLabel(profile.experience)} />
               <Info label="Modo" value={profile.mode === "ADVANCED" ? "Avancado" : "Guiado"} />

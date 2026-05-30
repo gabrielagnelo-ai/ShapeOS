@@ -4,7 +4,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DeficitAdvisor } from "@/components/onboarding/deficit-advisor";
 import { getCurrentUser } from "@/lib/auth";
-import { recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics } from "@/lib/profile";
@@ -26,17 +26,19 @@ export default async function ConfiguracoesPage() {
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) redirect("/onboarding");
 
-  const metrics = computeProfileMetrics(profile);
+  let metrics = computeProfileMetrics(profile);
   const calorieDeficit = profile.calorieDeficitKcal ?? 400;
   const deficitPct = metrics.tdee ? Math.round((calorieDeficit / metrics.tdee) * 100) : 0;
   const macroCalories = metrics.targets.proteinG * 4 + metrics.targets.fatG * 9 + metrics.targets.carbsG * 4;
-  const waterTarget = waterTargetMl(profile.weightKg, profile.waterPreference);
   const checkins = await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "asc" }, take: 8 });
   const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
   const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
+  metrics = computeProfileMetrics(profile, currentBody);
+  const waterTarget = waterTargetMl(currentBody.weightKg, profile.waterPreference);
   const bodyComposition = buildBodyCompositionProjection({
-    currentWeightKg: profile.weightKg,
-    currentWaistCm: profile.waistCm,
+    currentWeightKg: currentBody.weightKg,
+    currentWaistCm: currentBody.waistCm,
     currentBodyFatPct: bodySnapshots[0]?.bodyFatPct ?? metrics.bodyFat.percentage,
     targetWaistCm: profile.targetWaistCm,
     targetBodyFatPct: profile.targetBodyFatPct,

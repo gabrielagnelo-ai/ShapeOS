@@ -23,6 +23,12 @@ export async function addPhysicalActivityAction(formData: FormData) {
     select: { weightKg: true, activityFactor: true, tdeeCalculationMode: true },
   });
   if (!profile) return;
+  const latestBody = await prisma.bodyCompositionSnapshot.findFirst({
+    where: { userId: user.id },
+    orderBy: { measuredAt: "desc" },
+    select: { weightKg: true },
+  });
+  const currentWeightKg = latestBody?.weightKg ?? profile.weightKg;
 
   const activityKey = String(formData.get("activityKey") ?? "walk_fast");
   const preset = findActivityPreset(activityKey);
@@ -39,7 +45,7 @@ export async function addPhysicalActivityAction(formData: FormData) {
 
   const walking = isWalkingActivity(activityKey);
   const walkingEstimate = walking && distanceKm
-    ? estimateWalkingFromDistanceTime({ distanceKm, durationMinutes, weightKg: profile.weightKg })
+    ? estimateWalkingFromDistanceTime({ distanceKm, durationMinutes, weightKg: currentWeightKg })
     : null;
   if (walking && !walkingEstimate) return;
 
@@ -62,7 +68,7 @@ export async function addPhysicalActivityAction(formData: FormData) {
     userChoice: countChoice,
   });
   const met = walkingEstimate?.met ?? clamp(advancedMet ?? estimateMetByEffort(preset.met, effort.key), 1, 18);
-  const caloriesKcal = walkingEstimate?.caloriesKcal ?? estimateActivityCalories({ met, weightKg: profile.weightKg, durationMinutes });
+  const caloriesKcal = walkingEstimate?.caloriesKcal ?? estimateActivityCalories({ met, weightKg: currentWeightKg, durationMinutes });
   const source = walkingEstimate ? "manual_distance" : "manual_met";
   const confidenceFactor = walkingEstimate?.confidenceFactor ?? conservativeActivityFactor({ activityKey, source });
 
