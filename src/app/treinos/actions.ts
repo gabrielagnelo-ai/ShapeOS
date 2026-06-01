@@ -1,7 +1,6 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
-import { PDFParse } from "pdf-parse";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -153,6 +152,7 @@ async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buff
 
 async function extractPdfText(bytes: Buffer) {
   try {
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: bytes });
     const result = await parser.getText();
     await parser.destroy();
