@@ -8,6 +8,7 @@ import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/pe
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
+import { analyzeTrainingPerformance, trainingLogsFromPlan } from "@/lib/training-performance";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { PrintReportButton } from "./print-button";
 
@@ -48,7 +49,7 @@ export default async function NutritionistReportPage() {
       include: {
         days: {
           orderBy: { order: "asc" },
-          include: { exercises: { orderBy: { order: "asc" }, include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 3 } } } },
+          include: { exercises: { orderBy: { order: "asc" }, include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } } } },
         },
       },
     }),
@@ -105,6 +106,7 @@ export default async function NutritionistReportPage() {
     todayConservative: Math.round(todayActivities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
   };
   const averageConservativeActivityKcal = Math.round(activitiesTotals.conservative / 30);
+  const trainingPerformance = analyzeTrainingPerformance(trainingPlan ? trainingLogsFromPlan(trainingPlan) : []);
   const heroMetrics = [
     { label: "Meta calorica", value: `${metrics.targets.calories} kcal` },
     { label: "TDEE hoje", value: `${tdeeResult.total} kcal` },
@@ -382,7 +384,18 @@ export default async function NutritionistReportPage() {
                   <Info label="Dias" value={`${trainingPlan.days.length}`} />
                   <Info label="Exercicios" value={`${trainingPlan.days.reduce((sum, day) => sum + day.exercises.length, 0)}`} />
                   <Info label="Origem" value={trainingPlan.sourceFileName ?? "manual"} />
+                  <Info label="Score performance" value={`${trainingPerformance.score}`} />
+                  <Info label="Tendencia" value={trainingTrendLabel(trainingPerformance.trend)} />
+                  <Info label="Confianca" value={trainingConfidenceLabel(trainingPerformance.confidence)} />
+                  <Info label="Dias registrados" value={`${trainingPerformance.trainedDays}`} />
+                  <Info label="Exercicios comparados" value={`${trainingPerformance.comparableExercises}`} />
+                  <Info label="Subiram / cairam" value={`${trainingPerformance.improvedExercises} / ${trainingPerformance.declinedExercises}`} />
+                  <Info label="RPE medio" value={trainingPerformance.averageRpe == null ? "pendente" : `${formatNumber(trainingPerformance.averageRpe)}`} />
                 </InfoGrid>
+                <p className="mt-3 text-xs leading-5 text-zinc-400">{trainingPerformance.primaryMessage}</p>
+                {trainingPerformance.alerts.length ? (
+                  <TextBlock label="Alertas de performance" value={trainingPerformance.alerts.map((alert) => alert.message).join("\n")} />
+                ) : null}
                 {trainingPlan.notes ? <p className="mt-3 text-xs leading-5 text-zinc-400">{trainingPlan.notes}</p> : null}
                 {trainingPlan.days.map((day) => (
                   <div key={day.id} className="mt-4 break-inside-avoid">
@@ -568,5 +581,24 @@ function experienceLabel(value: string) {
 
 function confidenceLabel(value: string) {
   const labels: Record<string, string> = { HIGH: "alta", MEDIUM: "media", LOW: "baixa" };
+  return labels[value] ?? value;
+}
+
+function trainingTrendLabel(value: string) {
+  const labels: Record<string, string> = {
+    improving: "subindo",
+    stable: "estavel",
+    declining: "queda",
+    insufficient: "poucos dados",
+  };
+  return labels[value] ?? value;
+}
+
+function trainingConfidenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    high: "alta",
+    medium: "media",
+    low: "baixa",
+  };
   return labels[value] ?? value;
 }

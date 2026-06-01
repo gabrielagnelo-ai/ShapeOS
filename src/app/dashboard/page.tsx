@@ -1,5 +1,5 @@
 ﻿import { redirect } from "next/navigation";
-import { Activity, Apple, ArrowRight, BarChart3, CalendarDays, Droplets, Flame, FlaskConical, Gauge, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
+import { Activity, Apple, ArrowRight, BarChart3, CalendarDays, Droplets, Dumbbell, Flame, FlaskConical, Gauge, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressChart } from "@/components/ui/progress-chart";
@@ -16,6 +16,7 @@ import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/pe
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
+import { analyzeTrainingPerformance, trainingLogsFromPlan } from "@/lib/training-performance";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { addWaterLogAction } from "./actions";
 
@@ -66,6 +67,18 @@ export default async function DashboardPage() {
   });
   const physicalActivities = await prisma.physicalActivityLog.findMany({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
+  });
+  const trainingPlan = await prisma.trainingPlan.findFirst({
+    where: { userId: user.id, isActive: true },
+    include: {
+      days: {
+        include: {
+          exercises: {
+            include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } },
+          },
+        },
+      },
+    },
   });
 
   const sex = sexMap[profile.sex] as Sex;
@@ -197,6 +210,7 @@ export default async function DashboardPage() {
     averageIntakeKcal,
     checkins: weeklyCheckins,
   });
+  const trainingPerformance = analyzeTrainingPerformance(trainingPlan ? trainingLogsFromPlan(trainingPlan) : []);
   const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: currentBody.weightKg,
     currentWaistCm: currentBody.waistCm,
@@ -300,6 +314,7 @@ export default async function DashboardPage() {
         <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`${tdeeResult.ignoredActivityKcal} kcal ignoradas`} />
         <MetricTile icon={<Gauge size={18} />} label="Conf. TDEE" value={confidenceLabel(trendValidation.confidence)} detail={trendValidation.message} />
         <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`média mês ${formatLiters(waterMonth.averageMl)} em ${waterMonth.registeredDays} dias`} />
+        <MetricTile icon={<Dumbbell size={18} />} label="Performance" value={`${trainingPerformance.score}`} detail={trainingDashboardDetail(trainingPerformance)} />
       </div>
 
       <GlassCard className="mt-5 border-sky-300/20 bg-sky-300/[0.06]">
@@ -478,9 +493,10 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-4">
+      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <ActionPanel icon={<Apple size={18} />} title="Diário alimentar" text="Lance alimentos consumidos hoje e veja meta real contra plano." href="/diario" />
         <ActionPanel icon={<Activity size={18} />} title="Atividade física" text="Registre treino e cardio para conferir seu TDEE do dia." href="/atividades" />
+        <ActionPanel icon={<Dumbbell size={18} />} title="Treinos" text="Registre carga, reps e RPE para o ShapeOS avaliar progressão." href="/treinos" />
         <ActionPanel icon={<BarChart3 size={18} />} title="Semana" text="Atualize peso, cintura, sono e aderência para melhorar as projeções." href="/acompanhamento" />
         <ActionPanel icon={<FlaskConical size={18} />} title="Suplementos" text="Acompanhe creatina, beta-alanina, dose acumulada e aderência." href="/suplementos" />
       </div>
@@ -707,4 +723,11 @@ function proteinHitRate(days: Array<{ totals: { proteinG: number } }>, targetPro
 
 function formatNumber(value: number) {
   return (Math.round(value * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+function trainingDashboardDetail(performance: ReturnType<typeof analyzeTrainingPerformance>) {
+  if (performance.trend === "improving") return `${performance.improvedExercises} exercicio(s) em progressao`;
+  if (performance.trend === "declining") return `${performance.declinedExercises} exercicio(s) em queda`;
+  if (performance.trend === "stable") return `${performance.comparableExercises} exercicio(s) comparados`;
+  return "registre carga e reps";
 }

@@ -1,8 +1,9 @@
-import { Dumbbell, FileUp, Trash2 } from "lucide-react";
+import { Activity, Dumbbell, FileUp, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
+import { analyzeTrainingPerformance, trainingLogsFromPlan, trainingPerformanceTone } from "@/lib/training-performance";
 import { createManualTrainingPlanAction, deleteTrainingExerciseLogAction, deleteTrainingPlanAction, importTrainingPdfAction, logTrainingExerciseAction, setActiveTrainingPlanAction } from "./actions";
 
 export default async function TrainingPage() {
@@ -19,6 +20,8 @@ export default async function TrainingPage() {
     take: 8,
   });
   const activePlan = plans.find((plan) => plan.isActive);
+  const performance = analyzeTrainingPerformance(activePlan ? trainingLogsFromPlan(activePlan) : []);
+  const performanceTone = trainingPerformanceTone(performance);
 
   return (
     <AppShell>
@@ -88,6 +91,44 @@ export default async function TrainingPage() {
           )}
         </GlassCard>
       </div>
+
+      <GlassCard className={`mt-5 ${performanceTone === "danger" ? "border-red-400/30 bg-red-400/[0.06]" : performanceTone === "good" ? "border-lime-300/30 bg-lime-300/[0.06]" : "border-white/10"}`}>
+        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-start gap-4">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/10 text-lime-300">
+              <TrendingUp size={22} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold">Performance do treino</h2>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-zinc-300">confiança {confidenceLabel(performance.confidence)}</span>
+              </div>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">{performance.primaryMessage}</p>
+            </div>
+          </div>
+          <div className="rounded-[28px] bg-black/30 px-6 py-5 text-center">
+            <p className="text-4xl font-semibold tracking-tight">{performance.score}</p>
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">score</p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <Summary label="Tendencia" value={trendLabel(performance.trend)} />
+          <Summary label="Dias registrados" value={String(performance.trainedDays)} />
+          <Summary label="Comparaveis" value={String(performance.comparableExercises)} />
+          <Summary label="Subiram" value={String(performance.improvedExercises)} />
+          <Summary label="Cairam" value={String(performance.declinedExercises)} />
+        </div>
+        {performance.alerts.length ? (
+          <div className="mt-5 grid gap-2 lg:grid-cols-2">
+            {performance.alerts.slice(0, 2).map((alert) => (
+              <div key={alert.message} className="flex gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
+                <div className="mt-0.5 text-lime-300">{alert.type === "drop" || alert.type === "fatigue" ? <ShieldAlert size={18} /> : <Activity size={18} />}</div>
+                <p className="text-sm leading-6 text-zinc-300">{alert.message}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </GlassCard>
 
       <GlassCard className="mt-5 border-white/10">
         <div className="flex items-start gap-3">
@@ -242,4 +283,23 @@ function todayInput() {
 
 function formatNumber(value: number) {
   return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+function trendLabel(value: string) {
+  const labels: Record<string, string> = {
+    improving: "subindo",
+    stable: "estavel",
+    declining: "queda",
+    insufficient: "poucos dados",
+  };
+  return labels[value] ?? value;
+}
+
+function confidenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    high: "alta",
+    medium: "media",
+    low: "baixa",
+  };
+  return labels[value] ?? value;
 }

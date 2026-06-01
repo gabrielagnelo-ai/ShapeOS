@@ -10,6 +10,7 @@ import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { validateTdeeTrend } from "@/lib/tdee";
+import { analyzeTrainingPerformance, trainingLogsFromPlan } from "@/lib/training-performance";
 
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
 
@@ -27,6 +28,18 @@ export default async function CoachPage() {
     where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
     include: { items: { include: { food: true } } },
     orderBy: { date: "desc" },
+  });
+  const trainingPlan = await prisma.trainingPlan.findFirst({
+    where: { userId: user.id, isActive: true },
+    include: {
+      days: {
+        include: {
+          exercises: {
+            include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } },
+          },
+        },
+      },
+    },
   });
   const foodMonth = foodPeriodSummary(periodFoodLogs.map((log) => ({
     date: log.date,
@@ -66,6 +79,7 @@ export default async function CoachPage() {
     checkins: [...checkins].reverse(),
   });
   const topInsight = insights[0];
+  const trainingPerformance = analyzeTrainingPerformance(trainingPlan ? trainingLogsFromPlan(trainingPlan) : []);
   const latestCheckin = checkins[0];
   const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: latestCheckin?.averageWeightKg ?? currentBody.weightKg,
@@ -131,12 +145,39 @@ export default async function CoachPage() {
             <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
             <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
             <Signal icon={<LineChart size={18} />} label="Composição" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}% BF` : "pendente"} detail={`confiança ${bodyComposition.confidenceLabel}`} />
+            <Signal icon={<Dumbbell size={18} />} label="Performance" value={`${trainingPerformance.score}`} detail={trainingCoachDetail(trainingPerformance)} />
             <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
           </div>
         </GlassCard>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {trainingPerformance.alerts.slice(0, 1).map((alert) => (
+          <GlassCard key={`training-${alert.type}`} className={alert.type === "drop" || alert.type === "fatigue" ? "border-amber-300/30 bg-amber-300/[0.06]" : "border-lime-300/30 bg-lime-300/[0.06]"}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-lime-300">
+                  <Dumbbell size={18} />
+                </div>
+                <div>
+                  <p className="text-sm text-lime-300">treino</p>
+                  <h3 className="text-lg font-semibold">Performance de carga</h3>
+                </div>
+              </div>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400">score {trainingPerformance.score}</span>
+            </div>
+            <p className="mt-5 text-lg leading-8">{alert.message}</p>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">{trainingPerformance.primaryMessage}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/treinos" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
+                Ver treinos
+              </Link>
+              <Link href="/acompanhamento" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
+                Atualizar check-in
+              </Link>
+            </div>
+          </GlassCard>
+        ))}
         {insights.length ? insights.map((insight) => (
           <GlassCard key={insight.trigger}>
             <div className="flex items-start justify-between gap-3">
@@ -465,4 +506,11 @@ function confidenceLabel(value: string) {
   };
 
   return labels[value] ?? "media";
+}
+
+function trainingCoachDetail(performance: ReturnType<typeof analyzeTrainingPerformance>) {
+  if (performance.trend === "improving") return `${performance.improvedExercises} subindo`;
+  if (performance.trend === "declining") return `${performance.declinedExercises} caindo`;
+  if (performance.trend === "stable") return "estável";
+  return "poucos dados";
 }
