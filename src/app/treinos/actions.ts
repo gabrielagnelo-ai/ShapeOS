@@ -84,6 +84,58 @@ export async function importTrainingPdfAction(formData: FormData) {
   revalidatePath("/relatorio-nutricionista");
 }
 
+export async function createManualTrainingPlanAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const name = String(formData.get("name") ?? "").trim() || "Treino manual";
+  const notes = String(formData.get("notes") ?? "").trim();
+  const rawText = String(formData.get("trainingText") ?? "").trim();
+  if (!rawText) return;
+
+  const parsed = parseTrainingFromText(name, rawText) ?? manualTextFallback(name, rawText);
+
+  await prisma.trainingPlan.updateMany({
+    where: { userId: user.id, isActive: true },
+    data: { isActive: false },
+  });
+
+  await prisma.trainingPlan.create({
+    data: {
+      userId: user.id,
+      name: parsed.name || name,
+      rawResult: parsed,
+      notes: notes || parsed.notes || "Treino cadastrado manualmente.",
+      isActive: true,
+      days: {
+        create: parsed.days.map((day, dayIndex) => ({
+          name: day.name || `Dia ${dayIndex + 1}`,
+          focus: day.focus ?? null,
+          notes: day.notes ?? null,
+          order: dayIndex,
+          exercises: {
+            create: day.exercises.map((exercise, exerciseIndex) => ({
+              name: exercise.name || "Exercicio",
+              muscleGroup: exercise.muscleGroup ?? null,
+              sets: exercise.sets ?? null,
+              reps: exercise.reps ?? null,
+              restSeconds: normalizeRest(exercise.restSeconds),
+              loadInstruction: exercise.loadInstruction ?? null,
+              notes: exercise.notes ?? null,
+              order: exerciseIndex,
+            })),
+          },
+        })),
+      },
+    },
+  });
+
+  revalidatePath("/treinos");
+  revalidatePath("/dashboard");
+  revalidatePath("/coach");
+  revalidatePath("/relatorio-nutricionista");
+}
+
 export async function deleteTrainingPlanAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
@@ -314,6 +366,28 @@ function fallbackTrainingPlan(fileName: string): AiTrainingPlan {
       },
     ],
   };
+}
+
+function manualTextFallback(name: string, text: string): AiTrainingPlan {
+  const exercises = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 40)
+    .map((line) => {
+      const parsed = parseExerciseBlock([line])[0];
+      return parsed ?? { name: line.slice(0, 120) };
+    });
+
+  return sanitizeTrainingPlan({
+    name,
+    notes: "Treino manual salvo a partir do texto informado pelo usuario.",
+    days: [{
+      name: "Treino manual",
+      focus: "Revisar divisao",
+      exercises: exercises.length ? exercises : [{ name: "Revisar treino manual" }],
+    }],
+  });
 }
 
 function normalizeRest(value: unknown) {

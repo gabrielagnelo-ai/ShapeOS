@@ -3,7 +3,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
-import { deleteTrainingPlanAction, importTrainingPdfAction, setActiveTrainingPlanAction } from "./actions";
+import { createManualTrainingPlanAction, deleteTrainingPlanAction, importTrainingPdfAction, setActiveTrainingPlanAction } from "./actions";
 
 export default async function TrainingPage() {
   const { user } = await requireUserProfile();
@@ -89,6 +89,42 @@ export default async function TrainingPage() {
         </GlassCard>
       </div>
 
+      <GlassCard className="mt-5 border-white/10">
+        <div className="flex items-start gap-3">
+          <div className="grid size-12 place-items-center rounded-2xl bg-white/10 text-lime-300">
+            <Dumbbell size={22} />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">Cadastrar manualmente</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">
+              Cole seu treino em texto. Use linhas por dia e exercicios abaixo. Exemplo: Segunda - Pull; depois 1. Pulley frente - 3x | 6-10 | RPE 8.
+            </p>
+          </div>
+        </div>
+        <form action={createManualTrainingPlanAction} className="mt-5 grid gap-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <input name="name" className={inputClass} placeholder="Nome do treino. Ex: Pull Lower Push" />
+            <input name="notes" className={inputClass} placeholder="Observacao opcional" />
+          </div>
+          <textarea
+            name="trainingText"
+            required
+            className="min-h-72 rounded-3xl border border-white/10 bg-black/30 px-4 py-4 text-sm leading-6 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-lime-300/50"
+            placeholder={`TREINO NOVO
+SEGUNDA - PULL (Costas + Biceps)
+1. Pulley frente - 3x | 6-10 | RPE 7-8
+2. Remada maquina - 3x | 8-12
+
+TERCA - LOWER (Quadriceps)
+1. Agachamento Hack - 3x | 6-10
+2. Leg press - 3x | 8-12`}
+          />
+          <button className="rounded-full bg-white/10 px-5 py-3 font-semibold text-zinc-100 transition hover:bg-white/15">
+            Salvar treino manual
+          </button>
+        </form>
+      </GlassCard>
+
       <div className="mt-5 grid gap-4">
         {plans.map((plan) => (
           <GlassCard key={plan.id} className={plan.isActive ? "border-lime-300/30" : ""}>
@@ -166,3 +202,5 @@ function Summary({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm outline-none placeholder:text-zinc-600 focus:border-lime-300/50";
