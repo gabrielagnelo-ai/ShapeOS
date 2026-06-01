@@ -104,8 +104,8 @@ export default async function NutritionistReportPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#070807] px-4 py-8 text-zinc-100 print:bg-[#070807] print:px-0 print:py-0">
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-[36px] border border-lime-300/20 bg-[#10110f] shadow-2xl shadow-lime-950/20 print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+    <main className="shapeos-report-page min-h-screen bg-[#070807] px-4 py-8 text-zinc-100 print:bg-[#070807] print:px-0 print:py-0">
+      <div className="shapeos-report-sheet mx-auto max-w-5xl overflow-hidden rounded-[36px] border border-lime-300/20 bg-[#10110f] shadow-2xl shadow-lime-950/20 print:max-w-none print:rounded-none print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-6 py-5 backdrop-blur print:hidden">
           <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/12">
             <ArrowLeft size={16} />
