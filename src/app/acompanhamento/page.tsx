@@ -6,7 +6,8 @@ import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import { suggestCalorieAdjustment, type Goal } from "@/lib/nutrition";
-import { deleteBodyPhotoAction, deleteWeeklyCheckinAction, saveWeeklyCheckinAction, uploadCheckinPhotosAction } from "./actions";
+import { deleteBodyPhotoAction, deleteWeeklyCheckinAction, saveWeeklyCheckinAction } from "./actions";
+import { BodyPhotoUploader } from "./body-photo-uploader";
 
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
 const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none focus:border-lime-300/50";
@@ -130,16 +131,7 @@ export default async function AcompanhamentoPage() {
                   </div>
                 ) : null}
 
-                {checkin.bodyPhotos.length < 8 ? (
-                  <form action={uploadCheckinPhotosAction} className="mt-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-3">
-                  <input type="hidden" name="checkinId" value={checkin.id} />
-                    <p className="text-xs text-zinc-500">Adicionar fotos neste check-in</p>
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                      <input name="bodyPhotos" type="file" accept="image/*" multiple className="min-w-0 flex-1 rounded-2xl bg-white/8 px-3 py-2 text-xs text-zinc-300 file:mr-3 file:rounded-full file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100" />
-                      <button className="rounded-full bg-white/10 px-4 py-2 font-semibold text-zinc-100 transition hover:bg-white/15">Anexar</button>
-                    </div>
-                  </form>
-                ) : null}
+                {checkin.bodyPhotos.length < 8 ? <BodyPhotoUploader checkinId={checkin.id} remainingSlots={8 - checkin.bodyPhotos.length} /> : null}
               </div>
             ))}
           </div>

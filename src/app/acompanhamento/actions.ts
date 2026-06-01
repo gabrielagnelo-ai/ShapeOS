@@ -11,6 +11,11 @@ import { validateTdeeTrend } from "@/lib/tdee";
 const MAX_BODY_PHOTOS_PER_CHECKIN = 8;
 const MAX_BODY_PHOTO_BYTES = 5 * 1024 * 1024;
 
+export type PhotoUploadState = {
+  ok: boolean;
+  message: string;
+};
+
 export async function saveWeeklyCheckinAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
@@ -150,18 +155,18 @@ export async function deleteWeeklyCheckinAction(formData: FormData) {
 
 export async function uploadCheckinPhotosAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) return { ok: false, message: "Sessao expirada. Entre novamente." };
 
   const checkinId = String(formData.get("checkinId") ?? "");
-  if (!checkinId) return;
+  if (!checkinId) return { ok: false, message: "Check-in nao encontrado." };
 
   const checkin = await prisma.weeklyCheckin.findFirst({
     where: { id: checkinId, userId: user.id },
     select: { id: true },
   });
-  if (!checkin) return;
+  if (!checkin) return { ok: false, message: "Check-in nao encontrado." };
 
-  await saveBodyPhotos({
+  const result = await saveBodyPhotos({
     userId: user.id,
     checkinId: checkin.id,
     files: formData.getAll("bodyPhotos"),
@@ -169,6 +174,8 @@ export async function uploadCheckinPhotosAction(formData: FormData) {
 
   revalidatePath("/acompanhamento");
   revalidatePath("/relatorio-nutricionista");
+
+  return result;
 }
 
 export async function deleteBodyPhotoAction(formData: FormData) {
@@ -200,15 +207,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; checkinId: string; files: FormDataEntryValue[] }) {
+async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; checkinId: string; files: FormDataEntryValue[] }): Promise<PhotoUploadState> {
   const validFiles = files.filter((entry): entry is File => entry instanceof File && entry.size > 0);
-  if (!validFiles.length) return;
+  if (!validFiles.length) return { ok: false, message: "Nenhuma foto selecionada." };
 
   const currentCount = await prisma.bodyPhoto.count({
     where: { userId, weeklyCheckinId: checkinId },
   });
   const remainingSlots = Math.max(0, MAX_BODY_PHOTOS_PER_CHECKIN - currentCount);
-  if (!remainingSlots) return;
+  if (!remainingSlots) return { ok: false, message: "Este check-in ja tem 8 fotos." };
 
   const photos = await Promise.all(validFiles.slice(0, remainingSlots).map(async (file, index) => {
     if (!file.type.startsWith("image/") || file.size > MAX_BODY_PHOTO_BYTES) return null;
@@ -225,7 +232,16 @@ async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; ch
   }));
 
   const data = photos.filter((photo): photo is NonNullable<typeof photo> => photo !== null);
-  if (!data.length) return;
+  if (!data.length) return { ok: false, message: "As fotos precisam ser imagens com ate 5 MB cada." };
 
   await prisma.bodyPhoto.createMany({ data });
+  const ignored = Math.max(0, validFiles.length - data.length);
+  const overLimit = Math.max(0, validFiles.length - remainingSlots);
+  const details = [
+    `${data.length} foto${data.length === 1 ? "" : "s"} anexada${data.length === 1 ? "" : "s"}.`,
+    ignored ? `${ignored} arquivo${ignored === 1 ? "" : "s"} ignorado${ignored === 1 ? "" : "s"} por tipo/tamanho.` : "",
+    overLimit ? `${overLimit} excedente${overLimit === 1 ? "" : "s"} acima do limite de 8.` : "",
+  ].filter(Boolean).join(" ");
+
+  return { ok: true, message: details };
 }
