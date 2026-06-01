@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { PDFParse } from "pdf-parse";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -35,9 +36,10 @@ export async function importTrainingPdfAction(formData: FormData) {
   if (file.type !== "application/pdf" || file.size > MAX_TRAINING_PDF_BYTES) return;
 
   const bytes = Buffer.from(await file.arrayBuffer());
+  const extractedText = await extractPdfText(bytes);
   const parsed = process.env.GEMINI_API_KEY
-    ? await parseTrainingPdfWithGemini({ fileName: file.name, bytes })
-    : fallbackTrainingPlan(file.name);
+    ? await parseTrainingPdfWithGemini({ fileName: file.name, bytes, extractedText })
+    : parseTrainingFromText(file.name, extractedText) ?? fallbackTrainingPlan(file.name);
 
   await prisma.trainingPlan.updateMany({
     where: { userId: user.id, isActive: true },
@@ -118,7 +120,7 @@ export async function setActiveTrainingPlanAction(formData: FormData) {
   revalidatePath("/relatorio-nutricionista");
 }
 
-async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buffer }): Promise<AiTrainingPlan> {
+async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buffer; extractedText: string }): Promise<AiTrainingPlan> {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
     const response = await ai.models.generateContent({
@@ -135,6 +137,7 @@ async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buff
               "Preserve nomes de exercicios, series, repeticoes, descanso, observacoes e cardio quando aparecerem.",
               "Se o PDF estiver pouco legivel, extraia o melhor possivel e avise em notes.",
               `Nome do arquivo: ${input.fileName}`,
+              `Texto extraido do PDF, use como fonte principal quando existir:\n${input.extractedText.slice(0, 14000) || "sem texto extraido"}`,
             ].join("\n"),
           },
           { inlineData: { mimeType: "application/pdf", data: input.bytes.toString("base64") } },
@@ -142,10 +145,120 @@ async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buff
       }],
     });
 
-    return sanitizeTrainingPlan(parseTrainingPlan(response.text ?? "") ?? fallbackTrainingPlan(input.fileName));
+    return sanitizeTrainingPlan(parseTrainingPlan(response.text ?? "") ?? parseTrainingFromText(input.fileName, input.extractedText) ?? fallbackTrainingPlan(input.fileName));
   } catch {
-    return fallbackTrainingPlan(input.fileName);
+    return parseTrainingFromText(input.fileName, input.extractedText) ?? fallbackTrainingPlan(input.fileName);
   }
+}
+
+async function extractPdfText(bytes: Buffer) {
+  try {
+    const parser = new PDFParse({ data: bytes });
+    const result = await parser.getText();
+    await parser.destroy();
+    return result.text.replace(/\r/g, "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function parseTrainingFromText(fileName: string, text: string): AiTrainingPlan | null {
+  const lines = text
+    .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return null;
+
+  const dayIndexes = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /^(segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo)\b/i.test(line));
+  if (!dayIndexes.length) return null;
+
+  const days = dayIndexes.map(({ line, index }, dayIndex) => {
+    const nextIndex = dayIndexes[dayIndex + 1]?.index ?? lines.length;
+    const block = lines.slice(index + 1, nextIndex);
+    const { name, focus } = parseDayHeading(line);
+    const exercises = parseExerciseBlock(block);
+
+    return {
+      name,
+      focus,
+      exercises: exercises.length ? exercises : [{ name: "Revisar bloco do PDF", notes: block.join(" ").slice(0, 240) }],
+    };
+  }).filter((day) => !/descanso/i.test(day.name) && !/descanso/i.test(day.focus ?? ""));
+
+  if (!days.length) return null;
+
+  return sanitizeTrainingPlan({
+    name: lines[0] && !/^(segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo)\b/i.test(lines[0])
+      ? lines[0]
+      : fileName.replace(/\.pdf$/i, ""),
+    notes: "Plano extraido do texto do PDF. Revise series, repeticoes e RPE antes de usar como oficial.",
+    days,
+  });
+}
+
+function parseDayHeading(line: string) {
+  const [rawDay, ...rest] = line.split(/[–-]/);
+  const detail = rest.join("-").trim();
+  const name = `${capitalize(rawDay.trim())}${detail ? ` - ${detail.replace(/\s*\([^)]*\)\s*/g, "").trim()}` : ""}`.slice(0, 80);
+  const focus = (line.match(/\(([^)]*)\)/)?.[1] ?? detail).trim();
+  return { name, focus };
+}
+
+function parseExerciseBlock(lines: string[]) {
+  const exercises: AiTrainingPlan["days"][number]["exercises"] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const match = line.match(/^\d+\.\s*(.+)$/);
+    if (!match) {
+      if (exercises.length) {
+        const previous = exercises[exercises.length - 1];
+        previous.notes = [previous.notes, line].filter(Boolean).join(" ");
+      }
+      continue;
+    }
+
+    const raw = match[1].trim();
+    const parts = raw.split("|").map((part) => part.trim()).filter(Boolean);
+    const first = parts[0] ?? raw;
+    const nameMatch = first.match(/^(.+?)\s+[–-]?\s*(\d+(?:[–-]\d+)?x)\b/i);
+    const sets = nameMatch?.[2] ?? first.match(/\b(\d+(?:[–-]\d+)?x)\b/i)?.[1];
+    const name = (nameMatch?.[1] ?? first.replace(/\b\d+(?:[–-]\d+)?x\b/i, "")).replace(/[–-]\s*$/, "").trim();
+    const reps = parts.find((part) => /\d+\s*[–-]\s*\d+|\d+\+?/.test(part) && !/rpe/i.test(part) && !/^\d+(?:[–-]\d+)?x$/i.test(part));
+    const rpe = parts.find((part) => /rpe/i.test(part));
+
+    exercises.push({
+      name: name || raw,
+      muscleGroup: inferMuscleGroup(name || raw),
+      sets,
+      reps,
+      loadInstruction: rpe,
+    });
+  }
+
+  return exercises;
+}
+
+function inferMuscleGroup(name: string) {
+  const value = name.toLowerCase();
+  if (/pulley|remada|barra|puxada/.test(value)) return "costas";
+  if (/rosca|wrist/.test(value)) return "biceps/antebraco";
+  if (/supino|crucifixo/.test(value)) return "peito";
+  if (/triceps|tríceps/.test(value)) return "triceps";
+  if (/elevação|elevacao|ombro/.test(value)) return "ombro";
+  if (/panturrilha/.test(value)) return "panturrilha";
+  if (/agachamento|hack|leg|extensora/.test(value)) return "quadriceps";
+  if (/stiff|flexora/.test(value)) return "posterior";
+  if (/crunch|abdominal/.test(value)) return "abdomen";
+  return undefined;
+}
+
+function capitalize(value: string) {
+  const lower = value.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 function parseTrainingPlan(text: string): AiTrainingPlan | null {
