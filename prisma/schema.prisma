@@ -79,6 +79,7 @@ model User {
   physicalActivityLogs PhysicalActivityLog[]
   mealPhotoEstimates MealPhotoEstimate[]
   bodyPhotos     BodyPhoto[]
+  trainingPlans  TrainingPlan[]
   supplementPlans SupplementPlan[]
   weeklyCheckins WeeklyCheckin[]
   bodyCompositionSnapshots BodyCompositionSnapshot[]
@@ -342,6 +343,59 @@ model PhysicalActivityLog {
 
   @@index([userId, date])
   @@map("physical_activity_logs")
+}
+
+model TrainingPlan {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  name           String
+  sourceFileName String?  @map("source_file_name")
+  sourceMimeType String?  @map("source_mime_type")
+  sourceData     Bytes?   @map("source_data")
+  rawResult      Json?    @map("raw_result")
+  notes          String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days TrainingDay[]
+
+  @@index([userId, isActive])
+  @@map("training_plans")
+}
+
+model TrainingDay {
+  id        String  @id @default(cuid())
+  planId    String  @map("plan_id")
+  name      String
+  focus     String?
+  order     Int
+  notes     String?
+
+  plan TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  exercises TrainingExercise[]
+
+  @@index([planId, order])
+  @@map("training_days")
+}
+
+model TrainingExercise {
+  id              String  @id @default(cuid())
+  dayId           String  @map("day_id")
+  name            String
+  muscleGroup     String? @map("muscle_group")
+  sets            String?
+  reps            String?
+  restSeconds     Int?    @map("rest_seconds")
+  loadInstruction String? @map("load_instruction")
+  notes           String?
+  order           Int
+
+  day TrainingDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId, order])
+  @@map("training_exercises")
 }
 
 model MealPhotoEstimate {

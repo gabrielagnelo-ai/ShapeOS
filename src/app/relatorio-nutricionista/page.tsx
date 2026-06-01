@@ -18,7 +18,7 @@ export default async function NutritionistReportPage() {
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans] = await Promise.all([
+  const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans, trainingPlan] = await Promise.all([
     prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 }),
     prisma.weeklyCheckin.findMany({
       where: { userId: user.id },
@@ -42,6 +42,10 @@ export default async function NutritionistReportPage() {
       where: { userId: user.id },
       include: { logs: { orderBy: { date: "desc" }, take: 10 }, periods: { orderBy: { startDate: "desc" }, take: 5 } },
       orderBy: { createdAt: "desc" },
+    }),
+    prisma.trainingPlan.findFirst({
+      where: { userId: user.id, isActive: true },
+      include: { days: { orderBy: { order: "asc" }, include: { exercises: { orderBy: { order: "asc" } } } } },
     }),
   ]);
 
@@ -365,7 +369,38 @@ export default async function NutritionistReportPage() {
             />
           </ReportSection>
 
-          <ReportSection title="9. Suplementos monitorados">
+          <ReportSection title="9. Treino ativo">
+            {trainingPlan ? (
+              <>
+                <InfoGrid>
+                  <Info label="Nome" value={trainingPlan.name} />
+                  <Info label="Dias" value={`${trainingPlan.days.length}`} />
+                  <Info label="Exercicios" value={`${trainingPlan.days.reduce((sum, day) => sum + day.exercises.length, 0)}`} />
+                  <Info label="Origem" value={trainingPlan.sourceFileName ?? "manual"} />
+                </InfoGrid>
+                {trainingPlan.notes ? <p className="mt-3 text-xs leading-5 text-zinc-400">{trainingPlan.notes}</p> : null}
+                {trainingPlan.days.map((day) => (
+                  <div key={day.id} className="mt-4 break-inside-avoid">
+                    <h3 className="font-semibold text-zinc-100">{day.name} {day.focus ? `- ${day.focus}` : ""}</h3>
+                    <Table
+                      compact
+                      columns={["Exercicio", "Grupo", "Series", "Reps", "Descanso", "Carga/obs."]}
+                      rows={day.exercises.map((exercise) => [
+                        exercise.name,
+                        exercise.muscleGroup ?? "-",
+                        exercise.sets ?? "-",
+                        exercise.reps ?? "-",
+                        exercise.restSeconds ? `${exercise.restSeconds}s` : "-",
+                        [exercise.loadInstruction, exercise.notes].filter(Boolean).join(" - "),
+                      ])}
+                    />
+                  </div>
+                ))}
+              </>
+            ) : <p className="text-sm text-zinc-500">Nenhum plano de treino importado.</p>}
+          </ReportSection>
+
+          <ReportSection title="10. Suplementos monitorados">
             {supplementPlans.length ? (
               <Table
                 columns={["Suplemento", "Protocolo", "Dose/dia", "Inicio", "Ativo", "Registros recentes"]}
