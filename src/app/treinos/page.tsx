@@ -3,7 +3,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
-import { createManualTrainingPlanAction, deleteTrainingPlanAction, importTrainingPdfAction, setActiveTrainingPlanAction } from "./actions";
+import { createManualTrainingPlanAction, deleteTrainingExerciseLogAction, deleteTrainingPlanAction, importTrainingPdfAction, logTrainingExerciseAction, setActiveTrainingPlanAction } from "./actions";
 
 export default async function TrainingPage() {
   const { user } = await requireUserProfile();
@@ -12,7 +12,7 @@ export default async function TrainingPage() {
     include: {
       days: {
         orderBy: { order: "asc" },
-        include: { exercises: { orderBy: { order: "asc" } } },
+        include: { exercises: { orderBy: { order: "asc" }, include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 3 } } } },
       },
     },
     orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
@@ -174,13 +174,40 @@ TERCA - LOWER (Quadriceps)
                             <p className="font-semibold text-zinc-100">{exercise.name}</p>
                             <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup ?? "grupo nao definido"}</p>
                           </div>
-                          <p className="text-sm font-semibold text-lime-200">{exercise.sets ?? "-"} x {exercise.reps ?? "-"}</p>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-lime-200">{exercise.sets ?? "-"} x {exercise.reps ?? "-"}</p>
+                            <p className="mt-1 text-xs text-zinc-500">{exercise.logs[0]?.loadKg ? `ultimo ${formatNumber(exercise.logs[0].loadKg)} kg` : "sem carga registrada"}</p>
+                          </div>
                         </div>
                         <p className="mt-2 text-xs leading-5 text-zinc-500">
                           {exercise.restSeconds ? `Descanso ${exercise.restSeconds}s. ` : ""}
                           {exercise.loadInstruction ?? ""}
                           {exercise.notes ? ` ${exercise.notes}` : ""}
                         </p>
+                        <form action={logTrainingExerciseAction} className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-[1.1fr_.7fr_.7fr_.7fr_.7fr_auto]">
+                          <input type="hidden" name="exerciseId" value={exercise.id} />
+                          <input name="date" type="date" defaultValue={todayInput()} className={smallInputClass} />
+                          <input name="setsDone" inputMode="numeric" placeholder="series" className={smallInputClass} />
+                          <input name="repsDone" placeholder="reps ex: 10/9/8" className={smallInputClass} />
+                          <input name="loadKg" inputMode="decimal" placeholder="kg" className={smallInputClass} />
+                          <input name="rpe" inputMode="decimal" placeholder="RPE" className={smallInputClass} />
+                          <button className="rounded-full bg-lime-300 px-4 py-2 text-xs font-semibold text-black">Registrar</button>
+                        </form>
+                        {exercise.logs.length ? (
+                          <div className="mt-3 grid gap-2">
+                            {exercise.logs.map((log) => (
+                              <div key={log.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/20 px-3 py-2 text-xs text-zinc-400">
+                                <span>
+                                  {log.date.toLocaleDateString("pt-BR")} - {log.setsDone ? `${log.setsDone} series` : "series -"} - {log.repsDone ?? "reps -"} - {log.loadKg ? `${formatNumber(log.loadKg)} kg` : "kg -"} {log.rpe ? `- RPE ${formatNumber(log.rpe)}` : ""}
+                                </span>
+                                <form action={deleteTrainingExerciseLogAction}>
+                                  <input type="hidden" name="logId" value={log.id} />
+                                  <button className="rounded-full bg-red-400/10 px-2 py-1 text-red-100 transition hover:bg-red-400/20">Apagar</button>
+                                </form>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -204,3 +231,15 @@ function Summary({ label, value }: { label: string; value: string }) {
 }
 
 const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm outline-none placeholder:text-zinc-600 focus:border-lime-300/50";
+const smallInputClass = "h-10 min-w-0 rounded-2xl border border-white/10 bg-black/30 px-3 text-xs outline-none placeholder:text-zinc-600 focus:border-lime-300/50";
+
+function todayInput() {
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}

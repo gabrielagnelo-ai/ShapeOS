@@ -393,9 +393,29 @@ model TrainingExercise {
   order           Int
 
   day TrainingDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  logs TrainingExerciseLog[]
 
   @@index([dayId, order])
   @@map("training_exercises")
+}
+
+model TrainingExerciseLog {
+  id          String   @id @default(cuid())
+  exerciseId  String   @map("exercise_id")
+  userId      String   @map("user_id")
+  date        DateTime
+  setsDone    Int?     @map("sets_done")
+  repsDone    String?  @map("reps_done")
+  loadKg      Float?   @map("load_kg")
+  rpe         Float?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  exercise TrainingExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([exerciseId, date])
+  @@map("training_exercise_logs")
 }
 
 model MealPhotoEstimate {

@@ -171,6 +171,48 @@ export async function setActiveTrainingPlanAction(formData: FormData) {
   revalidatePath("/relatorio-nutricionista");
 }
 
+export async function logTrainingExerciseAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const exerciseId = String(formData.get("exerciseId") ?? "");
+  if (!exerciseId) return;
+
+  const exercise = await prisma.trainingExercise.findFirst({
+    where: { id: exerciseId, day: { plan: { userId: user.id } } },
+    select: { id: true },
+  });
+  if (!exercise) return;
+
+  await prisma.trainingExerciseLog.create({
+    data: {
+      exerciseId: exercise.id,
+      userId: user.id,
+      date: parseDate(formData.get("date")) ?? new Date(),
+      setsDone: parseIntValue(formData.get("setsDone")),
+      repsDone: String(formData.get("repsDone") ?? "").trim() || null,
+      loadKg: parseDecimalValue(formData.get("loadKg")),
+      rpe: parseDecimalValue(formData.get("rpe")),
+      notes: String(formData.get("notes") ?? "").trim() || null,
+    },
+  });
+
+  revalidatePath("/treinos");
+  revalidatePath("/relatorio-nutricionista");
+}
+
+export async function deleteTrainingExerciseLogAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const logId = String(formData.get("logId") ?? "");
+  if (!logId) return;
+
+  await prisma.trainingExerciseLog.deleteMany({ where: { id: logId, userId: user.id } });
+  revalidatePath("/treinos");
+  revalidatePath("/relatorio-nutricionista");
+}
+
 async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buffer; extractedText: string }): Promise<AiTrainingPlan> {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -393,4 +435,21 @@ function manualTextFallback(name: string, text: string): AiTrainingPlan {
 function normalizeRest(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+}
+
+function parseDecimalValue(value: FormDataEntryValue | null) {
+  const parsed = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function parseIntValue(value: FormDataEntryValue | null) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseDate(value: FormDataEntryValue | null) {
+  const raw = String(value ?? "");
+  if (!raw) return null;
+  const date = new Date(`${raw}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }

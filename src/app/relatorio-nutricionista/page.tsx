@@ -45,7 +45,12 @@ export default async function NutritionistReportPage() {
     }),
     prisma.trainingPlan.findFirst({
       where: { userId: user.id, isActive: true },
-      include: { days: { orderBy: { order: "asc" }, include: { exercises: { orderBy: { order: "asc" } } } } },
+      include: {
+        days: {
+          orderBy: { order: "asc" },
+          include: { exercises: { orderBy: { order: "asc" }, include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 3 } } } },
+        },
+      },
     }),
   ]);
 
@@ -391,7 +396,12 @@ export default async function NutritionistReportPage() {
                         exercise.sets ?? "-",
                         exercise.reps ?? "-",
                         exercise.restSeconds ? `${exercise.restSeconds}s` : "-",
-                        [exercise.loadInstruction, exercise.notes].filter(Boolean).join(" - "),
+                        [
+                          exercise.loadInstruction,
+                          exercise.notes,
+                          exercise.logs[0]?.loadKg ? `ultima carga ${formatNumber(exercise.logs[0].loadKg)} kg` : null,
+                          exercise.logs[0]?.repsDone ? `reps ${exercise.logs[0].repsDone}` : null,
+                        ].filter(Boolean).join(" - "),
                       ])}
                     />
                   </div>
