@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { parseAppDate } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { advancedMacroTargets, calculateBmr, calculateTdee, guidedMacroTargets, type Goal, type Sex } from "@/lib/nutrition";
 
@@ -120,7 +121,5 @@ function normalizeTdeeMode(value: string) {
 }
 
 function optionalDate(value: string) {
-  if (!value) return null;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return value ? parseAppDate(value) : null;
 }

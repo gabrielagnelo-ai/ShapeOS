@@ -1,6 +1,7 @@
 import { Activity, Dumbbell, FileUp, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import { analyzeTrainingPerformance, trainingLogsFromPlan, trainingPerformanceTone } from "@/lib/training-performance";
@@ -275,10 +276,7 @@ const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 tex
 const smallInputClass = "h-10 min-w-0 rounded-2xl border border-white/10 bg-black/30 px-3 text-xs outline-none placeholder:text-zinc-600 focus:border-lime-300/50";
 
 function todayInput() {
-  const date = new Date();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
+  return appDateInputValue();
 }
 
 function formatNumber(value: number) {

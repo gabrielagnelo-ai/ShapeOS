@@ -1,3 +1,4 @@
+import { appDateParts, startOfAppDate } from "./date-time";
 import { sumNutrients, type FoodNutrients } from "./nutrition";
 
 export type CalendarPeriod = {
@@ -21,29 +22,29 @@ export type WaterLogForPeriod = {
 };
 
 export function calendarPeriods(referenceDate = new Date()) {
-  const year = referenceDate.getFullYear();
-  const month = referenceDate.getMonth();
-  const quarterStartMonth = Math.floor(month / 3) * 3;
-  const semesterStartMonth = month < 6 ? 0 : 6;
+  const { year, month } = appDateParts(referenceDate);
+  const monthIndex = month - 1;
+  const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
+  const semesterStartMonth = monthIndex < 6 ? 0 : 6;
 
   return {
     month: {
       key: "month",
-      label: referenceDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
-      start: new Date(year, month, 1),
-      end: new Date(year, month + 1, 1),
+      label: monthLabel(year, month),
+      start: startOfAppDate(year, month, 1),
+      end: startOfAppDate(year, month + 1, 1),
     },
     quarter: {
       key: "quarter",
-      label: `${quarterStartMonth + 1}º-${quarterStartMonth + 3}º mês de ${year}`,
-      start: new Date(year, quarterStartMonth, 1),
-      end: new Date(year, quarterStartMonth + 3, 1),
+      label: `${quarterStartMonth + 1}o-${quarterStartMonth + 3}o mes de ${year}`,
+      start: startOfAppDate(year, quarterStartMonth + 1, 1),
+      end: startOfAppDate(year, quarterStartMonth + 4, 1),
     },
     semester: {
       key: "semester",
-      label: `${semesterStartMonth === 0 ? "1º" : "2º"} semestre de ${year}`,
-      start: new Date(year, semesterStartMonth, 1),
-      end: new Date(year, semesterStartMonth + 6, 1),
+      label: `${semesterStartMonth === 0 ? "1o" : "2o"} semestre de ${year}`,
+      start: startOfAppDate(year, semesterStartMonth + 1, 1),
+      end: startOfAppDate(year, semesterStartMonth + 7, 1),
     },
   } satisfies Record<CalendarPeriod["key"], CalendarPeriod>;
 }
@@ -91,9 +92,18 @@ export function isInsidePeriod(date: Date, period: CalendarPeriod) {
 }
 
 export function dateKey(date: Date) {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
+  const parts = appDateParts(date);
+  const month = String(parts.month).padStart(2, "0");
+  const day = String(parts.day).padStart(2, "0");
+  return `${parts.year}-${month}-${day}`;
+}
+
+function monthLabel(year: number, month: number) {
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function averageNutrition(days: ReturnType<typeof sumNutrients>[]) {

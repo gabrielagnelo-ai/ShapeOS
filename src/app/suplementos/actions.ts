@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { parseAppDate, startOfTodayInAppTimeZone } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { recommendedSupplementDose, type SupplementProtocol, type SupplementType } from "@/lib/supplements";
 
@@ -167,17 +168,11 @@ function parsePositiveNumber(value: FormDataEntryValue | null) {
 }
 
 function parseDate(value: string) {
-  if (!value) return null;
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return null;
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return value ? parseAppDate(value) : null;
 }
 
 function startOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return startOfTodayInAppTimeZone();
 }
 
 function clamp(value: number, min: number, max: number) {

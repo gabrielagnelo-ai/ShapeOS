@@ -1,6 +1,7 @@
 import { Archive, Check, FlaskConical, Plus, RotateCcw, ShieldAlert, Trash2, Zap } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import {
@@ -295,7 +296,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 }
 
 function dateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+  return appDateInputValue(date);
 }
 
 function sameDay(a: Date, b: Date) {

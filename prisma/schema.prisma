@@ -266,6 +266,7 @@ model FoodLog {
   user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   items FoodLogItem[]
 
+  @@unique([userId, date])
   @@index([userId, date])
   @@map("food_logs")
 }

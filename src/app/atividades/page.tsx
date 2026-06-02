@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { activityEfforts, activityPresets, tdeeCheck } from "@/lib/activity";
 import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { appDateInputValue } from "@/lib/date-time";
 import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
@@ -181,7 +182,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function dateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+  return appDateInputValue(date);
 }
 
 function dayLabel(label: string) {

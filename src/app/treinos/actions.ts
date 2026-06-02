@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { parseAppDate } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 
 const MAX_TRAINING_PDF_BYTES = 8 * 1024 * 1024;
@@ -450,6 +451,5 @@ function parseIntValue(value: FormDataEntryValue | null) {
 function parseDate(value: FormDataEntryValue | null) {
   const raw = String(value ?? "");
   if (!raw) return null;
-  const date = new Date(`${raw}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return parseAppDate(raw);
 }

@@ -11,6 +11,7 @@ import {
   type Sex,
 } from "@/lib/nutrition";
 import { calculateBaseTdee } from "@/lib/tdee";
+import { endOfTodayInAppTimeZone, startOfTodayInAppTimeZone } from "@/lib/date-time";
 
 const sexMap = { MALE: "male", FEMALE: "female" } as const;
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
@@ -75,13 +76,9 @@ export function computeProfileMetrics(
 }
 
 export function startOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return startOfTodayInAppTimeZone();
 }
 
 export function endOfToday() {
-  const date = new Date();
-  date.setHours(23, 59, 59, 999);
-  return date;
+  return endOfTodayInAppTimeZone();
 }
