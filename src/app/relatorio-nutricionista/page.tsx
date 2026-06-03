@@ -172,8 +172,8 @@ export default async function NutritionistReportPage() {
               <Info label="Altura" value={`${formatNumber(profile.heightCm)} cm`} />
               <Info label="Peso atual" value={`${formatNumber(currentBody.weightKg)} kg`} />
               <Info label="Objetivo" value={goalLabel(profile.goal)} />
-              <Info label="Experiencia" value={experienceLabel(profile.experience)} />
-              <Info label="Modo" value={profile.mode === "ADVANCED" ? "Avancado" : "Guiado"} />
+              <Info label="Conhecimento de dieta" value={experienceLabel(profile.experience)} />
+              <Info label="Controle do app" value={profile.mode === "ADVANCED" ? "Manual avancado" : "Guiado"} />
               <Info label="Preferencia alimentar" value={profile.dietPreference ?? "nao informado"} />
             </InfoGrid>
             <TextBlock label="Restricoes / alergias / condicoes" value={[
@@ -584,7 +584,7 @@ function goalLabel(value: string) {
 }
 
 function experienceLabel(value: string) {
-  const labels: Record<string, string> = { BEGINNER: "Iniciante", INTERMEDIATE: "Intermediario", ADVANCED: "Avancado" };
+  const labels: Record<string, string> = { BEGINNER: "Precisa de guia", INTERMEDIATE: "Intermediario", ADVANCED: "Autonomo" };
   return labels[value] ?? value;
 }
 

@@ -22,7 +22,7 @@ const fieldNames: Record<string, string> = {
   "gordura por kg": "fatPerKg",
   "nível de atividade": "activityLevel",
   "fator de atividade manual": "manualActivityFactor",
-  experiência: "experience",
+  "conhecimento de dieta": "experience",
   restrições: "restrictions",
   alergias: "allergies",
   "alimentos que não gosta": "dislikedFoods",
@@ -70,7 +70,7 @@ export default async function OnboardingPage() {
 
             <FieldSection icon={<Activity size={18} />} title="2. Objetivo e rotina" text="Escolha o cenário mais parecido com sua semana. Não precisa acertar perfeito agora.">
               <div className="grid gap-4 md:grid-cols-2">
-                {["objetivo", "nível de atividade", "experiência", "preferência alimentar"].map((field) => <Field key={field} field={field} />)}
+                {["objetivo", "nível de atividade", "conhecimento de dieta", "preferência alimentar"].map((field) => <Field key={field} field={field} />)}
               </div>
             </FieldSection>
 
@@ -151,8 +151,8 @@ function renderField(field: string, name: string, defaultValue?: string) {
     return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha o mais parecido com sua rotina</option><option value="sedentary">Sedentário - quase não caminha ou treina</option><option value="light">Leve - caminha ou treina 1 a 3 dias/semana</option><option value="moderate">Moderado - treina 3 a 5 dias/semana</option><option value="high">Alto - treina pesado 5 a 6 dias/semana</option><option value="very_high">Muito alto - trabalho físico ou 2 treinos/dia</option></select>;
   }
 
-  if (field === "experiência") {
-    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha o quanto você já acompanha dieta e treino</option><option value="beginner">Iniciante - quero que o app me guie no básico</option><option value="intermediate">Intermediário - já treino e sigo dieta às vezes</option><option value="advanced">Avançado - já controlo macros, calorias e ajustes</option></select>;
+  if (field === "conhecimento de dieta") {
+    return <select name={name} className={className} defaultValue="" required><option value="" disabled>Escolha seu nível de controle sobre dieta</option><option value="beginner">Preciso de guia - não acompanho calorias/macros</option><option value="intermediate">Intermediário - entendo o básico e registro às vezes</option><option value="advanced">Autônomo - sei ajustar macros, calorias e estratégia</option></select>;
   }
 
   if (field === "fator de atividade manual") {
