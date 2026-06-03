@@ -1,3 +1,5 @@
+import { appDateInputValue, startOfDayInTimeZone } from "./date-time";
+
 export type TrainingTrend = "improving" | "stable" | "declining" | "insufficient";
 export type TrainingConfidence = "high" | "medium" | "low";
 
@@ -71,6 +73,10 @@ export function trainingLogsFromPlan(plan: TrainingPlanWithLogsInput): TrainingL
       })),
     ),
   );
+}
+
+export function trainingLogsFromPlans(plans: TrainingPlanWithLogsInput[]): TrainingLogInput[] {
+  return plans.flatMap((plan) => trainingLogsFromPlan(plan));
 }
 
 export function analyzeTrainingPerformance(logs: TrainingLogInput[], now = new Date()): TrainingPerformance {
@@ -186,6 +192,7 @@ function trainingTrend(input: { comparableExercises: number; improvedExercises: 
 function trainingConfidence(input: { trainedDays: number; comparableExercises: number; loggedExercises: number }): TrainingConfidence {
   if (input.trainedDays >= 6 && input.comparableExercises >= 4) return "high";
   if (input.trainedDays >= 3 && input.comparableExercises >= 2) return "medium";
+  if (input.trainedDays >= 3 && input.loggedExercises >= 10) return "medium";
   if (input.loggedExercises >= 3 && input.comparableExercises >= 1) return "medium";
   return "low";
 }
@@ -263,19 +270,16 @@ function primaryMessage(input: {
   if (input.trend === "declining") return `Performance em queda: ${input.declinedExercises} exercicio(s) pioraram. Confira sono, deficit e recuperacao.`;
   if (input.trend === "stable") return "Performance estavel. Bom sinal se a cintura/BF estao caindo sem perda grande de carga.";
   if (input.trainedDays === 0) return "Nenhum treino registrado ainda. Lance carga e repeticoes para acompanhar progressao.";
+  if (input.trainedDays >= 3) return "Voce ja registrou varios treinos. A tendencia de carga comeca quando algum exercicio for repetido.";
   return "Ainda falta repeticao de registros por exercicio para comparar progressao.";
 }
 
 function daysBetween(date: Date, now: Date) {
-  return Math.max(0, (startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
+  return Math.max(0, (startOfDayInTimeZone(now).getTime() - startOfDayInTimeZone(date).getTime()) / 86_400_000);
 }
 
 function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return appDateInputValue(date);
 }
 
 function normalizeNumber(value?: number | null) {

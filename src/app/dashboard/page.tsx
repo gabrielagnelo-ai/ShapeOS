@@ -16,7 +16,7 @@ import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/pe
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { calculateBmi, calculateBmr, calculateTdee, guidedMacroTargets, nutrientsForGrams, suggestedMicronutrientTargets, sumNutrients, type Goal, type Sex } from "@/lib/nutrition";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
-import { analyzeTrainingPerformance, trainingLogsFromPlan } from "@/lib/training-performance";
+import { analyzeTrainingPerformance, trainingLogsFromPlans } from "@/lib/training-performance";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { addWaterLogAction } from "./actions";
 
@@ -68,8 +68,8 @@ export default async function DashboardPage() {
   const physicalActivities = await prisma.physicalActivityLog.findMany({
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
   });
-  const trainingPlan = await prisma.trainingPlan.findFirst({
-    where: { userId: user.id, isActive: true },
+  const trainingPlans = await prisma.trainingPlan.findMany({
+    where: { userId: user.id },
     include: {
       days: {
         include: {
@@ -79,6 +79,7 @@ export default async function DashboardPage() {
         },
       },
     },
+    take: 12,
   });
 
   const sex = sexMap[profile.sex] as Sex;
@@ -210,7 +211,7 @@ export default async function DashboardPage() {
     averageIntakeKcal,
     checkins: weeklyCheckins,
   });
-  const trainingPerformance = analyzeTrainingPerformance(trainingPlan ? trainingLogsFromPlan(trainingPlan) : []);
+  const trainingPerformance = analyzeTrainingPerformance(trainingLogsFromPlans(trainingPlans));
   const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: currentBody.weightKg,
     currentWaistCm: currentBody.waistCm,

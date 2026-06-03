@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
-import { analyzeTrainingPerformance, trainingLogsFromPlan, trainingPerformanceTone } from "@/lib/training-performance";
+import { analyzeTrainingPerformance, trainingLogsFromPlans, trainingPerformanceTone } from "@/lib/training-performance";
 import { createManualTrainingPlanAction, deleteTrainingExerciseLogAction, deleteTrainingPlanAction, importTrainingPdfAction, logTrainingExerciseAction, setActiveTrainingPlanAction } from "./actions";
 
 export default async function TrainingPage() {
@@ -21,7 +21,7 @@ export default async function TrainingPage() {
     take: 8,
   });
   const activePlan = plans.find((plan) => plan.isActive);
-  const performance = analyzeTrainingPerformance(activePlan ? trainingLogsFromPlan(activePlan) : []);
+  const performance = analyzeTrainingPerformance(trainingLogsFromPlans(plans));
   const performanceTone = trainingPerformanceTone(performance);
 
   return (

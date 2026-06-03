@@ -10,7 +10,7 @@ import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { validateTdeeTrend } from "@/lib/tdee";
-import { analyzeTrainingPerformance, trainingLogsFromPlan } from "@/lib/training-performance";
+import { analyzeTrainingPerformance, trainingLogsFromPlans } from "@/lib/training-performance";
 
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
 
@@ -29,8 +29,8 @@ export default async function CoachPage() {
     include: { items: { include: { food: true } } },
     orderBy: { date: "desc" },
   });
-  const trainingPlan = await prisma.trainingPlan.findFirst({
-    where: { userId: user.id, isActive: true },
+  const trainingPlans = await prisma.trainingPlan.findMany({
+    where: { userId: user.id },
     include: {
       days: {
         include: {
@@ -40,6 +40,7 @@ export default async function CoachPage() {
         },
       },
     },
+    take: 12,
   });
   const foodMonth = foodPeriodSummary(periodFoodLogs.map((log) => ({
     date: log.date,
@@ -79,7 +80,7 @@ export default async function CoachPage() {
     checkins: [...checkins].reverse(),
   });
   const topInsight = insights[0];
-  const trainingPerformance = analyzeTrainingPerformance(trainingPlan ? trainingLogsFromPlan(trainingPlan) : []);
+  const trainingPerformance = analyzeTrainingPerformance(trainingLogsFromPlans(trainingPlans));
   const latestCheckin = checkins[0];
   const bodyComposition = buildBodyCompositionProjection({
     currentWeightKg: latestCheckin?.averageWeightKg ?? currentBody.weightKg,

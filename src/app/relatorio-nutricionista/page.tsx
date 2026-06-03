@@ -8,7 +8,7 @@ import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/pe
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
-import { analyzeTrainingPerformance, trainingLogsFromPlan } from "@/lib/training-performance";
+import { analyzeTrainingPerformance, trainingLogsFromPlans } from "@/lib/training-performance";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { PrintReportButton } from "./print-button";
 
@@ -19,7 +19,7 @@ export default async function NutritionistReportPage() {
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans, trainingPlan] = await Promise.all([
+  const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans, trainingPlan, trainingPlansForPerformance] = await Promise.all([
     prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 }),
     prisma.weeklyCheckin.findMany({
       where: { userId: user.id },
@@ -52,6 +52,15 @@ export default async function NutritionistReportPage() {
           include: { exercises: { orderBy: { order: "asc" }, include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } } } },
         },
       },
+    }),
+    prisma.trainingPlan.findMany({
+      where: { userId: user.id },
+      include: {
+        days: {
+          include: { exercises: { include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } } } },
+        },
+      },
+      take: 12,
     }),
   ]);
 
@@ -106,7 +115,7 @@ export default async function NutritionistReportPage() {
     todayConservative: Math.round(todayActivities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
   };
   const averageConservativeActivityKcal = Math.round(activitiesTotals.conservative / 30);
-  const trainingPerformance = analyzeTrainingPerformance(trainingPlan ? trainingLogsFromPlan(trainingPlan) : []);
+  const trainingPerformance = analyzeTrainingPerformance(trainingLogsFromPlans(trainingPlansForPerformance));
   const heroMetrics = [
     { label: "Meta calorica", value: `${metrics.targets.calories} kcal` },
     { label: "TDEE hoje", value: `${tdeeResult.total} kcal` },
