@@ -136,18 +136,25 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
             <input name="name" className={inputClass} placeholder="Nome do alimento. Ex: Pão francês da padaria" required />
             <input name="category" className={inputClass} placeholder="Categoria. Ex: Pães" />
           </div>
+          <div className="grid gap-3 md:grid-cols-[220px_1fr]">
+            <select name="nutritionBase" className={inputClass} defaultValue="per100g">
+              <option value="per100g">Valores por 100g</option>
+              <option value="perServing">Valores por porção</option>
+            </select>
+            <input name="servingGrams" inputMode="decimal" className={inputClass} placeholder="Peso da porção em g. Ex: 60 para barrinha" />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-            <input name="kcalPer100g" inputMode="decimal" className={inputClass} placeholder="kcal/100g" />
-            <input name="proteinPer100g" inputMode="decimal" className={inputClass} placeholder="proteína" required />
-            <input name="carbsPer100g" inputMode="decimal" className={inputClass} placeholder="carbo" required />
-            <input name="fatPer100g" inputMode="decimal" className={inputClass} placeholder="gordura" required />
-            <input name="fiberPer100g" inputMode="decimal" className={inputClass} placeholder="fibra" />
+            <input name="kcalPer100g" inputMode="decimal" className={inputClass} placeholder="kcal" />
+            <input name="proteinPer100g" inputMode="decimal" className={inputClass} placeholder="proteína g" required />
+            <input name="carbsPer100g" inputMode="decimal" className={inputClass} placeholder="carbo g" required />
+            <input name="fatPer100g" inputMode="decimal" className={inputClass} placeholder="gordura g" required />
+            <input name="fiberPer100g" inputMode="decimal" className={inputClass} placeholder="fibra g" />
             <input name="sodiumPer100g" inputMode="decimal" className={inputClass} placeholder="sódio mg" />
             <input name="pricePerKg" inputMode="decimal" className={inputClass} placeholder="R$/kg" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-zinc-500">
-              Se kcal ficar vazio, o app calcula por macros: proteína 4 kcal/g, carbo 4 kcal/g e gordura 9 kcal/g.
+              Para barrinha, selecione valores por porção, informe 60g e copie o rótulo. O app converte para 100g internamente. Se kcal ficar vazio, calcula por macros.
             </p>
             <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
               <Plus size={17} />

@@ -1,5 +1,6 @@
 ﻿import { Plus, ShoppingBag, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { FoodSearchField } from "@/components/food/food-search-field";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
@@ -193,14 +194,12 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                       </div>
                     );
                   })}
-                  <form action={addManualDietItemAction} className="grid gap-2 rounded-2xl border border-dashed border-white/10 bg-black/20 p-3 md:grid-cols-[1fr_110px_auto]">
+                  <form action={addManualDietItemAction} className="grid gap-2 rounded-2xl border border-dashed border-white/10 bg-black/20 p-3 md:grid-cols-[minmax(0,1fr)_110px_auto]">
                     <input type="hidden" name="mealId" value={meal.id} />
-                    <input
-                      name="foodQuery"
-                      list="food-options"
-                      className="h-10 min-w-0 rounded-xl bg-white/10 px-3 text-sm outline-none"
+                    <FoodSearchField
+                      foods={foods}
+                      className="h-10 w-full rounded-xl bg-white/10 px-3 text-sm outline-none transition focus:ring-1 focus:ring-lime-300/50"
                       placeholder="Digite para buscar alimento"
-                      required
                     />
                     <input name="grams" inputMode="decimal" className="h-10 rounded-xl bg-white/10 px-3 text-sm outline-none" placeholder="gramas" required />
                     <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
@@ -212,11 +211,6 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               </div>
             )) : <p className="text-sm text-zinc-500">Clique em gerar plano para criar uma dieta inicial com alimentos brasileiros comuns.</p>}
           </div>
-          <datalist id="food-options">
-            {foods.map((food) => (
-              <option key={food.id} value={food.name} label={food.category} />
-            ))}
-          </datalist>
         </GlassCard>
         <GlassCard className="lg:sticky lg:top-24">
           <ShoppingBag className="text-lime-300" />

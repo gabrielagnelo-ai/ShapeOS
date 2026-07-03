@@ -8,7 +8,15 @@ type FoodOption = {
   category: string | null;
 };
 
-export function FoodSearchField({ foods }: { foods: FoodOption[] }) {
+export function FoodSearchField({
+  foods,
+  className = "h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50",
+  placeholder = "Digite o alimento. Ex: frango, arroz, banana",
+}: {
+  foods: FoodOption[];
+  className?: string;
+  placeholder?: string;
+}) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [open, setOpen] = useState(false);
@@ -33,7 +41,7 @@ export function FoodSearchField({ foods }: { foods: FoodOption[] }) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <input type="hidden" name="foodId" value={selectedId} />
       <input
         name="foodQuery"
@@ -45,8 +53,8 @@ export function FoodSearchField({ foods }: { foods: FoodOption[] }) {
         }}
         onFocus={() => setOpen(true)}
         autoComplete="off"
-        className="h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50"
-        placeholder="Digite o alimento. Ex: frango, arroz, banana"
+        className={className}
+        placeholder={placeholder}
         required
       />
       {open ? (

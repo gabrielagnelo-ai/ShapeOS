@@ -11,11 +11,16 @@ export async function createCustomFoodAction(formData: FormData) {
 
   const name = String(formData.get("name") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim() || "Personalizados";
-  const protein = parseNumber(formData.get("proteinPer100g"));
-  const carbs = parseNumber(formData.get("carbsPer100g"));
-  const fat = parseNumber(formData.get("fatPer100g"));
+  const nutritionBase = String(formData.get("nutritionBase") ?? "per100g");
+  const servingGrams = parseOptionalNumber(formData.get("servingGrams"));
+  const multiplier = nutritionBase === "perServing" && servingGrams && servingGrams > 0 ? 100 / servingGrams : 1;
+  const protein = parseNumber(formData.get("proteinPer100g")) * multiplier;
+  const carbs = parseNumber(formData.get("carbsPer100g")) * multiplier;
+  const fat = parseNumber(formData.get("fatPer100g")) * multiplier;
   const kcalInput = parseOptionalNumber(formData.get("kcalPer100g"));
-  const kcal = kcalInput ?? (protein * 4) + (carbs * 4) + (fat * 9);
+  const kcal = kcalInput != null ? kcalInput * multiplier : (protein * 4) + (carbs * 4) + (fat * 9);
+  const fiber = parseOptionalNumber(formData.get("fiberPer100g"));
+  const sodium = parseOptionalNumber(formData.get("sodiumPer100g"));
   if (!name || !Number.isFinite(kcal)) return;
 
   await prisma.food.create({
@@ -26,8 +31,8 @@ export async function createCustomFoodAction(formData: FormData) {
       proteinPer100g: round(protein),
       carbsPer100g: round(carbs),
       fatPer100g: round(fat),
-      fiberPer100g: parseOptionalNumber(formData.get("fiberPer100g")),
-      sodiumPer100g: parseOptionalNumber(formData.get("sodiumPer100g")),
+      fiberPer100g: fiber == null ? null : round(fiber * multiplier),
+      sodiumPer100g: sodium == null ? null : round(sodium * multiplier),
       pricePerKg: parseOptionalNumber(formData.get("pricePerKg")),
       source: "Usuário",
       createdByUserId: user.id,

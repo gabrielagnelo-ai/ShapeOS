@@ -1,10 +1,10 @@
 ﻿import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { FoodSearchField } from "@/components/food/food-search-field";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
 import { addFoodLogAction, deleteFoodLogItemAction } from "./actions";
-import { FoodSearchField } from "./food-search-field";
 
 export default async function DiarioPage() {
   const { user, profile } = await requireUserProfile();
