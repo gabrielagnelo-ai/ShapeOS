@@ -152,6 +152,104 @@ export async function createManualDietPlanAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function setActiveDietPlanAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const planId = String(formData.get("planId") ?? "");
+  const plan = await prisma.dietPlan.findFirst({ where: { id: planId, userId: user.id }, select: { id: true } });
+  if (!plan) return;
+
+  await prisma.$transaction([
+    prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } }),
+    prisma.dietPlan.update({ where: { id: plan.id }, data: { isActive: true } }),
+  ]);
+
+  revalidatePath("/dieta");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteDietPlanAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const planId = String(formData.get("planId") ?? "");
+  const plan = await prisma.dietPlan.findFirst({ where: { id: planId, userId: user.id }, select: { id: true, isActive: true } });
+  if (!plan) return;
+
+  const totalPlans = await prisma.dietPlan.count({ where: { userId: user.id } });
+  if (totalPlans <= 1) return;
+
+  await prisma.dietPlan.delete({ where: { id: plan.id } });
+
+  if (plan.isActive) {
+    const nextPlan = await prisma.dietPlan.findFirst({ where: { userId: user.id }, orderBy: { updatedAt: "desc" }, select: { id: true } });
+    if (nextPlan) await prisma.dietPlan.update({ where: { id: nextPlan.id }, data: { isActive: true } });
+  }
+
+  revalidatePath("/dieta");
+  revalidatePath("/dashboard");
+}
+
+export async function createProteinSwapDietPlanAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const foodId = String(formData.get("foodId") ?? "");
+  const foodQuery = String(formData.get("foodQuery") ?? "").trim();
+  const variantName = String(formData.get("variantName") ?? "").trim();
+  if (!foodId && !foodQuery) return;
+
+  const [activePlan, selectedFoodCandidate] = await Promise.all([
+    prisma.dietPlan.findFirst({
+      where: { userId: user.id, isActive: true },
+      include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
+    }),
+    foodId ? prisma.food.findUnique({ where: { id: foodId } }) : findFoodByQuery(foodQuery),
+  ]);
+  const selectedFood = selectedFoodCandidate
+    ? await prisma.food.findUnique({ where: { id: selectedFoodCandidate.id } })
+    : null;
+  if (!activePlan || !selectedFood || selectedFood.proteinPer100g <= 0) return;
+
+  await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
+  await prisma.dietPlan.create({
+    data: {
+      userId: user.id,
+      name: variantName || nextVariantName(activePlan.name, selectedFood.name),
+      goal: activePlan.goal,
+      targetCalories: activePlan.targetCalories,
+      targetProteinG: activePlan.targetProteinG,
+      targetCarbsG: activePlan.targetCarbsG,
+      targetFatG: activePlan.targetFatG,
+      targetFiberG: activePlan.targetFiberG,
+      sodiumLimitMg: activePlan.sodiumLimitMg,
+      isActive: true,
+      meals: {
+        create: activePlan.meals.map((meal) => ({
+          name: meal.name,
+          order: meal.order,
+          macroShare: meal.macroShare ?? undefined,
+          items: {
+            create: meal.items.map((item) => {
+              const shouldSwap = isPrimaryProteinFood(item.food);
+              return {
+                foodId: shouldSwap ? selectedFood.id : item.foodId,
+                grams: shouldSwap ? equivalentProteinGrams(item.grams, item.food.proteinPer100g, selectedFood.proteinPer100g) : item.grams,
+                isFixed: item.isFixed,
+                isBlocked: item.isBlocked,
+              };
+            }),
+          },
+        })),
+      },
+    },
+  });
+
+  revalidatePath("/dieta");
+  revalidatePath("/dashboard");
+}
+
 export async function updateDietMealsAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
@@ -388,4 +486,32 @@ function filterMealsBySelection<T extends { name: string }>(meals: T[], selected
   const selected = new Set(selectedNames);
   const filtered = meals.filter((meal) => selected.has(meal.name));
   return filtered.length ? filtered : meals.filter((meal) => baseMealNames.includes(meal.name as (typeof baseMealNames)[number]));
+}
+
+type ProteinFood = {
+  name: string;
+  category: string;
+  kcalPer100g: number;
+  proteinPer100g: number;
+};
+
+function isPrimaryProteinFood(food: ProteinFood) {
+  const name = food.name.toLowerCase();
+  const category = food.category.toLowerCase();
+  const proteinCalories = food.proteinPer100g * 4;
+  const proteinShare = food.kcalPer100g > 0 ? proteinCalories / food.kcalPer100g : 0;
+  const excluded = ["arroz", "feijao", "feijão", "aveia", "banana", "batata", "mandioca", "abobora", "abóbora", "azeite", "abacate"];
+  if (excluded.some((term) => name.includes(term))) return false;
+  if (category.includes("leguminosa") || category.includes("cereal") || category.includes("fruta")) return false;
+  return food.proteinPer100g >= 12 && proteinShare >= 0.35;
+}
+
+function equivalentProteinGrams(currentGrams: number, currentProteinPer100g: number, newProteinPer100g: number) {
+  const proteinG = currentGrams * (currentProteinPer100g / 100);
+  const grams = proteinG / (newProteinPer100g / 100);
+  return Math.max(1, Math.round(grams));
+}
+
+function nextVariantName(currentName: string, proteinName: string) {
+  return `${currentName.replace(/\s+-\s+variação.*$/i, "")} - variação ${proteinName}`;
 }

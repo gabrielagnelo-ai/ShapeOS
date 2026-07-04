@@ -9,10 +9,13 @@ import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
 import {
   addManualDietItemAction,
+  createProteinSwapDietPlanAction,
   createManualDietPlanAction,
+  deleteDietPlanAction,
   generateAiDietPlanAction,
   generateDietPlanAction,
   removeDietItemAction,
+  setActiveDietPlanAction,
   updateDietMealsAction,
   updateDietItemGramsAction,
 } from "./actions";
@@ -24,10 +27,13 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   const days = periodo === "mensal" ? 30 : 15;
   const { user, profile } = await requireUserProfile();
   const metrics = computeProfileMetrics(profile);
-  const plan = await prisma.dietPlan.findFirst({
-    where: { userId: user.id, isActive: true },
+  const dietPlans = await prisma.dietPlan.findMany({
+    where: { userId: user.id },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
+    orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
+    take: 12,
   });
+  const plan = dietPlans.find((dietPlan) => dietPlan.isActive) ?? dietPlans[0] ?? null;
   const planMeals = plan ? sortMeals(plan.meals) : [];
   const mealChoices = uniqueMeals([...mealNames, ...planMeals.map((meal) => normalizeMealName(meal.name))]);
   const activeMealNames = new Set(planMeals.map((meal) => normalizeMealName(meal.name)));
@@ -111,6 +117,73 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               Use quando o cliente já tem dieta do nutricionista. Depois adicione alimento e gramas em cada refeição.
             </p>
           </form>
+          <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="font-semibold">Opções de dieta</p>
+                <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-500">
+                  Crie variações do mesmo plano mudando a fonte principal de proteína. Ex: Dieta 1 com frango, Dieta 2 com tilápia ou patinho.
+                </p>
+              </div>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400">{dietPlans.length} salvas</span>
+            </div>
+
+            {dietPlans.length ? (
+              <div className="mt-4 grid gap-2 lg:grid-cols-2">
+                {dietPlans.map((dietPlan, index) => {
+                  const summary = planSummary(dietPlan.meals);
+                  return (
+                    <div key={dietPlan.id} className={`rounded-2xl border p-3 ${dietPlan.isActive ? "border-lime-300/35 bg-lime-300/10" : "border-white/10 bg-white/[0.04]"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-semibold">{dietPlan.name || `Dieta ${index + 1}`}</p>
+                            {dietPlan.isActive ? <span className="rounded-full bg-lime-300 px-2 py-0.5 text-[11px] font-semibold text-black">ativa</span> : null}
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {Math.round(summary.kcal)} kcal · P {Math.round(summary.protein)}g C {Math.round(summary.carbs)}g G {Math.round(summary.fat)}g
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          {!dietPlan.isActive ? (
+                            <form action={setActiveDietPlanAction}>
+                              <input type="hidden" name="planId" value={dietPlan.id} />
+                              <button className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:bg-white/15">Usar</button>
+                            </form>
+                          ) : null}
+                          {dietPlans.length > 1 ? (
+                            <form action={deleteDietPlanAction}>
+                              <input type="hidden" name="planId" value={dietPlan.id} />
+                              <button className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir dieta">
+                                <Trash2 size={14} />
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-zinc-500">Crie ou gere uma dieta para salvar a primeira opção.</p>
+            )}
+
+            <form action={createProteinSwapDietPlanAction} className="mt-4 grid gap-2 border-t border-white/10 pt-4 lg:grid-cols-[1fr_1.2fr_auto]">
+              <input name="variantName" className="h-11 rounded-2xl bg-white/10 px-4 text-sm outline-none" placeholder="Nome. Ex: Dieta 2 - tilápia" />
+              <FoodSearchField
+                foods={foods}
+                className="h-11 w-full rounded-2xl bg-white/10 px-4 text-sm outline-none transition focus:ring-1 focus:ring-lime-300/50"
+                placeholder="Nova proteína. Ex: tilápia, patinho, whey"
+              />
+              <button disabled={!plan} className="inline-flex h-11 items-center justify-center rounded-full bg-lime-300 px-5 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40">
+                Criar variação
+              </button>
+            </form>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">
+              A troca preserva aproximadamente a proteína da refeição. Calorias e gordura podem mudar conforme o alimento escolhido.
+            </p>
+          </div>
           <form action={updateDietMealsAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -299,6 +372,43 @@ function DietTarget({ label, value, detail }: { label: string; value: string; de
       <p className="mt-1 text-lg font-semibold text-zinc-100">{value}</p>
       <p className="mt-1 text-xs text-zinc-500">{detail}</p>
     </div>
+  );
+}
+
+function planSummary(meals: Array<{
+  items: Array<{
+    grams: number;
+    food: {
+      name: string;
+      kcalPer100g: number;
+      proteinPer100g: number;
+      carbsPer100g: number;
+      fatPer100g: number;
+      fiberPer100g?: number | null;
+      sodiumPer100g?: number | null;
+    };
+  }>;
+}>) {
+  return meals.flatMap((meal) => meal.items).reduce(
+    (acc, item) => {
+      const nutrients = nutrientsForGrams({
+        name: item.food.name,
+        kcalPer100g: item.food.kcalPer100g,
+        proteinPer100g: item.food.proteinPer100g,
+        carbsPer100g: item.food.carbsPer100g,
+        fatPer100g: item.food.fatPer100g,
+        fiberPer100g: item.food.fiberPer100g ?? 0,
+        sodiumPer100g: item.food.sodiumPer100g ?? 0,
+      }, item.grams);
+
+      return {
+        kcal: acc.kcal + nutrients.kcal,
+        protein: acc.protein + nutrients.proteinG,
+        carbs: acc.carbs + nutrients.carbsG,
+        fat: acc.fat + nutrients.fatG,
+      };
+    },
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 },
   );
 }
 
