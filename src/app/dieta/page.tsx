@@ -227,7 +227,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               <div className="mt-4 grid gap-2 sm:grid-cols-4">
                 <DietTarget label="Calorias planejadas" value={`${Math.round(totals.kcal)} kcal`} detail={`meta ${metrics.targets.calories} kcal`} />
                 <DietTarget label="Proteína" value={`${Math.round(totals.protein)} g`} detail={`meta ${metrics.targets.proteinG} g`} />
-                <DietTarget label="Carboidrato" value={`${Math.round(totals.carbs)} g`} detail="restante das calorias" />
+                <DietTarget label="Carboidrato" value={`${Math.round(totals.carbs)} g`} detail={`meta ${metrics.targets.carbsG} g`} />
                 <DietTarget label="Gordura" value={`${Math.round(totals.fat)} g`} detail={`meta ${metrics.targets.fatG} g`} />
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-400">
