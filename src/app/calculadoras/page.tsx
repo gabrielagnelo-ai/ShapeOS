@@ -3,7 +3,10 @@ import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { StatCard } from "@/components/ui/stat-card";
+import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
+import type { Sex } from "@/lib/nutrition";
 
 const goalLabels = {
   fat_loss: "Perda de peso",
@@ -12,8 +15,17 @@ const goalLabels = {
 } as const;
 
 export default async function CalculadorasPage() {
-  const { profile } = await requireUserProfile();
-  const metrics = computeProfileMetrics(profile);
+  const { user, profile } = await requireUserProfile();
+  const sex = (profile.sex === "MALE" ? "male" : "female") as Sex;
+  const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
+    where: { userId: user.id },
+    orderBy: { measuredAt: "desc" },
+    take: 1,
+  });
+  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex, heightCm: profile.heightCm });
+  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
+  const metrics = computeProfileMetrics(profile, currentBody);
+  const bodySource = rawBodySnapshots[0]?.source === "weekly_checkin" ? "último check-in" : "perfil atual";
   const goalDetail =
     metrics.goal === "fat_loss"
       ? `Déficit escolhido: ${profile.calorieDeficitKcal ?? 400} kcal`
@@ -47,7 +59,7 @@ export default async function CalculadorasPage() {
       <div className="mt-8 grid gap-4 lg:grid-cols-4">
         <StatCard icon={Zap} label="Calorias em repouso" value={`${metrics.bmr}`} detail="Estimativa do que seu corpo gasta parado." />
         <StatCard icon={Calculator} label="Gasto diário estimado" value={`${metrics.tdee}`} detail={`Inclui seu fator de atividade ${profile.activityFactor}.`} tone="blue" />
-        <StatCard icon={HeartPulse} label="IMC" value={`${metrics.bmi}`} detail="Indicador geral de peso por altura." tone="white" />
+        <StatCard icon={HeartPulse} label="IMC" value={`${metrics.bmi}`} detail={`Usa ${currentBody.weightKg.toLocaleString("pt-BR")} kg do ${bodySource}.`} tone="white" />
         <StatCard icon={Percent} label="Gordura estimada" value={metrics.bodyFat.percentage === null ? "Pendente" : `${metrics.bodyFat.percentage}%`} detail="Estimativa por medidas corporais." />
       </div>
 
