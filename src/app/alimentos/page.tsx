@@ -10,6 +10,7 @@ import {
   createCustomFoodAction,
   toggleBlockedFoodAction,
   toggleFavoriteFoodAction,
+  updateFoodLabelAndPriceAction,
 } from "./actions";
 
 type SearchParams = Promise<{
@@ -191,7 +192,10 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-semibold text-zinc-100">{food.name}</p>
-                      <p className="mt-1 text-sm text-zinc-500">{food.category} - {food.source}</p>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {food.category} - {food.source}
+                        {food.pricePerKg ? ` - R$ ${formatCurrency(food.pricePerKg)}/kg` : ""}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <IconForm action={toggleFavoriteFoodAction} foodId={food.id} active={Boolean(preference?.isFavorite)} label="Favoritar">
@@ -216,6 +220,34 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
                       ))}
                     </div>
                   ) : null}
+                  <details className="mt-4 rounded-3xl border border-white/10 bg-black/20 p-3">
+                    <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-200">
+                      Editar nome e preço
+                    </summary>
+                    <form action={updateFoodLabelAndPriceAction} className="mt-3 grid gap-2 md:grid-cols-[1fr_140px_auto]">
+                      <input type="hidden" name="foodId" value={food.id} />
+                      <input
+                        name="name"
+                        defaultValue={food.name}
+                        className="h-10 rounded-2xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-lime-300/50"
+                        placeholder="Nome do alimento"
+                        required
+                      />
+                      <input
+                        name="pricePerKg"
+                        defaultValue={food.pricePerKg ?? ""}
+                        inputMode="decimal"
+                        className="h-10 rounded-2xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-lime-300/50"
+                        placeholder="R$/kg"
+                      />
+                      <button className="h-10 rounded-full bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15">
+                        Salvar
+                      </button>
+                    </form>
+                    <p className="mt-2 text-xs leading-5 text-zinc-500">
+                      Isso não altera calorias, macros, micronutrientes ou registros antigos. O mesmo alimento continua vinculado pelo ID.
+                    </p>
+                  </details>
                 </div>
 
                 <div className="grid content-start gap-3">
@@ -324,6 +356,10 @@ const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 tex
 
 function round(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function buildHref(params: Record<string, string | undefined>) {

@@ -45,6 +45,34 @@ export async function createCustomFoodAction(formData: FormData) {
   revalidatePath("/receitas");
 }
 
+export async function updateFoodLabelAndPriceAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const foodId = String(formData.get("foodId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const pricePerKg = parseOptionalNumber(formData.get("pricePerKg"));
+  if (!foodId || !name) return;
+
+  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } });
+  if (!food) return;
+
+  await prisma.food.update({
+    where: { id: food.id },
+    data: {
+      name,
+      pricePerKg,
+    },
+  });
+
+  revalidatePath("/alimentos");
+  revalidatePath("/dieta");
+  revalidatePath("/diario");
+  revalidatePath("/dashboard");
+  revalidatePath("/receitas");
+  revalidatePath("/relatorio-nutricionista");
+}
+
 export async function toggleFavoriteFoodAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
