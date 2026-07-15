@@ -1,5 +1,27 @@
-export type SupplementType = "CREATINE" | "BETA_ALANINE";
+export type SupplementType = "CREATINE" | "BETA_ALANINE" | "MULTIVITAMIN";
 export type SupplementProtocol = "LOADING" | "STEADY";
+
+export type SupplementMicronutrients = {
+  calciumMg: number;
+  ironMg: number;
+  magnesiumMg: number;
+  potassiumMg: number;
+  zincMg: number;
+  vitaminCMg: number;
+  vitaminDMcg: number;
+  vitaminB12Mcg: number;
+};
+
+export const emptySupplementMicronutrients: SupplementMicronutrients = {
+  calciumMg: 0,
+  ironMg: 0,
+  magnesiumMg: 0,
+  potassiumMg: 0,
+  zincMg: 0,
+  vitaminCMg: 0,
+  vitaminDMcg: 0,
+  vitaminB12Mcg: 0,
+};
 
 export type SupplementPlanInput = {
   type: SupplementType;
@@ -15,11 +37,19 @@ const dayMs = 24 * 60 * 60 * 1000;
 
 export function recommendedSupplementDose(type: SupplementType, protocol: SupplementProtocol) {
   if (type === "CREATINE") return protocol === "LOADING" ? 20 : 5;
+  if (type === "MULTIVITAMIN") return 1;
   return 4;
 }
 
 export function supplementDisplayName(type: SupplementType) {
-  return type === "CREATINE" ? "Creatina" : "Beta-alanina";
+  if (type === "CREATINE") return "Creatina";
+  if (type === "BETA_ALANINE") return "Beta-alanina";
+  return "Multivitamínico";
+}
+
+export function supplementDoseUnit(type: SupplementType, value = 1) {
+  if (type !== "MULTIVITAMIN") return "g";
+  return value === 1 ? "dose" : "doses";
 }
 
 export function supplementProtocolLabel(protocol: SupplementProtocol) {
@@ -33,7 +63,9 @@ export function estimateSupplementProgress(input: SupplementPlanInput) {
   const loggedDose = input.logs.reduce((total, log) => total + Math.max(0, log.doseG), 0);
   const periodDose = (input.periods ?? []).reduce((total, period) => total + periodCumulativeDose(period, now), 0);
   const observedDose = loggedDose + periodDose;
-  const effectiveDose = observedDose > 0 ? observedDose : expectedDose;
+  const effectiveDose = input.type === "MULTIVITAMIN"
+    ? observedDose
+    : observedDose > 0 ? observedDose : expectedDose;
   const targetDose = targetCumulativeDose(input.type, input.protocol, input.dailyDoseG);
   const pct = clamp(Math.round((effectiveDose / targetDose) * 100), 0, 100);
   const adherencePct = clamp(Math.round((observedDose / Math.max(expectedDose, 1)) * 100), 0, 120);
@@ -59,13 +91,44 @@ export function supplementSafetyNote(type: SupplementType) {
     return "Evite usar como orientação clínica em doença renal, gestação, uso de medicação ou restrição médica. Procure profissional de saúde.";
   }
 
-  return "Beta-alanina pode causar formigamento, especialmente em doses altas de uma vez. Dividir doses costuma melhorar tolerância.";
+  if (type === "BETA_ALANINE") {
+    return "Beta-alanina pode causar formigamento, especialmente em doses altas de uma vez. Dividir doses costuma melhorar tolerância.";
+  }
+
+  return "Use os valores do rótulo e não exceda a dose indicada. Vitaminas e minerais também podem interagir com medicamentos ou ultrapassar limites seguros.";
+}
+
+export function parseSupplementMicronutrients(value: unknown): SupplementMicronutrients {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...emptySupplementMicronutrients };
+  }
+
+  const source = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(emptySupplementMicronutrients).map((key) => [key, nonNegativeNumber(source[key])]),
+  ) as SupplementMicronutrients;
+}
+
+export function sumSupplementMicronutrients(
+  plans: Array<{ micronutrientsPerDose: unknown; logs: Array<{ doseG: number }> }>,
+) {
+  return plans.reduce((total, plan) => {
+    const perDose = parseSupplementMicronutrients(plan.micronutrientsPerDose);
+    const doses = plan.logs.reduce((sum, log) => sum + Math.max(0, log.doseG), 0);
+
+    for (const key of Object.keys(total) as Array<keyof SupplementMicronutrients>) {
+      total[key] = round(total[key] + perDose[key] * doses);
+    }
+    return total;
+  }, { ...emptySupplementMicronutrients });
 }
 
 function targetCumulativeDose(type: SupplementType, protocol: SupplementProtocol, dailyDoseG: number) {
   if (type === "CREATINE") {
     return protocol === "LOADING" ? 100 : Math.max(84, dailyDoseG * 28);
   }
+
+  if (type === "MULTIVITAMIN") return Math.max(28, dailyDoseG * 28);
 
   return Math.max(112, dailyDoseG * 28);
 }
@@ -82,6 +145,12 @@ function periodCumulativeDose(
 }
 
 function guidanceText(type: SupplementType, protocol: SupplementProtocol, pct: number, daysRemaining: number) {
+  if (type === "MULTIVITAMIN") {
+    return pct >= 100
+      ? "Você completou 28 doses registradas. Continue marcando apenas quando realmente tomar."
+      : `${pct}% das primeiras 28 doses foram registradas. O Diário soma os nutrientes somente nos dias confirmados.`;
+  }
+
   if (pct >= 100) {
     return type === "CREATINE"
       ? "Fase estimada completa. Agora o foco é manter regularidade diária."
@@ -96,6 +165,11 @@ function guidanceText(type: SupplementType, protocol: SupplementProtocol, pct: n
 }
 
 function statusLabel(type: SupplementType, pct: number) {
+  if (type === "MULTIVITAMIN") {
+    if (pct >= 100) return "28 doses registradas";
+    if (pct > 0) return "acompanhando";
+    return "sem registro";
+  }
   if (pct >= 100) return type === "CREATINE" ? "saturado estimado" : "adaptado estimado";
   if (pct >= 70) return "fase final";
   if (pct >= 35) return "acumulando";
@@ -116,4 +190,9 @@ function clamp(value: number, min: number, max: number) {
 
 function round(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+function nonNegativeNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }

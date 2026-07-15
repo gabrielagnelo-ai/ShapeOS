@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
 import { analyzeTrainingPerformance, trainingLogsFromPlans } from "@/lib/training-performance";
+import { supplementDoseUnit, type SupplementType } from "@/lib/supplements";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { PrintReportButton } from "./print-button";
 
@@ -439,10 +440,10 @@ export default async function NutritionistReportPage() {
                 rows={supplementPlans.map((plan) => [
                   plan.name,
                   plan.protocol,
-                  `${formatNumber(plan.dailyDoseG)} g`,
+                  `${formatNumber(plan.dailyDoseG)} ${supplementDoseUnit(plan.type as SupplementType, plan.dailyDoseG)}`,
                   formatDate(plan.startedAt),
                   plan.isActive ? "sim" : "nao",
-                  plan.logs.map((log) => `${formatDate(log.date)} ${formatNumber(log.doseG)}g`).join("; "),
+                  plan.logs.map((log) => `${formatDate(log.date)} ${formatNumber(log.doseG)} ${supplementDoseUnit(plan.type as SupplementType, log.doseG)}`).join("; "),
                 ])}
               />
             ) : <p className="text-sm text-zinc-500">Nenhum suplemento registrado.</p>}

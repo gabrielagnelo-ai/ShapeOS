@@ -1,4 +1,4 @@
-import { Archive, Check, FlaskConical, Plus, RotateCcw, ShieldAlert, Trash2, Zap } from "lucide-react";
+import { Archive, Check, FlaskConical, Pill, Plus, RotateCcw, ShieldAlert, Trash2, Zap } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { appDateInputValue } from "@/lib/date-time";
@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import {
   estimateSupplementProgress,
+  parseSupplementMicronutrients,
   recommendedSupplementDose,
+  supplementDoseUnit,
   supplementDisplayName,
   supplementProtocolLabel,
   supplementSafetyNote,
@@ -22,6 +24,7 @@ import {
   deleteSupplementUsagePeriodAction,
   logSupplementDoseAction,
   restoreSupplementPlanAction,
+  updateMultivitaminLabelAction,
 } from "./actions";
 
 export default async function SuplementosPage() {
@@ -42,9 +45,9 @@ export default async function SuplementosPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-lime-300">Suplementos</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Saturação e aderência</h1>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Suplementos e aderência</h1>
           <p className="mt-3 max-w-3xl text-zinc-400">
-            Acompanhe creatina e beta-alanina por dose acumulada, regularidade e fase estimada. Isso não substitui orientação profissional.
+            Acompanhe creatina, beta-alanina e multivitamínicos. Os nutrientes do multivitamínico entram no Diário somente quando a dose é confirmada.
           </p>
         </div>
         <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-right">
@@ -70,6 +73,7 @@ export default async function SuplementosPage() {
               <select name="type" className={inputClass} defaultValue="CREATINE">
                 <option value="CREATINE">Creatina</option>
                 <option value="BETA_ALANINE">Beta-alanina</option>
+                <option value="MULTIVITAMIN">Multivitamínico</option>
               </select>
               <select name="protocol" className={inputClass} defaultValue="STEADY">
                 <option value="STEADY">Uso contínuo</option>
@@ -77,9 +81,31 @@ export default async function SuplementosPage() {
               </select>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <input name="dailyDoseG" inputMode="decimal" className={inputClass} placeholder="Dose diária em g. Ex: 5" />
-              <input name="startedAt" type="date" defaultValue={today} className={inputClass} />
+              <input name="name" className={inputClass} placeholder="Nome ou marca. Ex: Multi A-Z" />
+              <input name="dailyDoseG" inputMode="decimal" className={inputClass} placeholder="Dose diária: 5 g ou 1 dose" />
             </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <input name="startedAt" type="date" defaultValue={today} className={inputClass} />
+              <div className="flex min-h-12 items-center rounded-2xl border border-white/10 bg-black/20 px-4 text-sm text-zinc-500">
+                Para multivitamínico, 1 significa uma porção do rótulo.
+              </div>
+            </div>
+            <details className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <summary className="cursor-pointer font-medium text-zinc-200">Valores do rótulo por dose</summary>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">
+                Preencha apenas ao escolher multivitamínico. Copie os valores da porção indicada na embalagem.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <NutrientInput name="calciumMg" label="Cálcio (mg)" />
+                <NutrientInput name="ironMg" label="Ferro (mg)" />
+                <NutrientInput name="magnesiumMg" label="Magnésio (mg)" />
+                <NutrientInput name="potassiumMg" label="Potássio (mg)" />
+                <NutrientInput name="zincMg" label="Zinco (mg)" />
+                <NutrientInput name="vitaminCMg" label="Vitamina C (mg)" />
+                <NutrientInput name="vitaminDMcg" label="Vitamina D (mcg)" />
+                <NutrientInput name="vitaminB12Mcg" label="Vitamina B12 (mcg)" />
+              </div>
+            </details>
             <textarea
               name="notes"
               className="min-h-24 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
@@ -100,14 +126,14 @@ export default async function SuplementosPage() {
             <div>
               <h2 className="text-xl font-semibold">Como o ShapeOS calcula</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                É uma estimativa por dose acumulada e dias de uso. Creatina usa como referência a fase de carga clássica ou acúmulo contínuo.
-                Beta-alanina acompanha adaptação por uso diário ao longo de semanas, não um efeito imediato.
+                Creatina e beta-alanina usam dose acumulada para estimar fase e regularidade. No multivitamínico, o percentual representa doses registradas,
+                e os valores do rótulo são somados aos micronutrientes do Diário.
               </p>
               <div className="mt-4 grid gap-2 text-sm text-zinc-400 md:grid-cols-2">
                 <Info label="Creatina padrão" value={`${recommendedSupplementDose("CREATINE", "STEADY")} g/dia`} />
                 <Info label="Creatina carga" value={`${recommendedSupplementDose("CREATINE", "LOADING")} g/dia`} />
                 <Info label="Beta-alanina" value={`${recommendedSupplementDose("BETA_ALANINE", "STEADY")} g/dia`} />
-                <Info label="Precisão" value="estimativa, não exame" />
+                <Info label="Multivitamínico" value="1 dose do rótulo/dia" />
               </div>
             </div>
           </div>
@@ -116,8 +142,11 @@ export default async function SuplementosPage() {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {plans.map((plan) => {
+          const type = plan.type as SupplementType;
+          const isMultivitamin = type === "MULTIVITAMIN";
+          const labelNutrients = parseSupplementMicronutrients(plan.micronutrientsPerDose);
           const progress = estimateSupplementProgress({
-            type: plan.type as SupplementType,
+            type,
             protocol: plan.protocol as SupplementProtocol,
             dailyDoseG: plan.dailyDoseG,
             startedAt: plan.startedAt,
@@ -131,11 +160,11 @@ export default async function SuplementosPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="grid size-12 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">
-                    {plan.type === "CREATINE" ? <Zap size={22} /> : <FlaskConical size={22} />}
+                    {type === "CREATINE" ? <Zap size={22} /> : isMultivitamin ? <Pill size={22} /> : <FlaskConical size={22} />}
                   </div>
                   <div>
                     <p className="text-sm text-zinc-500">{supplementProtocolLabel(plan.protocol as SupplementProtocol)}</p>
-                    <h2 className="text-2xl font-semibold">{supplementDisplayName(plan.type as SupplementType)}</h2>
+                    <h2 className="text-2xl font-semibold">{plan.name || supplementDisplayName(type)}</h2>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -158,21 +187,47 @@ export default async function SuplementosPage() {
                   <div className="relative grid size-28 place-items-center rounded-full bg-[#0b0b0b]">
                     <div className="text-center">
                       <p className="text-3xl font-semibold">{progress.percent}%</p>
-                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">estimado</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">{isMultivitamin ? "28 doses" : "estimado"}</p>
                     </div>
                   </div>
                 </div>
 
                 <div>
                   <div className="grid gap-2 sm:grid-cols-3">
-                    <MiniStat label="Dose/dia" value={`${formatNumber(plan.dailyDoseG)}g`} />
-                    <MiniStat label="Acumulado" value={`${formatNumber(progress.totalDoseG)}g`} />
+                    <MiniStat label="Dose/dia" value={`${formatNumber(plan.dailyDoseG)} ${supplementDoseUnit(type, plan.dailyDoseG)}`} />
+                    <MiniStat label="Registrado" value={`${formatNumber(progress.totalDoseG)} ${supplementDoseUnit(type, progress.totalDoseG)}`} />
                     <MiniStat label="Aderência" value={`${progress.adherencePct}%`} />
                   </div>
                   <p className="mt-4 text-sm leading-6 text-zinc-400">{progress.guidance}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">{supplementSafetyNote(plan.type as SupplementType)}</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-500">{supplementSafetyNote(type)}</p>
                 </div>
               </div>
+
+              {isMultivitamin ? (
+                <details className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-zinc-200">Editar produto e rótulo</summary>
+                  <form action={updateMultivitaminLabelAction} className="mt-4 grid gap-3">
+                    <input type="hidden" name="planId" value={plan.id} />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input name="name" defaultValue={plan.name} className={inputClass} required />
+                      <input name="dailyDoseG" inputMode="decimal" defaultValue={plan.dailyDoseG} className={inputClass} aria-label="Doses por dia" required />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <NutrientInput name="calciumMg" label="Cálcio (mg)" defaultValue={labelNutrients.calciumMg} />
+                      <NutrientInput name="ironMg" label="Ferro (mg)" defaultValue={labelNutrients.ironMg} />
+                      <NutrientInput name="magnesiumMg" label="Magnésio (mg)" defaultValue={labelNutrients.magnesiumMg} />
+                      <NutrientInput name="potassiumMg" label="Potássio (mg)" defaultValue={labelNutrients.potassiumMg} />
+                      <NutrientInput name="zincMg" label="Zinco (mg)" defaultValue={labelNutrients.zincMg} />
+                      <NutrientInput name="vitaminCMg" label="Vitamina C (mg)" defaultValue={labelNutrients.vitaminCMg} />
+                      <NutrientInput name="vitaminDMcg" label="Vitamina D (mcg)" defaultValue={labelNutrients.vitaminDMcg} />
+                      <NutrientInput name="vitaminB12Mcg" label="Vitamina B12 (mcg)" defaultValue={labelNutrients.vitaminB12Mcg} />
+                    </div>
+                    <button className="h-11 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
+                      Salvar rótulo
+                    </button>
+                  </form>
+                </details>
+              ) : null}
 
               {plan.isActive ? (
                 <div className="mt-6 grid gap-3">
@@ -195,7 +250,7 @@ export default async function SuplementosPage() {
                     </form>
                   </div>
 
-                  <form action={addSupplementUsagePeriodAction} className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-4">
+                  {!isMultivitamin ? <form action={addSupplementUsagePeriodAction} className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-4">
                     <input type="hidden" name="planId" value={plan.id} />
                     <p className="text-sm font-semibold text-zinc-200">Importar periodo anterior</p>
                     <p className="mt-1 text-xs text-zinc-500">Informe gramatura e intervalo para calcular o uso passado sem cadastrar dia por dia.</p>
@@ -211,7 +266,7 @@ export default async function SuplementosPage() {
                         Importar periodo
                       </button>
                     </div>
-                  </form>
+                  </form> : null}
                 </div>
               ) : (
                 <form action={restoreSupplementPlanAction} className="mt-6">
@@ -231,7 +286,7 @@ export default async function SuplementosPage() {
                       <div key={period.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2 text-xs text-zinc-400">
                         <span>{period.startDate.toLocaleDateString("pt-BR")} ate {period.endDate?.toLocaleDateString("pt-BR") ?? "hoje"}</span>
                         <div className="flex items-center gap-2">
-                          <span>{formatNumber(period.dailyDoseG)}g/dia - {formatNumber(period.adherencePct)}%</span>
+                          <span>{formatNumber(period.dailyDoseG)} {supplementDoseUnit(type, period.dailyDoseG)}/dia - {formatNumber(period.adherencePct)}%</span>
                           <form action={deleteSupplementUsagePeriodAction}>
                             <input type="hidden" name="periodId" value={period.id} />
                             <button className="grid size-7 place-items-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Apagar periodo importado">
@@ -249,7 +304,7 @@ export default async function SuplementosPage() {
                 <div className="mt-5 flex flex-wrap gap-2">
                   {plan.logs.slice(0, 10).map((log) => (
                     <span key={log.id} className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 text-xs text-zinc-400">
-                      {log.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}: {formatNumber(log.doseG)}g
+                      {log.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}: {formatNumber(log.doseG)} {supplementDoseUnit(type, log.doseG)}
                       <form action={deleteSupplementLogAction}>
                         <input type="hidden" name="logId" value={log.id} />
                         <button className="grid size-6 place-items-center rounded-full bg-white/10 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Apagar registro diario">
@@ -292,6 +347,15 @@ function MiniStat({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-zinc-500">{label}</p>
       <p className="mt-1 text-lg font-semibold">{value}</p>
     </div>
+  );
+}
+
+function NutrientInput({ name, label, defaultValue }: { name: string; label: string; defaultValue?: number }) {
+  return (
+    <label className="grid gap-1.5 text-xs text-zinc-400">
+      {label}
+      <input name={name} inputMode="decimal" defaultValue={defaultValue || undefined} className="h-11 rounded-2xl border border-white/10 bg-black/30 px-3 text-sm text-zinc-100 outline-none transition focus:border-lime-300/50" placeholder="0" />
+    </label>
   );
 }
 

@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { parseAppDate, startOfTodayInAppTimeZone } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
-import { recommendedSupplementDose, type SupplementProtocol, type SupplementType } from "@/lib/supplements";
+import { recommendedSupplementDose, supplementDisplayName, type SupplementProtocol, type SupplementType } from "@/lib/supplements";
 
-const supplementTypes = ["CREATINE", "BETA_ALANINE"];
+const supplementTypes = ["CREATINE", "BETA_ALANINE", "MULTIVITAMIN"];
 const protocols = ["LOADING", "STEADY"];
 
 export async function createSupplementPlanAction(formData: FormData) {
@@ -14,25 +14,53 @@ export async function createSupplementPlanAction(formData: FormData) {
   if (!user) return;
 
   const type = normalizeEnum(String(formData.get("type") ?? ""), supplementTypes, "CREATINE") as SupplementType;
-  const protocol = normalizeEnum(String(formData.get("protocol") ?? ""), protocols, "STEADY") as SupplementProtocol;
+  const selectedProtocol = normalizeEnum(String(formData.get("protocol") ?? ""), protocols, "STEADY") as SupplementProtocol;
+  const protocol = type === "MULTIVITAMIN" ? "STEADY" : selectedProtocol;
   const dailyDoseG = parsePositiveNumber(formData.get("dailyDoseG")) ?? recommendedSupplementDose(type, protocol);
   const startedAt = parseDate(String(formData.get("startedAt") ?? "")) ?? new Date();
   const notes = String(formData.get("notes") ?? "").trim();
+  const customName = String(formData.get("name") ?? "").trim();
+  const micronutrientsPerDose = type === "MULTIVITAMIN" ? readMicronutrients(formData) : undefined;
 
   await prisma.supplementPlan.create({
     data: {
       userId: user.id,
       type,
       protocol,
-      name: type === "CREATINE" ? "Creatina" : "Beta-alanina",
+      name: customName || supplementDisplayName(type),
       dailyDoseG,
       startedAt,
       notes: notes || null,
+      micronutrientsPerDose,
     },
   });
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
+}
+
+export async function updateMultivitaminLabelAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const planId = String(formData.get("planId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const dailyDoseG = parsePositiveNumber(formData.get("dailyDoseG"));
+  if (!planId || !name || !dailyDoseG) return;
+
+  await prisma.supplementPlan.updateMany({
+    where: { id: planId, userId: user.id, type: "MULTIVITAMIN" },
+    data: {
+      name,
+      dailyDoseG,
+      micronutrientsPerDose: readMicronutrients(formData),
+    },
+  });
+
+  revalidatePath("/suplementos");
+  revalidatePath("/diario");
+  revalidatePath("/relatorio-nutricionista");
 }
 
 export async function logSupplementDoseAction(formData: FormData) {
@@ -55,6 +83,7 @@ export async function logSupplementDoseAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 export async function addSupplementUsagePeriodAction(formData: FormData) {
@@ -85,6 +114,7 @@ export async function addSupplementUsagePeriodAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 export async function deleteSupplementUsagePeriodAction(formData: FormData) {
@@ -100,6 +130,7 @@ export async function deleteSupplementUsagePeriodAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 export async function deleteSupplementLogAction(formData: FormData) {
@@ -115,6 +146,7 @@ export async function deleteSupplementLogAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 export async function archiveSupplementPlanAction(formData: FormData) {
@@ -128,6 +160,7 @@ export async function archiveSupplementPlanAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 export async function restoreSupplementPlanAction(formData: FormData) {
@@ -141,6 +174,7 @@ export async function restoreSupplementPlanAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 export async function deleteSupplementPlanAction(formData: FormData) {
@@ -156,6 +190,7 @@ export async function deleteSupplementPlanAction(formData: FormData) {
 
   revalidatePath("/suplementos");
   revalidatePath("/dashboard");
+  revalidatePath("/diario");
 }
 
 function normalizeEnum(value: string, allowed: string[], fallback: string) {
@@ -177,4 +212,22 @@ function startOfToday() {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function readMicronutrients(formData: FormData) {
+  return {
+    calciumMg: parseNonNegativeNumber(formData.get("calciumMg")),
+    ironMg: parseNonNegativeNumber(formData.get("ironMg")),
+    magnesiumMg: parseNonNegativeNumber(formData.get("magnesiumMg")),
+    potassiumMg: parseNonNegativeNumber(formData.get("potassiumMg")),
+    zincMg: parseNonNegativeNumber(formData.get("zincMg")),
+    vitaminCMg: parseNonNegativeNumber(formData.get("vitaminCMg")),
+    vitaminDMcg: parseNonNegativeNumber(formData.get("vitaminDMcg")),
+    vitaminB12Mcg: parseNonNegativeNumber(formData.get("vitaminB12Mcg")),
+  };
+}
+
+function parseNonNegativeNumber(value: FormDataEntryValue | null) {
+  const parsed = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
