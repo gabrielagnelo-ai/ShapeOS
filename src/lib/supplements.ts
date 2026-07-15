@@ -2,6 +2,9 @@ export type SupplementType = "CREATINE" | "BETA_ALANINE" | "MULTIVITAMIN";
 export type SupplementProtocol = "LOADING" | "STEADY";
 
 export type SupplementMicronutrients = {
+  vitaminAMcg: number;
+  vitaminEMg: number;
+  vitaminKMcg: number;
   calciumMg: number;
   ironMg: number;
   magnesiumMg: number;
@@ -9,10 +12,26 @@ export type SupplementMicronutrients = {
   zincMg: number;
   vitaminCMg: number;
   vitaminDMcg: number;
+  vitaminB1Mg: number;
+  vitaminB2Mg: number;
+  vitaminB3Mg: number;
+  vitaminB5Mg: number;
+  vitaminB6Mg: number;
+  vitaminB7Mcg: number;
+  vitaminB9Mcg: number;
   vitaminB12Mcg: number;
+  copperMcg: number;
+  chromiumMcg: number;
+  iodineMcg: number;
+  manganeseMg: number;
+  molybdenumMcg: number;
+  seleniumMcg: number;
 };
 
 export const emptySupplementMicronutrients: SupplementMicronutrients = {
+  vitaminAMcg: 0,
+  vitaminEMg: 0,
+  vitaminKMcg: 0,
   calciumMg: 0,
   ironMg: 0,
   magnesiumMg: 0,
@@ -20,8 +39,53 @@ export const emptySupplementMicronutrients: SupplementMicronutrients = {
   zincMg: 0,
   vitaminCMg: 0,
   vitaminDMcg: 0,
+  vitaminB1Mg: 0,
+  vitaminB2Mg: 0,
+  vitaminB3Mg: 0,
+  vitaminB5Mg: 0,
+  vitaminB6Mg: 0,
+  vitaminB7Mcg: 0,
+  vitaminB9Mcg: 0,
   vitaminB12Mcg: 0,
+  copperMcg: 0,
+  chromiumMcg: 0,
+  iodineMcg: 0,
+  manganeseMg: 0,
+  molybdenumMcg: 0,
+  seleniumMcg: 0,
 };
+
+export const supplementNutrientDefinitions = [
+  { key: "vitaminAMcg", label: "Vitamina A", unit: "mcg", dailyValue: 800 },
+  { key: "vitaminDMcg", label: "Vitamina D", unit: "mcg", dailyValue: 15 },
+  { key: "vitaminEMg", label: "Vitamina E", unit: "mg", dailyValue: 15 },
+  { key: "vitaminKMcg", label: "Vitamina K", unit: "mcg", dailyValue: 120 },
+  { key: "vitaminCMg", label: "Vitamina C", unit: "mg", dailyValue: 100 },
+  { key: "vitaminB1Mg", label: "Vitamina B1", unit: "mg", dailyValue: 1.2 },
+  { key: "vitaminB2Mg", label: "Vitamina B2", unit: "mg", dailyValue: 1.2 },
+  { key: "vitaminB3Mg", label: "Vitamina B3", unit: "mg", dailyValue: 15 },
+  { key: "vitaminB5Mg", label: "Vitamina B5", unit: "mg", dailyValue: 5 },
+  { key: "vitaminB6Mg", label: "Vitamina B6", unit: "mg", dailyValue: 1.3 },
+  { key: "vitaminB7Mcg", label: "Vitamina B7", unit: "mcg", dailyValue: 30 },
+  { key: "vitaminB9Mcg", label: "Vitamina B9", unit: "mcg", dailyValue: 400 },
+  { key: "vitaminB12Mcg", label: "Vitamina B12", unit: "mcg", dailyValue: 2.4 },
+  { key: "copperMcg", label: "Cobre", unit: "mcg", dailyValue: 900 },
+  { key: "chromiumMcg", label: "Cromo", unit: "mcg", dailyValue: 35 },
+  { key: "calciumMg", label: "Cálcio", unit: "mg", dailyValue: 1000 },
+  { key: "ironMg", label: "Ferro", unit: "mg", dailyValue: 14 },
+  { key: "iodineMcg", label: "Iodo", unit: "mcg", dailyValue: 150 },
+  { key: "magnesiumMg", label: "Magnésio", unit: "mg", dailyValue: 420 },
+  { key: "manganeseMg", label: "Manganês", unit: "mg", dailyValue: 3 },
+  { key: "molybdenumMcg", label: "Molibdênio", unit: "mcg", dailyValue: 45 },
+  { key: "potassiumMg", label: "Potássio", unit: "mg", dailyValue: 3500 },
+  { key: "seleniumMcg", label: "Selênio", unit: "mcg", dailyValue: 60 },
+  { key: "zincMg", label: "Zinco", unit: "mg", dailyValue: 11 },
+] as const satisfies ReadonlyArray<{
+  key: keyof SupplementMicronutrients;
+  label: string;
+  unit: "mg" | "mcg";
+  dailyValue: number;
+}>;
 
 export type SupplementPlanInput = {
   type: SupplementType;

@@ -7,7 +7,7 @@ import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
-import { sumSupplementMicronutrients, supplementDoseUnit } from "@/lib/supplements";
+import { sumSupplementMicronutrients, supplementDoseUnit, supplementNutrientDefinitions } from "@/lib/supplements";
 import { addFoodLogAction, deleteFoodLogItemAction } from "./actions";
 import { deleteSupplementLogAction, logSupplementDoseAction } from "@/app/suplementos/actions";
 
@@ -83,9 +83,16 @@ export default async function DiarioPage() {
     ["Zinco", "zincMg", metrics.micronutrientTargets.zincMg, "mg"],
     ["Vitamina C", "vitaminCMg", metrics.micronutrientTargets.vitaminCMg, "mg"],
     ["Vitamina D", "vitaminDMcg", metrics.micronutrientTargets.vitaminDMcg, "mcg"],
-    ["B12", "vitaminB12Mcg", metrics.micronutrientTargets.vitaminB12Mcg, "mcg"],
+    ["Vitamina B12", "vitaminB12Mcg", metrics.micronutrientTargets.vitaminB12Mcg, "mcg"],
   ] as const;
-  const hasMicronutrientData = Boolean(log?.items.length || multivitamins.some((plan) => plan.logs.length));
+  const hasSupplementDose = multivitamins.some((plan) => plan.logs.length);
+  const supplementDoseCount = multivitamins.reduce(
+    (total, plan) => total + plan.logs.reduce((sum, dose) => sum + dose.doseG, 0),
+    0,
+  );
+  const hasMicronutrientData = Boolean(log?.items.length || hasSupplementDose);
+  const foodTrackedKeys = microBars.map(([, key]) => key as string);
+  const supplementOnlyNutrients = supplementNutrientDefinitions.filter(({ key }) => !foodTrackedKeys.includes(key));
   const today = appDateInputValue();
 
   return (
@@ -179,7 +186,7 @@ export default async function DiarioPage() {
       <GlassCard className="mt-4">
         <h2 className="text-xl font-semibold">Micronutrientes</h2>
         <p className="mt-2 text-sm text-zinc-500">Total consumido hoje, separando o que veio dos alimentos e do multivitamínico registrado.</p>
-        {hasMicronutrientData ? (
+        {hasMicronutrientData ? (<>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {microBars.map(([label, key, target, unit]) => {
             const value = consumed[key];
@@ -198,6 +205,38 @@ export default async function DiarioPage() {
             );
             })}
           </div>
+          {hasSupplementDose ? (
+            <div className="mt-7 border-t border-white/10 pt-6">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-zinc-200">Demais nutrientes do multivitamínico</h3>
+                  <p className="mt-1 text-xs text-zinc-500">Valores do rótulo da dose confirmada e referência diária para adultos.</p>
+                </div>
+                <span className="rounded-full bg-lime-300/10 px-3 py-1 text-xs font-medium text-lime-200">
+                  {formatNumber(supplementDoseCount)} {supplementDoseCount === 1 ? "cápsula registrada" : "cápsulas registradas"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {supplementOnlyNutrients.map((nutrient) => {
+                  const value = supplementConsumed[nutrient.key];
+                  const pct = nutrient.dailyValue ? Math.round((value / nutrient.dailyValue) * 100) : 0;
+                  return (
+                    <div key={nutrient.key} className="rounded-2xl border border-white/8 bg-black/20 p-3">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-zinc-300">{nutrient.label}</span>
+                        <span className="font-medium text-zinc-100">{formatNumber(value)} {nutrient.unit}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-white/10">
+                        <div className="h-1.5 rounded-full bg-lime-300" style={{ width: `${Math.min(100, pct)}%` }} />
+                      </div>
+                      <p className="mt-1.5 text-xs text-zinc-600">{pct}% do valor diário</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </>
         ) : (
           <div className="mt-5 rounded-3xl border border-dashed border-white/10 bg-black/20 p-5 text-sm leading-6 text-zinc-400">
             Registre alimentos ou confirme seu multivitamínico para ver o progresso de micronutrientes.

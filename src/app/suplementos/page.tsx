@@ -10,6 +10,7 @@ import {
   recommendedSupplementDose,
   supplementDoseUnit,
   supplementDisplayName,
+  supplementNutrientDefinitions,
   supplementProtocolLabel,
   supplementSafetyNote,
   type SupplementProtocol,
@@ -96,14 +97,9 @@ export default async function SuplementosPage() {
                 Preencha apenas ao escolher multivitamínico. Copie os valores da porção indicada na embalagem.
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <NutrientInput name="calciumMg" label="Cálcio (mg)" />
-                <NutrientInput name="ironMg" label="Ferro (mg)" />
-                <NutrientInput name="magnesiumMg" label="Magnésio (mg)" />
-                <NutrientInput name="potassiumMg" label="Potássio (mg)" />
-                <NutrientInput name="zincMg" label="Zinco (mg)" />
-                <NutrientInput name="vitaminCMg" label="Vitamina C (mg)" />
-                <NutrientInput name="vitaminDMcg" label="Vitamina D (mcg)" />
-                <NutrientInput name="vitaminB12Mcg" label="Vitamina B12 (mcg)" />
+                {supplementNutrientDefinitions.map((nutrient) => (
+                  <NutrientInput key={nutrient.key} name={nutrient.key} label={`${nutrient.label} (${nutrient.unit})`} />
+                ))}
               </div>
             </details>
             <textarea
@@ -213,14 +209,14 @@ export default async function SuplementosPage() {
                       <input name="dailyDoseG" inputMode="decimal" defaultValue={plan.dailyDoseG} className={inputClass} aria-label="Doses por dia" required />
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <NutrientInput name="calciumMg" label="Cálcio (mg)" defaultValue={labelNutrients.calciumMg} />
-                      <NutrientInput name="ironMg" label="Ferro (mg)" defaultValue={labelNutrients.ironMg} />
-                      <NutrientInput name="magnesiumMg" label="Magnésio (mg)" defaultValue={labelNutrients.magnesiumMg} />
-                      <NutrientInput name="potassiumMg" label="Potássio (mg)" defaultValue={labelNutrients.potassiumMg} />
-                      <NutrientInput name="zincMg" label="Zinco (mg)" defaultValue={labelNutrients.zincMg} />
-                      <NutrientInput name="vitaminCMg" label="Vitamina C (mg)" defaultValue={labelNutrients.vitaminCMg} />
-                      <NutrientInput name="vitaminDMcg" label="Vitamina D (mcg)" defaultValue={labelNutrients.vitaminDMcg} />
-                      <NutrientInput name="vitaminB12Mcg" label="Vitamina B12 (mcg)" defaultValue={labelNutrients.vitaminB12Mcg} />
+                      {supplementNutrientDefinitions.map((nutrient) => (
+                        <NutrientInput
+                          key={nutrient.key}
+                          name={nutrient.key}
+                          label={`${nutrient.label} (${nutrient.unit})`}
+                          defaultValue={labelNutrients[nutrient.key]}
+                        />
+                      ))}
                     </div>
                     <button className="h-11 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
                       Salvar rótulo

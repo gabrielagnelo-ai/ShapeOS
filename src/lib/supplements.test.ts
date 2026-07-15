@@ -56,11 +56,14 @@ describe("estimateSupplementProgress", () => {
 
   it("counts multivitamin nutrients only from registered doses", () => {
     const result = sumSupplementMicronutrients([{
-      micronutrientsPerDose: { vitaminCMg: 45, zincMg: 7 },
+      micronutrientsPerDose: { vitaminAMcg: 600, vitaminCMg: 45, vitaminB9Mcg: 240, copperMcg: 900, zincMg: 7 },
       logs: [{ doseG: 1 }, { doseG: 0.5 }],
     }]);
 
+    expect(result.vitaminAMcg).toBe(900);
     expect(result.vitaminCMg).toBe(67.5);
+    expect(result.vitaminB9Mcg).toBe(360);
+    expect(result.copperMcg).toBe(1350);
     expect(result.zincMg).toBe(10.5);
     expect(result.calciumMg).toBe(0);
   });

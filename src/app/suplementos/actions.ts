@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { parseAppDate, startOfTodayInAppTimeZone } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
-import { recommendedSupplementDose, supplementDisplayName, type SupplementProtocol, type SupplementType } from "@/lib/supplements";
+import { recommendedSupplementDose, supplementDisplayName, supplementNutrientDefinitions, type SupplementProtocol, type SupplementType } from "@/lib/supplements";
 
 const supplementTypes = ["CREATINE", "BETA_ALANINE", "MULTIVITAMIN"];
 const protocols = ["LOADING", "STEADY"];
@@ -215,16 +215,9 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function readMicronutrients(formData: FormData) {
-  return {
-    calciumMg: parseNonNegativeNumber(formData.get("calciumMg")),
-    ironMg: parseNonNegativeNumber(formData.get("ironMg")),
-    magnesiumMg: parseNonNegativeNumber(formData.get("magnesiumMg")),
-    potassiumMg: parseNonNegativeNumber(formData.get("potassiumMg")),
-    zincMg: parseNonNegativeNumber(formData.get("zincMg")),
-    vitaminCMg: parseNonNegativeNumber(formData.get("vitaminCMg")),
-    vitaminDMcg: parseNonNegativeNumber(formData.get("vitaminDMcg")),
-    vitaminB12Mcg: parseNonNegativeNumber(formData.get("vitaminB12Mcg")),
-  };
+  return Object.fromEntries(
+    supplementNutrientDefinitions.map(({ key }) => [key, parseNonNegativeNumber(formData.get(key))]),
+  );
 }
 
 function parseNonNegativeNumber(value: FormDataEntryValue | null) {
