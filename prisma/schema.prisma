@@ -237,8 +237,9 @@ model DietMeal {
   order      Int
   macroShare Json?
 
-  dietPlan DietPlan       @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
-  items    DietMealItem[]
+  dietPlan     DietPlan       @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+  items        DietMealItem[]
+  foodLogItems FoodLogItem[]
 
   @@map("diet_meals")
 }
@@ -273,15 +274,19 @@ model FoodLog {
 }
 
 model FoodLogItem {
-  id        String @id @default(cuid())
-  foodLogId String @map("food_log_id")
-  foodId    String @map("food_id")
-  mealName  String @map("meal_name")
-  grams     Float
+  id               String  @id @default(cuid())
+  foodLogId        String  @map("food_log_id")
+  foodId           String  @map("food_id")
+  mealName         String  @map("meal_name")
+  grams            Float
+  sourceDietMealId String? @map("source_diet_meal_id")
 
-  foodLog FoodLog @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
-  food    Food    @relation(fields: [foodId], references: [id])
+  foodLog        FoodLog   @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
+  food           Food      @relation(fields: [foodId], references: [id])
+  sourceDietMeal DietMeal? @relation(fields: [sourceDietMealId], references: [id], onDelete: SetNull)
 
+  @@index([foodLogId, sourceDietMealId])
+  @@index([sourceDietMealId])
   @@map("food_log_items")
 }
 

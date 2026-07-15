@@ -2,13 +2,13 @@
 import { GlassCard } from "@/components/ui/glass-card";
 import { FoodSearchField } from "@/components/food/food-search-field";
 import Link from "next/link";
-import { Check, Pill, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, Pill, RotateCcw, Trash2, Utensils } from "lucide-react";
 import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
 import { sumSupplementMicronutrients, supplementDoseUnit, supplementNutrientDefinitions } from "@/lib/supplements";
-import { addFoodLogAction, deleteFoodLogItemAction } from "./actions";
+import { addFoodLogAction, deleteFoodLogItemAction, registerDietMealAction, unregisterDietMealAction } from "./actions";
 import { deleteSupplementLogAction, logSupplementDoseAction } from "@/app/suplementos/actions";
 
 export default async function DiarioPage() {
@@ -16,7 +16,7 @@ export default async function DiarioPage() {
   const metrics = computeProfileMetrics(profile);
   const todayStart = startOfToday();
   const todayEnd = endOfToday();
-  const [foods, log, multivitamins] = await Promise.all([
+  const [foods, log, multivitamins, activePlan] = await Promise.all([
     prisma.food.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       select: { id: true, name: true, category: true },
@@ -29,6 +29,15 @@ export default async function DiarioPage() {
       where: { userId: user.id, isActive: true, type: "MULTIVITAMIN" },
       include: { logs: { where: { date: { gte: todayStart, lte: todayEnd } } } },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.dietPlan.findFirst({
+      where: { userId: user.id, isActive: true },
+      include: {
+        meals: {
+          orderBy: { order: "asc" },
+          include: { items: { include: { food: true }, orderBy: { id: "asc" } } },
+        },
+      },
     }),
   ]);
 
@@ -99,6 +108,90 @@ export default async function DiarioPage() {
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Diário alimentar</h1>
       <p className="mt-3 text-zinc-400">Registro real vs meta diária de calorias, proteínas, carboidratos, gorduras, fibra e sódio.</p>
+      <GlassCard className="mt-8 border-lime-300/20 bg-lime-300/[0.035]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">
+              <Utensils size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase text-lime-300">Plano de hoje</p>
+              <h2 className="mt-1 text-xl font-semibold">{activePlan?.name ?? "Nenhuma dieta ativa"}</h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Marque a refeição quando consumir os alimentos e as quantidades planejadas.</p>
+            </div>
+          </div>
+          <Link href="/dieta" className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/15">
+            Editar dieta
+          </Link>
+        </div>
+
+        {activePlan?.meals.length ? (
+          <div className="mt-5 grid gap-3">
+            {activePlan.meals.map((meal) => {
+              const nutrients = sumNutrients(meal.items.map((item) => ({
+                grams: item.grams,
+                food: {
+                  name: item.food.name,
+                  kcalPer100g: item.food.kcalPer100g,
+                  proteinPer100g: item.food.proteinPer100g,
+                  carbsPer100g: item.food.carbsPer100g,
+                  fatPer100g: item.food.fatPer100g,
+                  fiberPer100g: item.food.fiberPer100g ?? 0,
+                  sodiumPer100g: item.food.sodiumPer100g ?? 0,
+                },
+              })));
+              const registeredItems = log?.items.filter((item) => item.sourceDietMealId === meal.id).length ?? 0;
+              const isCompleted = meal.items.length > 0 && registeredItems === meal.items.length;
+              return (
+                <div key={meal.id} className={`grid gap-4 rounded-3xl border p-4 transition md:grid-cols-[1fr_auto] md:items-center ${isCompleted ? "border-lime-300/30 bg-lime-300/[0.06]" : "border-white/8 bg-black/25"}`}>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-zinc-100">{meal.name}</h3>
+                      {isCompleted ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-lime-300/15 px-2.5 py-1 text-xs font-medium text-lime-200">
+                          <CheckCircle2 size={13} /> Registrada
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {meal.items.length ? meal.items.map((item) => (
+                        <span key={item.id} className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300">
+                          {item.food.name} <span className="text-zinc-500">{formatNumber(item.grams)} g</span>
+                        </span>
+                      )) : <span className="text-sm text-zinc-500">Esta refeição ainda não tem alimentos.</span>}
+                    </div>
+                    {meal.items.length ? (
+                      <p className="mt-3 text-xs text-zinc-500">
+                        {formatNumber(nutrients.kcal)} kcal · P {formatNumber(nutrients.proteinG)} g · C {formatNumber(nutrients.carbsG)} g · G {formatNumber(nutrients.fatG)} g
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {isCompleted ? (
+                    <form action={unregisterDietMealAction}>
+                      <input type="hidden" name="mealId" value={meal.id} />
+                      <button className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/15 md:w-auto">
+                        <RotateCcw size={15} /> Desmarcar
+                      </button>
+                    </form>
+                  ) : (
+                    <form action={registerDietMealAction}>
+                      <input type="hidden" name="mealId" value={meal.id} />
+                      <button disabled={!meal.items.length} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto">
+                        <Check size={15} /> Registrar refeição
+                      </button>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-zinc-400">
+            Ative ou monte uma dieta para registrar refeições completas com um toque.
+          </div>
+        )}
+      </GlassCard>
       <div className="mt-8 grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
         <GlassCard>
           <h2 className="text-xl font-semibold">Registrar alimento</h2>

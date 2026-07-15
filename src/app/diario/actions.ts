@@ -40,4 +40,73 @@ export async function deleteFoodLogItemAction(formData: FormData) {
     where: { id: String(formData.get("itemId") ?? ""), foodLog: { userId: user.id } },
   });
   revalidatePath("/diario");
+  revalidatePath("/dashboard");
+}
+
+export async function registerDietMealAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const mealId = String(formData.get("mealId") ?? "");
+  if (!mealId) return;
+
+  const meal = await prisma.dietMeal.findFirst({
+    where: { id: mealId, dietPlan: { userId: user.id, isActive: true } },
+    include: { items: { select: { foodId: true, grams: true } } },
+  });
+  if (!meal?.items.length) return;
+
+  const date = startOfToday();
+  const log = await prisma.foodLog.upsert({
+    where: { userId_date: { userId: user.id, date } },
+    create: { userId: user.id, date },
+    update: {},
+    select: { id: true },
+  });
+
+  await prisma.$transaction([
+    prisma.foodLogItem.deleteMany({
+      where: { foodLogId: log.id, sourceDietMealId: meal.id },
+    }),
+    prisma.foodLogItem.createMany({
+      data: meal.items.map((item) => ({
+        foodLogId: log.id,
+        foodId: item.foodId,
+        mealName: meal.name,
+        grams: item.grams,
+        sourceDietMealId: meal.id,
+      })),
+    }),
+  ]);
+
+  revalidateDiaryData();
+}
+
+export async function unregisterDietMealAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const mealId = String(formData.get("mealId") ?? "");
+  if (!mealId) return;
+
+  const meal = await prisma.dietMeal.findFirst({
+    where: { id: mealId, dietPlan: { userId: user.id } },
+    select: { id: true },
+  });
+  if (!meal) return;
+
+  await prisma.foodLogItem.deleteMany({
+    where: {
+      sourceDietMealId: meal.id,
+      foodLog: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
+    },
+  });
+
+  revalidateDiaryData();
+}
+
+function revalidateDiaryData() {
+  revalidatePath("/diario");
+  revalidatePath("/dashboard");
+  revalidatePath("/relatorio-nutricionista");
 }
