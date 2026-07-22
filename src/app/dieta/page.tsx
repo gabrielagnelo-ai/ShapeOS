@@ -24,7 +24,8 @@ type SearchParams = Promise<{ periodo?: string }>;
 
 export default async function DietaPage({ searchParams }: { searchParams: SearchParams }) {
   const { periodo } = await searchParams;
-  const days = periodo === "mensal" ? 30 : 15;
+  const days = periodo === "semanal" ? 7 : periodo === "mensal" ? 30 : 15;
+  const periodLabel = days === 7 ? "Semanal" : days === 30 ? "Mensal" : "Quinzenal";
   const { user, profile } = await requireUserProfile();
   const metrics = computeProfileMetrics(profile);
   const dietPlans = await prisma.dietPlan.findMany({
@@ -290,9 +291,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">Lista de compras</h2>
-              <p className="mt-1 text-sm text-zinc-500">{days === 30 ? "Mensal" : "Quinzenal"} - {days} dias</p>
+              <p className="mt-1 text-sm text-zinc-500">{periodLabel} - {days} dias</p>
             </div>
             <div className="flex rounded-full bg-white/10 p-1 text-sm">
+              <Link href="/dieta?periodo=semanal" className={`rounded-full px-3 py-2 ${days === 7 ? "bg-lime-300 text-black" : "text-zinc-300"}`}>7 dias</Link>
               <Link href="/dieta?periodo=quinzenal" className={`rounded-full px-3 py-2 ${days === 15 ? "bg-lime-300 text-black" : "text-zinc-300"}`}>15 dias</Link>
               <Link href="/dieta?periodo=mensal" className={`rounded-full px-3 py-2 ${days === 30 ? "bg-lime-300 text-black" : "text-zinc-300"}`}>30 dias</Link>
             </div>

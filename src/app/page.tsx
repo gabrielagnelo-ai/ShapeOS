@@ -124,7 +124,7 @@ export default function LandingPage() {
                 O ShapeOS respeita dieta prescrita, permite montar refeições por alimento e ainda gera lista de compras quinzenal ou mensal.
               </p>
               <div className="mt-7 grid gap-3">
-                {["Monte a dieta digitando o alimento", "Receitas com calorias por porção", "Lista de compras quinzenal ou mensal", "Favoritos e bloqueios para personalizar a IA"].map((item) => (
+                {["Monte a dieta digitando o alimento", "Receitas com calorias por porção", "Lista de compras semanal, quinzenal ou mensal", "Favoritos e bloqueios para personalizar a IA"].map((item) => (
                   <div key={item} className="flex items-center gap-3 text-zinc-200">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-lime-300 text-black"><Check size={14} /></span>
                     {item}
