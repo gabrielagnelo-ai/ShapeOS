@@ -7,6 +7,7 @@ import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
+import { shoppingListConversion } from "@/lib/shopping-list";
 import {
   addManualDietItemAction,
   createProteinSwapDietPlanAction,
@@ -48,18 +49,26 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     buyGrams: number;
     unitLabel: string;
     pricePerKg: number | null;
+    isLeanCookedPorkLeg: boolean;
   }>();
   planMeals.forEach((meal) => meal.items.forEach((item) => {
-    const factor = cookingYieldFactor(item.food.name, item.food.category);
+    const readyGrams = item.grams * days;
+    const conversion = shoppingListConversion({
+      foodId: item.food.id,
+      name: item.food.name,
+      category: item.food.category,
+      readyGrams,
+    });
     const current = shopping.get(item.food.name) ?? {
       category: item.food.category,
       plannedReadyGrams: 0,
       buyGrams: 0,
-      unitLabel: factor < 1 ? "cru" : "total",
+      unitLabel: conversion.unitLabel,
       pricePerKg: item.food.pricePerKg,
+      isLeanCookedPorkLeg: conversion.isLeanCookedPorkLeg,
     };
-    current.plannedReadyGrams += item.grams * days;
-    current.buyGrams += (item.grams / factor) * days;
+    current.plannedReadyGrams += readyGrams;
+    current.buyGrams += conversion.buyGrams;
     shopping.set(item.food.name, current);
   }));
   const estimatedCost = [...shopping.values()].reduce((total, item) => total + (item.pricePerKg ? (item.buyGrams / 1000) * item.pricePerKg : 0), 0);
@@ -304,9 +313,16 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               <div key={name} className="rounded-2xl bg-black/25 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span>{name}</span>
-                  <span className="font-medium text-zinc-100">{formatShoppingWeight(item.buyGrams)}</span>
+                  <span className="font-medium text-zinc-100">
+                    {item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}{formatShoppingWeight(item.buyGrams)}
+                  </span>
                 </div>
-                {item.unitLabel === "cru" ? (
+                {item.isLeanCookedPorkLeg ? (
+                  <div className="mt-1 space-y-1 text-xs text-zinc-500">
+                    <p>Necessário pronto: {formatShoppingWeight(item.plannedReadyGrams)}</p>
+                    <p>Quantidade ajustada considerando osso, gordura removida e perda no cozimento.</p>
+                  </div>
+                ) : item.unitLabel === "cru" ? (
                   <p className="mt-1 text-xs text-zinc-500">
                     Comprar cru. O plano mostra {formatShoppingWeight(item.plannedReadyGrams)} já pronto para comer.
                   </p>
@@ -327,13 +343,6 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
       </div>
     </AppShell>
   );
-}
-
-function cookingYieldFactor(name: string, category: string) {
-  const normalized = `${name} ${category}`.toLowerCase();
-  if (normalized.includes("peixe") || normalized.includes("tilapia") || normalized.includes("sardinha")) return 0.8;
-  if (normalized.includes("carne") || normalized.includes("frango") || normalized.includes("patinho") || normalized.includes("grelhado") || normalized.includes("assado")) return 0.75;
-  return 1;
 }
 
 function formatShoppingWeight(grams: number) {
