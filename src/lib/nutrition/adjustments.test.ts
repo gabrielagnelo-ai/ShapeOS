@@ -43,5 +43,9 @@ describe("automatic adjustments", () => {
     expect(assessDeficitRisk({ weightKg: 117, deficitKcal: 500 }).level).toBe("good");
     expect(assessDeficitRisk({ weightKg: 70, deficitKcal: 500 }).level).toBe("warning");
     expect(assessDeficitRisk({ weightKg: 70, deficitKcal: 1000 }).level).toBe("danger");
+    expect(assessDeficitRisk({ weightKg: 117, deficitKcal: 1500 })).toMatchObject({
+      level: "danger",
+      message: expect.stringContaining("Déficit muito alto"),
+    });
   });
 });

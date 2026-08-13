@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { parseAppDate } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
-import { advancedMacroTargets, calculateBmr, calculateTdee, guidedMacroTargets, type Goal, type Sex } from "@/lib/nutrition";
+import { advancedMacroTargets, calculateBmr, calculateTdee, guidedMacroTargets, MAX_CALORIE_DEFICIT_KCAL, type Goal, type Sex } from "@/lib/nutrition";
 
 const goalMap = {
   FAT_LOSS: "fat_loss",
@@ -32,7 +32,7 @@ export async function updateGoalsAction(formData: FormData) {
   const goal = goalMap[profile.goal] as Goal;
   const sex = sexMap[profile.sex] as Sex;
   const activityFactor = clampNumber(parseDecimal(String(formData.get("activityFactor") ?? profile.activityFactor)), 1.1, 2.2);
-  const calorieDeficitKcal = clampNumber(Number(formData.get("calorieDeficitKcal") ?? profile.calorieDeficitKcal ?? 400), 100, 1000);
+  const calorieDeficitKcal = clampNumber(Number(formData.get("calorieDeficitKcal") ?? profile.calorieDeficitKcal ?? 400), 100, MAX_CALORIE_DEFICIT_KCAL);
   const proteinPerKg = clampNumber(parseDecimal(String(formData.get("proteinPerKg") ?? profile.proteinPerKg ?? 1.8)), 1.2, 3);
   const fatPerKg = clampNumber(parseDecimal(String(formData.get("fatPerKg") ?? profile.fatPerKg ?? 0.8)), 0.4, 1.5);
   const initialWeightKg = clampNumber(parseDecimal(String(formData.get("weightKg") ?? profile.weightKg)), 30, 350);

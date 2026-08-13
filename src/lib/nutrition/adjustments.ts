@@ -1,5 +1,7 @@
 ﻿import type { Goal } from "./types";
 
+export const MAX_CALORIE_DEFICIT_KCAL = 2000;
+
 export type WeeklySignal = {
   averageWeightKg: number;
   adherencePct: number;
@@ -72,6 +74,9 @@ export function assessDeficitRisk(input: { weightKg: number; deficitKcal: number
 
   return {
     level: "danger" as const,
-    message: "Déficit alto para seu peso. Isso pode aumentar fome, queda de performance e risco de perder massa muscular.",
+    message:
+      input.deficitKcal > 1000
+        ? "Déficit muito alto. O risco de fome, queda de performance, recuperação ruim e perda de massa muscular aumenta bastante. Use acompanhamento profissional e reavalie pelos check-ins."
+        : "Déficit alto para seu peso. Isso pode aumentar fome, queda de performance e risco de perder massa muscular.",
   };
 }

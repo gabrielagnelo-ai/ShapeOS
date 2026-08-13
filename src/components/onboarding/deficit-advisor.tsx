@@ -28,6 +28,10 @@ export function DeficitAdvisor({ name, className, defaultValue = 400 }: { name: 
         <option value="500">500 kcal - moderado</option>
         <option value="750">750 kcal - redução alta</option>
         <option value="1000">1000 kcal - redução muito alta</option>
+        <option value="1250">1250 kcal - extremo</option>
+        <option value="1500">1500 kcal - extremo</option>
+        <option value="1750">1750 kcal - extremo</option>
+        <option value="2000">2000 kcal - limite máximo</option>
       </select>
       <p className={messageClass(assessment.level)}>{assessment.message}</p>
     </div>

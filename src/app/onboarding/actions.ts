@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createBodyCompositionSnapshot } from "@/lib/body-composition";
 import { prisma } from "@/lib/prisma";
-import { activityFactors, advancedMacroTargets, guidedMacroTargets, calculateBmr, calculateTdee, type ActivityLevel, type Goal, type Sex } from "@/lib/nutrition";
+import { activityFactors, advancedMacroTargets, guidedMacroTargets, calculateBmr, calculateTdee, MAX_CALORIE_DEFICIT_KCAL, type ActivityLevel, type Goal, type Sex } from "@/lib/nutrition";
 
 const sexMap = {
   male: "MALE",
@@ -53,7 +53,7 @@ export async function saveOnboardingAction(formData: FormData) {
   const bmr = calculateBmr({ sex, age, heightCm, weightKg });
   const tdee = calculateTdee(bmr, activityFactor);
   const requestedDeficit = Number(formData.get("calorieDeficitKcal") ?? 400);
-  const deficitKcal = Number.isFinite(requestedDeficit) ? Math.min(1000, Math.max(100, requestedDeficit)) : 400;
+  const deficitKcal = Number.isFinite(requestedDeficit) ? Math.min(MAX_CALORIE_DEFICIT_KCAL, Math.max(100, requestedDeficit)) : 400;
   const calorieAdjustment = goal === "fat_loss" ? -deficitKcal : undefined;
   const proteinPerKg = clampNumber(normalizeDecimal(String(formData.get("proteinPerKg") ?? "2")), 1.2, 3);
   const fatPerKg = clampNumber(normalizeDecimal(String(formData.get("fatPerKg") ?? "0.8")), 0.4, 1.5);
