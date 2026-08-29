@@ -30,7 +30,7 @@ export default async function ConfiguracoesPage() {
   const calorieDeficit = profile.calorieDeficitKcal ?? 400;
   const deficitPct = metrics.tdee ? Math.round((calorieDeficit / metrics.tdee) * 100) : 0;
   const macroCalories = metrics.targets.proteinG * 4 + metrics.targets.fatG * 9 + metrics.targets.carbsG * 4;
-  const checkins = await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "asc" }, take: 8 });
+  const checkins = (await prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 })).reverse();
   const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 });
   const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
   const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);

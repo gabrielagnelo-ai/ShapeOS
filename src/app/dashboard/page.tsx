@@ -35,11 +35,11 @@ export default async function DashboardPage() {
     where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
     include: { items: { include: { food: true } } },
   });
-  const weeklyCheckins = await prisma.weeklyCheckin.findMany({
+  const weeklyCheckins = (await prisma.weeklyCheckin.findMany({
     where: { userId: user.id },
-    orderBy: { weekStart: "asc" },
+    orderBy: { weekStart: "desc" },
     take: 8,
-  });
+  })).reverse();
   const recentFoodLogs = await prisma.foodLog.findMany({
     where: { userId: user.id },
     include: { items: { include: { food: true } } },

@@ -70,14 +70,15 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
   });
 
   const periods = calendarPeriods();
-  const [checkins, foodLogs] = await Promise.all([
-    prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "asc" }, take: 8 }),
+  const [recentCheckins, foodLogs] = await Promise.all([
+    prisma.weeklyCheckin.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 }),
     prisma.foodLog.findMany({
       where: { userId: user.id, date: { gte: periods.month.start, lt: periods.month.end } },
       include: { items: { include: { food: true } } },
       orderBy: { date: "desc" },
     }),
   ]);
+  const checkins = [...recentCheckins].reverse();
   const monthlyFood = foodPeriodSummary(foodLogs.map((log) => ({
     date: log.date,
     items: log.items.map((item) => ({
