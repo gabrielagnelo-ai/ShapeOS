@@ -12,13 +12,15 @@ export function FoodSearchField({
   foods,
   className = "h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50",
   placeholder = "Digite o alimento. Ex: frango, arroz, banana",
+  defaultFood,
 }: {
   foods: FoodOption[];
   className?: string;
   placeholder?: string;
+  defaultFood?: FoodOption;
 }) {
-  const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [query, setQuery] = useState(defaultFood?.name ?? "");
+  const [selectedId, setSelectedId] = useState(defaultFood?.id ?? "");
   const [open, setOpen] = useState(false);
 
   const matches = useMemo(() => {

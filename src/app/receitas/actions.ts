@@ -38,6 +38,39 @@ export async function createRecipeAction(formData: FormData) {
   revalidateRecipePaths();
 }
 
+export async function updateRecipeAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const recipeId = String(formData.get("recipeId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const servings = Number(formData.get("servings") ?? 1);
+  const instructions = String(formData.get("instructions") ?? "").trim();
+  const items = await parseRecipeItems(formData);
+  if (!recipeId || !name || items.length === 0) return;
+
+  const ownedRecipe = await prisma.recipe.findFirst({
+    where: { id: recipeId, userId: user.id },
+    select: { id: true },
+  });
+  if (!ownedRecipe) return;
+
+  await prisma.$transaction([
+    prisma.recipeItem.deleteMany({ where: { recipeId: ownedRecipe.id } }),
+    prisma.recipe.update({
+      where: { id: ownedRecipe.id },
+      data: {
+        name,
+        servings: Number.isFinite(servings) && servings > 0 ? Math.round(servings) : 1,
+        instructions: instructions || null,
+        items: { create: items },
+      },
+    }),
+  ]);
+
+  revalidateRecipePaths();
+}
+
 export async function generateAiRecipeSuggestionAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;

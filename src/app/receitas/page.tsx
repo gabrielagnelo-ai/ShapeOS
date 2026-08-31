@@ -1,4 +1,4 @@
-import { BookOpen, Plus, Sparkles, Trash2, Utensils, Wand2 } from "lucide-react";
+import { BookOpen, Pencil, Plus, Save, Sparkles, Trash2, Utensils, Wand2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { RecipeIngredientFields } from "@/components/recipes/recipe-ingredient-fields";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -13,6 +13,7 @@ import {
   deleteRecipeAction,
   estimateEatenRecipeAction,
   generateAiRecipeSuggestionAction,
+  updateRecipeAction,
 } from "./actions";
 
 export default async function ReceitasPage() {
@@ -201,6 +202,45 @@ export default async function ReceitasPage() {
 
               {recipe.instructions ? (
                 <p className="mt-4 rounded-2xl bg-white/[0.04] px-4 py-3 text-sm leading-6 text-zinc-400">{recipe.instructions}</p>
+              ) : null}
+
+              {recipe.userId === user.id ? (
+                <details className="group mt-4 rounded-3xl border border-white/10 bg-black/20">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-200">
+                    <span className="inline-flex items-center gap-2">
+                      <Pencil size={15} className="text-lime-300" />
+                      Editar receita
+                    </span>
+                    <span className="text-xs text-zinc-500 group-open:hidden">Abrir</span>
+                    <span className="hidden text-xs text-zinc-500 group-open:inline">Fechar</span>
+                  </summary>
+                  <form action={updateRecipeAction} className="grid gap-4 border-t border-white/10 p-4">
+                    <input type="hidden" name="recipeId" value={recipe.id} />
+                    <div className="grid gap-3 md:grid-cols-[1fr_150px]">
+                      <input name="name" className={inputClass} defaultValue={recipe.name} placeholder="Nome da receita" required />
+                      <input name="servings" type="number" min="1" className={inputClass} defaultValue={recipe.servings} placeholder="Porções" required />
+                    </div>
+                    <RecipeIngredientFields
+                      foods={foods}
+                      initialIngredients={recipe.items.map((item) => ({
+                        foodId: item.foodId,
+                        foodName: item.food.name,
+                        category: item.food.category,
+                        grams: item.grams,
+                      }))}
+                    />
+                    <textarea
+                      name="instructions"
+                      className="min-h-24 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
+                      defaultValue={recipe.instructions ?? ""}
+                      placeholder="Modo de preparo opcional"
+                    />
+                    <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+                      <Save size={17} />
+                      Salvar alterações
+                    </button>
+                  </form>
+                </details>
               ) : null}
 
               <div className="mt-5 grid gap-3 md:grid-cols-2">

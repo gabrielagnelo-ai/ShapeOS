@@ -10,20 +10,33 @@ type FoodOption = {
   category: string;
 };
 
+type InitialIngredient = {
+  foodId: string;
+  foodName: string;
+  category: string;
+  grams: number;
+};
+
+type IngredientRow = InitialIngredient & { key: number };
+
 const fieldClass = "h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50";
 
-export function RecipeIngredientFields({ foods }: { foods: FoodOption[] }) {
-  const [rows, setRows] = useState([0]);
-  const nextId = useRef(1);
+export function RecipeIngredientFields({ foods, initialIngredients = [] }: { foods: FoodOption[]; initialIngredients?: InitialIngredient[] }) {
+  const [rows, setRows] = useState<IngredientRow[]>(() =>
+    initialIngredients.length
+      ? initialIngredients.map((ingredient, index) => ({ ...ingredient, key: index }))
+      : [{ key: 0, foodId: "", foodName: "", category: "", grams: 0 }],
+  );
+  const nextId = useRef(Math.max(1, initialIngredients.length));
 
   function addIngredient() {
     const id = nextId.current;
     nextId.current += 1;
-    setRows((current) => [...current, id]);
+    setRows((current) => [...current, { key: id, foodId: "", foodName: "", category: "", grams: 0 }]);
   }
 
-  function removeIngredient(id: number) {
-    setRows((current) => current.filter((rowId) => rowId !== id));
+  function removeIngredient(key: number) {
+    setRows((current) => current.filter((row) => row.key !== key));
   }
 
   return (
@@ -46,24 +59,26 @@ export function RecipeIngredientFields({ foods }: { foods: FoodOption[] }) {
       </div>
 
       <div className="grid gap-2">
-        {rows.map((id, index) => (
-          <div key={id} className="grid min-w-0 gap-2 rounded-3xl border border-white/[0.07] bg-black/20 p-3 md:grid-cols-[minmax(0,1fr)_140px_44px] md:items-start">
+        {rows.map((row, index) => (
+          <div key={row.key} className="grid min-w-0 gap-2 rounded-3xl border border-white/[0.07] bg-black/20 p-3 md:grid-cols-[minmax(0,1fr)_140px_44px] md:items-start">
             <FoodSearchField
               foods={foods}
               className={fieldClass}
               placeholder={index === 0 ? "Ingrediente principal, ex: patinho" : `Ingrediente ${index + 1}`}
+              defaultFood={row.foodId ? { id: row.foodId, name: row.foodName, category: row.category } : undefined}
             />
             <input
               name="grams"
               inputMode="decimal"
               className={fieldClass}
               placeholder="gramas"
+              defaultValue={row.grams || undefined}
               aria-label={`Gramas do ingrediente ${index + 1}`}
               required
             />
             <button
               type="button"
-              onClick={() => removeIngredient(id)}
+              onClick={() => removeIngredient(row.key)}
               disabled={rows.length === 1}
               className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 text-zinc-400 transition hover:border-red-400/30 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-30 md:h-12 md:w-11"
               aria-label={`Remover ingrediente ${index + 1}`}
