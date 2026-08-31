@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, CheckCircle2, Pill, RotateCcw, Trash2, Utensils } from "lucide-react";
 import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
-import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
+import { computeCurrentProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
 import { sumSupplementMicronutrients, supplementDoseUnit, supplementNutrientDefinitions } from "@/lib/supplements";
 import { addFoodLogAction, deleteFoodLogItemAction, registerDietMealAction, unregisterDietMealAction } from "./actions";
@@ -13,7 +13,7 @@ import { deleteSupplementLogAction, logSupplementDoseAction } from "@/app/suplem
 
 export default async function DiarioPage() {
   const { user, profile } = await requireUserProfile();
-  const metrics = computeProfileMetrics(profile);
+  const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const todayStart = startOfToday();
   const todayEnd = endOfToday();
   const [foods, log, multivitamins, activePlan] = await Promise.all([

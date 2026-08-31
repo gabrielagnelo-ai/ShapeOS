@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { findFoodByQuery } from "@/lib/food-search";
 import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
-import { computeProfileMetrics } from "@/lib/profile";
+import { computeCurrentProfileMetrics, computeProfileMetrics } from "@/lib/profile";
 
 type AiMeal = {
   name: string;
@@ -20,7 +20,7 @@ export async function generateDietPlanAction() {
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) return;
 
-  const metrics = computeProfileMetrics(profile);
+  const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const foods = await prisma.food.findMany({
     where: { name: { in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"] } },
   });
@@ -72,7 +72,7 @@ export async function generateAiDietPlanAction(formData: FormData) {
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) return;
 
-  const metrics = computeProfileMetrics(profile);
+  const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const monthlyBudget = Number(String(formData.get("monthlyBudget") ?? "").replace(",", "."));
   const selectedMealNames = await getPreferredMealNames(user.id);
   const foods = await prisma.food.findMany({ orderBy: { name: "asc" }, take: 80 });
@@ -122,7 +122,7 @@ export async function createManualDietPlanAction(formData: FormData) {
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
   if (!profile) return;
 
-  const metrics = computeProfileMetrics(profile);
+  const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const name = String(formData.get("name") ?? "").trim() || `Plano manual ${new Date().toLocaleDateString("pt-BR")}`;
   const manualMealNames = baseMealNames;
 

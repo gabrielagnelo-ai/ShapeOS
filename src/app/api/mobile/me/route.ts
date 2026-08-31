@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { getApiUser, unauthorized } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { computeProfileMetrics } from "@/lib/profile";
+import { computeCurrentProfileMetrics } from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   if (!user) return unauthorized();
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  const metrics = profile ? computeProfileMetrics(profile) : null;
+  const metrics = profile ? (await computeCurrentProfileMetrics(user.id, profile)).metrics : null;
 
   return Response.json({
     user: { id: user.id, name: user.name, email: user.email },

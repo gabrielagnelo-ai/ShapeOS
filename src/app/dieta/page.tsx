@@ -5,7 +5,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
-import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
+import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
 import { shoppingListConversion } from "@/lib/shopping-list";
 import {
@@ -28,7 +28,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   const days = periodo === "semanal" ? 7 : periodo === "mensal" ? 30 : 15;
   const periodLabel = days === 7 ? "Semanal" : days === 30 ? "Mensal" : "Quinzenal";
   const { user, profile } = await requireUserProfile();
-  const metrics = computeProfileMetrics(profile);
+  const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const dietPlans = await prisma.dietPlan.findMany({
     where: { userId: user.id },
     include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },

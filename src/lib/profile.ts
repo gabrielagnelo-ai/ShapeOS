@@ -12,6 +12,10 @@ import {
 } from "@/lib/nutrition";
 import { calculateBaseTdee } from "@/lib/tdee";
 import { endOfTodayInAppTimeZone, startOfTodayInAppTimeZone } from "@/lib/date-time";
+import {
+  bodyStateFromLatestSnapshot,
+  recalculateBodyCompositionSnapshot,
+} from "@/lib/body-composition";
 
 const sexMap = { MALE: "male", FEMALE: "female" } as const;
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
@@ -73,6 +77,32 @@ export function computeProfileMetrics(
   };
 
   return { sex, goal, bmr, tdee, bmi, bodyFat, targets, micronutrientTargets };
+}
+
+export async function computeCurrentProfileMetrics(
+  userId: string,
+  profile: Awaited<ReturnType<typeof requireUserProfile>>["profile"],
+) {
+  const baseMetrics = computeProfileMetrics(profile);
+  const latestSnapshot = await prisma.bodyCompositionSnapshot.findFirst({
+    where: { userId },
+    orderBy: { measuredAt: "desc" },
+  });
+
+  if (!latestSnapshot) {
+    return { metrics: baseMetrics, currentBody: profile };
+  }
+
+  const recalculatedSnapshot = recalculateBodyCompositionSnapshot(latestSnapshot, {
+    sex: baseMetrics.sex,
+    heightCm: profile.heightCm,
+  });
+  const currentBody = bodyStateFromLatestSnapshot(profile, [recalculatedSnapshot]);
+
+  return {
+    metrics: computeProfileMetrics(profile, currentBody),
+    currentBody,
+  };
 }
 
 export function startOfToday() {
