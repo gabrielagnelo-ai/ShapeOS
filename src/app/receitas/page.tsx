@@ -1,5 +1,6 @@
 import { BookOpen, Plus, Sparkles, Trash2, Utensils, Wand2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
+import { RecipeIngredientFields } from "@/components/recipes/recipe-ingredient-fields";
 import { GlassCard } from "@/components/ui/glass-card";
 import { mealOrder } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
@@ -123,26 +124,7 @@ export default async function ReceitasPage() {
             <input name="name" className={inputClass} placeholder="Nome da receita" required />
             <input name="servings" type="number" min="1" className={inputClass} placeholder="Porções" required />
           </div>
-          <div className="grid gap-2">
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className="grid gap-2 md:grid-cols-[1fr_140px]">
-                <input
-                  name={`foodQuery${index}`}
-                  list="recipe-food-options"
-                  className={inputClass}
-                  placeholder={index === 0 ? "Ingrediente principal, ex: patinho" : `Ingrediente ${index + 1} opcional`}
-                  required={index === 0}
-                />
-                <input
-                  name={`grams${index}`}
-                  inputMode="decimal"
-                  className={inputClass}
-                  placeholder="gramas"
-                  required={index === 0}
-                />
-              </div>
-            ))}
-          </div>
+          <RecipeIngredientFields foods={foods} />
           <textarea
             name="instructions"
             className="min-h-24 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
@@ -153,11 +135,6 @@ export default async function ReceitasPage() {
             Salvar receita manual
           </button>
         </form>
-        <datalist id="recipe-food-options">
-          {foods.map((food) => (
-            <option key={food.id} value={food.name} label={food.category} />
-          ))}
-        </datalist>
       </GlassCard>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">

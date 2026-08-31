@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { findFoodByQuery } from "@/lib/food-search";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
+import { recipeIngredientInputs } from "@/lib/recipe-form";
 
 type AiRecipe = {
   name: string;
@@ -170,21 +171,15 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
 }
 
 async function parseRecipeItems(formData: FormData) {
-  const items: Array<{ foodId: string; grams: number }> = [];
-
-  for (let index = 0; index < 6; index += 1) {
-    const foodId = String(formData.get(`foodId${index}`) ?? "");
-    const foodQuery = String(formData.get(`foodQuery${index}`) ?? "").trim();
-    const grams = parsePositiveNumber(formData.get(`grams${index}`));
-    if ((!foodId && !foodQuery) || !grams) continue;
-
+  const items = await Promise.all(recipeIngredientInputs(formData).map(async ({ foodId, foodQuery, grams }) => {
     const food = foodId
       ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
       : await findFoodByQuery(foodQuery);
-    if (food) items.push({ foodId: food.id, grams });
-  }
 
-  return items;
+    return food ? { foodId: food.id, grams } : null;
+  }));
+
+  return items.filter((item): item is { foodId: string; grams: number } => item !== null);
 }
 
 async function recipeFoodContext(userId: string) {
