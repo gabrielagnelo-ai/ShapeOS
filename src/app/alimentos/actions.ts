@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
+import { isWholeChickenEgg, wholeEggPricePerKg } from "@/lib/shopping-list";
 
 export async function createCustomFoodAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -21,6 +22,10 @@ export async function createCustomFoodAction(formData: FormData) {
   const kcal = kcalInput != null ? kcalInput * multiplier : (protein * 4) + (carbs * 4) + (fat * 9);
   const fiber = parseOptionalNumber(formData.get("fiberPer100g"));
   const sodium = parseOptionalNumber(formData.get("sodiumPer100g"));
+  const pricePerUnit = parseOptionalNumber(formData.get("pricePerUnit"));
+  const pricePerKg = isWholeChickenEgg({ foodId: "", name }) && pricePerUnit != null
+    ? wholeEggPricePerKg(pricePerUnit)
+    : parseOptionalNumber(formData.get("pricePerKg"));
   if (!name || !Number.isFinite(kcal)) return;
 
   await prisma.food.create({
@@ -33,7 +38,7 @@ export async function createCustomFoodAction(formData: FormData) {
       fatPer100g: round(fat),
       fiberPer100g: fiber == null ? null : round(fiber * multiplier),
       sodiumPer100g: sodium == null ? null : round(sodium * multiplier),
-      pricePerKg: parseOptionalNumber(formData.get("pricePerKg")),
+      pricePerKg,
       source: "Usuário",
       createdByUserId: user.id,
     },
@@ -51,11 +56,14 @@ export async function updateFoodLabelAndPriceAction(formData: FormData) {
 
   const foodId = String(formData.get("foodId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  const pricePerKg = parseOptionalNumber(formData.get("pricePerKg"));
   if (!foodId || !name) return;
 
-  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } });
+  const food = await prisma.food.findUnique({ where: { id: foodId }, select: { id: true, name: true } });
   if (!food) return;
+  const pricePerUnit = parseOptionalNumber(formData.get("pricePerUnit"));
+  const pricePerKg = isWholeChickenEgg({ foodId: food.id, name }) && pricePerUnit != null
+    ? wholeEggPricePerKg(pricePerUnit)
+    : parseOptionalNumber(formData.get("pricePerKg"));
 
   await prisma.food.update({
     where: { id: food.id },

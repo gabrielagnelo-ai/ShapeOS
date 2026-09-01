@@ -7,7 +7,7 @@ import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
-import { shoppingListConversion } from "@/lib/shopping-list";
+import { shoppingListConversion, wholeEggUnitCount, wholeEggUnitPrice } from "@/lib/shopping-list";
 import {
   addManualDietItemAction,
   createProteinSwapDietPlanAction,
@@ -50,6 +50,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     unitLabel: string;
     pricePerKg: number | null;
     isLeanCookedPorkLeg: boolean;
+    isWholeChickenEgg: boolean;
   }>();
   planMeals.forEach((meal) => meal.items.forEach((item) => {
     const readyGrams = item.grams * days;
@@ -66,12 +67,13 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
       unitLabel: conversion.unitLabel,
       pricePerKg: item.food.pricePerKg,
       isLeanCookedPorkLeg: conversion.isLeanCookedPorkLeg,
+      isWholeChickenEgg: conversion.isWholeChickenEgg,
     };
     current.plannedReadyGrams += readyGrams;
     current.buyGrams += conversion.buyGrams;
     shopping.set(item.food.name, current);
   }));
-  const estimatedCost = [...shopping.values()].reduce((total, item) => total + (item.pricePerKg ? (item.buyGrams / 1000) * item.pricePerKg : 0), 0);
+  const estimatedCost = [...shopping.values()].reduce((total, item) => total + shoppingItemCost(item), 0);
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
       const n = nutrientsForGrams({
@@ -314,7 +316,9 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 <div className="flex items-center justify-between gap-3">
                   <span>{name}</span>
                   <span className="font-medium text-zinc-100">
-                    {item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}{formatShoppingWeight(item.buyGrams)}
+                    {item.isWholeChickenEgg
+                      ? formatEggUnits(item.buyGrams)
+                      : <>{item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}{formatShoppingWeight(item.buyGrams)}</>}
                   </span>
                 </div>
                 {item.isLeanCookedPorkLeg ? (
@@ -327,7 +331,15 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                     Comprar cru. O plano mostra {formatShoppingWeight(item.plannedReadyGrams)} já pronto para comer.
                   </p>
                 ) : null}
-                {item.pricePerKg ? <p className="mt-1 text-xs text-zinc-500">Estimado: R$ {((item.buyGrams / 1000) * item.pricePerKg).toFixed(2)}</p> : null}
+                {item.isWholeChickenEgg ? (
+                  <p className="mt-1 text-xs text-zinc-500">Conversão: 1 ovo = aproximadamente 53 g.</p>
+                ) : null}
+                {item.pricePerKg ? (
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {item.isWholeChickenEgg ? `R$ ${wholeEggUnitPrice(item.pricePerKg).toFixed(2).replace(".", ",")}/unidade - ` : ""}
+                    Estimado: R$ {shoppingItemCost(item).toFixed(2).replace(".", ",")}
+                  </p>
+                ) : null}
               </div>
             ))}
             {!shopping.size ? <p className="text-zinc-500">Gere um plano para ver a lista.</p> : null}
@@ -336,7 +348,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 Custo estimado do período: R$ {estimatedCost.toFixed(2)}
               </div>
             ) : (
-              shopping.size ? <p className="text-xs leading-5 text-zinc-500">Preencha preço por kg dos alimentos para estimar custo da lista.</p> : null
+              shopping.size ? <p className="text-xs leading-5 text-zinc-500">Preencha os preços dos alimentos para estimar o custo da lista.</p> : null
             )}
           </div>
         </GlassCard>
@@ -348,6 +360,17 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
 function formatShoppingWeight(grams: number) {
   if (grams >= 1000) return `${(grams / 1000).toFixed(2).replace(".", ",")} kg`;
   return `${Math.round(grams)} g`;
+}
+
+function formatEggUnits(grams: number) {
+  const units = wholeEggUnitCount(grams);
+  return `${units} ${units === 1 ? "ovo" : "ovos"}`;
+}
+
+function shoppingItemCost(item: { buyGrams: number; pricePerKg: number | null; isWholeChickenEgg: boolean }) {
+  if (!item.pricePerKg) return 0;
+  if (item.isWholeChickenEgg) return wholeEggUnitCount(item.buyGrams) * wholeEggUnitPrice(item.pricePerKg);
+  return (item.buyGrams / 1000) * item.pricePerKg;
 }
 
 function dietStatus(planned: number, target: number) {

@@ -4,6 +4,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams } from "@/lib/nutrition";
+import { isWholeChickenEgg, wholeEggUnitPrice } from "@/lib/shopping-list";
 import {
   addFoodFromLibraryToDiaryAction,
   addFoodFromLibraryToPlanAction,
@@ -144,7 +145,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
             </select>
             <input name="servingGrams" inputMode="decimal" className={inputClass} placeholder="Peso da porção em g. Ex: 60 para barrinha" />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
             <input name="kcalPer100g" inputMode="decimal" className={inputClass} placeholder="kcal" />
             <input name="proteinPer100g" inputMode="decimal" className={inputClass} placeholder="proteína g" required />
             <input name="carbsPer100g" inputMode="decimal" className={inputClass} placeholder="carbo g" required />
@@ -152,6 +153,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
             <input name="fiberPer100g" inputMode="decimal" className={inputClass} placeholder="fibra g" />
             <input name="sodiumPer100g" inputMode="decimal" className={inputClass} placeholder="sódio mg" />
             <input name="pricePerKg" inputMode="decimal" className={inputClass} placeholder="R$/kg" />
+            <input name="pricePerUnit" inputMode="decimal" className={inputClass} placeholder="R$/unidade (ovos)" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-zinc-500">
@@ -167,6 +169,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
 
       <div className="mt-5 grid gap-3">
         {foods.map((food) => {
+          const usesUnitPrice = isWholeChickenEgg({ foodId: food.id, name: food.name });
           const preference = preferenceByFood.get(food.id);
           const nutrients = nutrientsForGrams({
             name: food.name,
@@ -194,7 +197,7 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
                       <p className="text-lg font-semibold text-zinc-100">{food.name}</p>
                       <p className="mt-1 text-sm text-zinc-500">
                         {food.category} - {food.source}
-                        {food.pricePerKg ? ` - R$ ${formatCurrency(food.pricePerKg)}/kg` : ""}
+                        {food.pricePerKg ? ` - R$ ${formatCurrency(usesUnitPrice ? wholeEggUnitPrice(food.pricePerKg) : food.pricePerKg)}/${usesUnitPrice ? "unidade" : "kg"}` : ""}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -234,11 +237,11 @@ export default async function AlimentosPage({ searchParams }: { searchParams: Se
                         required
                       />
                       <input
-                        name="pricePerKg"
-                        defaultValue={food.pricePerKg ?? ""}
+                        name={usesUnitPrice ? "pricePerUnit" : "pricePerKg"}
+                        defaultValue={food.pricePerKg == null ? "" : usesUnitPrice ? wholeEggUnitPrice(food.pricePerKg).toFixed(2) : food.pricePerKg}
                         inputMode="decimal"
                         className="h-10 rounded-2xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition focus:border-lime-300/50"
-                        placeholder="R$/kg"
+                        placeholder={usesUnitPrice ? "R$/unidade" : "R$/kg"}
                       />
                       <button className="h-10 rounded-full bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15">
                         Salvar
