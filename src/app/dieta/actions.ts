@@ -2,8 +2,11 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { appDateParts } from "@/lib/date-time";
 import { findFoodByQuery } from "@/lib/food-search";
+import { buildFluxaShoppingBudget, signFluxaPayload } from "@/lib/fluxa-integration";
 import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, computeProfileMetrics } from "@/lib/profile";
@@ -12,6 +15,60 @@ type AiMeal = {
   name: string;
   items: Array<{ foodName: string; grams: number }>;
 };
+
+export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?erro=Sessão não encontrada. Entre novamente.");
+  const period = String(formData.get("periodo") ?? "quinzenal");
+  const returnPeriod = ["semanal", "quinzenal", "mensal"].includes(period) ? period : "quinzenal";
+  const returnUrl = `/dieta?periodo=${returnPeriod}`;
+
+  const plan = await prisma.dietPlan.findFirst({
+    where: { userId: user.id, isActive: true },
+    include: { meals: { include: { items: { include: { food: true } } } } },
+  });
+  if (!plan) redirect(`${returnUrl}&fluxa=no-plan`);
+
+  const secret = process.env.FLUXA_INTEGRATION_SECRET;
+  const baseUrl = process.env.FLUXA_API_URL ?? "https://fluxa-pi.vercel.app";
+  if (!secret || secret.length < 32) redirect(`${returnUrl}&fluxa=config`);
+
+  const budget = buildFluxaShoppingBudget(plan.meals.flatMap((meal) => meal.items), 30);
+  if (budget.summary.estimatedTotal <= 0) redirect(`${returnUrl}&fluxa=no-prices`);
+
+  const now = new Date();
+  const currentDate = appDateParts(now);
+  const body = JSON.stringify({
+    version: 1,
+    userEmail: user.email,
+    month: currentDate.month,
+    year: currentDate.year,
+    generatedAt: now.toISOString(),
+    plan: { id: plan.id, name: plan.name },
+    ...budget,
+  });
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = signFluxaPayload(secret, timestamp, body);
+  let status = "error";
+
+  try {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/integrations/shapeos/shopping-list`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-ShapeOS-Timestamp": timestamp,
+        "X-ShapeOS-Signature": signature,
+      },
+      body,
+      cache: "no-store",
+    });
+    status = response.ok ? "ok" : response.status === 404 ? "account" : "error";
+  } catch {
+    status = "offline";
+  }
+
+  redirect(`${returnUrl}&fluxa=${status}`);
+}
 
 export async function generateDietPlanAction() {
   const user = await getCurrentUser();
