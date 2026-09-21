@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
+import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
 import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +36,7 @@ export default async function NutritionistReportPage() {
     }),
     prisma.dietPlan.findFirst({
       where: { userId: user.id, isActive: true },
-      include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
+      include: { meals: { include: { items: { include: { food: true, recipe: { select: { id: true, name: true } } } } }, orderBy: { order: "asc" } } },
     }),
     prisma.physicalActivityLog.findMany({ where: { userId: user.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 60 }),
     prisma.waterLog.findMany({ where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } }, orderBy: { date: "desc" } }),
@@ -292,9 +293,17 @@ export default async function NutritionistReportPage() {
                     <Table
                       compact
                       columns={["Alimento", "Gramas", "Kcal", "P", "C", "G"]}
-                      rows={meal.items.map((item) => {
-                        const n = sumNutrients([{ food: toFoodNutrients(item.food), grams: item.grams }]);
-                        return [item.food.name, `${formatNumber(item.grams)} g`, String(Math.round(n.kcal)), `${formatNumber(n.proteinG)} g`, `${formatNumber(n.carbsG)} g`, `${formatNumber(n.fatG)} g`];
+                      rows={groupDietMealItems(meal.items).map((group) => {
+                        const n = sumNutrients(group.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams })));
+                        const item = group.items[0];
+                        return [
+                          group.kind === "recipe" ? group.name : item.food.name,
+                          group.kind === "recipe" ? formatRecipePortions(group.portions) : `${formatNumber(item.grams)} g`,
+                          String(Math.round(n.kcal)),
+                          `${formatNumber(n.proteinG)} g`,
+                          `${formatNumber(n.carbsG)} g`,
+                          `${formatNumber(n.fatG)} g`,
+                        ];
                       })}
                     />
                   </div>

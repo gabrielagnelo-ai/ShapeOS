@@ -10,6 +10,7 @@ import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
+import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/period-averages";
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
   });
   const activePlan = await prisma.dietPlan.findFirst({
     where: { userId: user.id, isActive: true },
-    include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
+    include: { meals: { include: { items: { include: { food: true, recipe: { select: { id: true, name: true } } } } }, orderBy: { order: "asc" } } },
   });
   const activePlanMeals = activePlan ? sortMeals(activePlan.meals) : [];
   const rawBodySnapshots = await prisma.bodyCompositionSnapshot.findMany({
@@ -447,7 +448,10 @@ export default async function DashboardPage() {
                 },
                 { kcal: 0, protein: 0, carbs: 0, fat: 0 },
               );
-              return <MealRow key={meal.id} name={normalizeMealName(meal.name)} items={meal.items.map((item) => ({ name: item.food.name, grams: item.grams }))} totals={totals} />;
+              const displayItems = groupDietMealItems(meal.items).map((group) => group.kind === "recipe"
+                ? { name: group.name, detail: formatRecipePortions(group.portions) }
+                : { name: group.items[0].food.name, grams: group.items[0].grams });
+              return <MealRow key={meal.id} name={normalizeMealName(meal.name)} items={displayItems} totals={totals} />;
             }) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-black/20 p-5">
                 <p className="text-sm leading-6 text-zinc-400">Gere um plano em Dieta para ver suas refeições reais aqui.</p>
@@ -571,7 +575,7 @@ function MealRow({
   totals,
 }: {
   name: string;
-  items: { name: string; grams: number }[];
+  items: { name: string; grams?: number; detail?: string }[];
   totals: { kcal: number; protein: number; carbs: number; fat: number };
 }) {
   const hasItems = items.length > 0;
@@ -588,9 +592,9 @@ function MealRow({
 
           {hasItems ? (
             <div className="mt-3 flex flex-wrap gap-2">
-              {items.map((item) => (
-                <span key={`${item.name}-${item.grams}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-zinc-300">
-                  {cleanFoodName(item.name)} <span className="text-zinc-500">{Math.round(item.grams)}g</span>
+              {items.map((item, index) => (
+                <span key={`${item.name}-${item.grams ?? item.detail}-${index}`} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-zinc-300">
+                  {cleanFoodName(item.name)} <span className="text-zinc-500">{item.detail ?? `${Math.round(item.grams ?? 0)}g`}</span>
                 </span>
               ))}
             </div>

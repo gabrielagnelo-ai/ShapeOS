@@ -4,6 +4,7 @@ import { FoodSearchField } from "@/components/food/food-search-field";
 import Link from "next/link";
 import { Check, CheckCircle2, Pill, RotateCcw, Trash2, Utensils } from "lucide-react";
 import { appDateInputValue } from "@/lib/date-time";
+import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
@@ -35,7 +36,7 @@ export default async function DiarioPage() {
       include: {
         meals: {
           orderBy: { order: "asc" },
-          include: { items: { include: { food: true }, orderBy: { id: "asc" } } },
+          include: { items: { include: { food: true, recipe: { select: { id: true, name: true } } }, orderBy: { id: "asc" } } },
         },
       },
     }),
@@ -154,11 +155,15 @@ export default async function DiarioPage() {
                       ) : null}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {meal.items.length ? meal.items.map((item) => (
-                        <span key={item.id} className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300">
-                          {item.food.name} <span className="text-zinc-500">{formatNumber(item.grams)} g</span>
-                        </span>
-                      )) : <span className="text-sm text-zinc-500">Esta refeição ainda não tem alimentos.</span>}
+                      {meal.items.length ? groupDietMealItems(meal.items).map((group) => {
+                        const item = group.items[0];
+                        return (
+                          <span key={group.key} className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300">
+                            {group.kind === "recipe" ? group.name : item.food.name}{" "}
+                            <span className="text-zinc-500">{group.kind === "recipe" ? formatRecipePortions(group.portions) : `${formatNumber(item.grams)} g`}</span>
+                          </span>
+                        );
+                      }) : <span className="text-sm text-zinc-500">Esta refeição ainda não tem alimentos.</span>}
                     </div>
                     {meal.items.length ? (
                       <p className="mt-3 text-xs text-zinc-500">

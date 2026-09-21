@@ -245,16 +245,22 @@ model DietMeal {
 }
 
 model DietMealItem {
-  id        String  @id @default(cuid())
-  mealId    String  @map("meal_id")
-  foodId    String  @map("food_id")
-  grams     Float
-  isFixed   Boolean @default(false) @map("is_fixed")
-  isBlocked Boolean @default(false) @map("is_blocked")
+  id             String  @id @default(cuid())
+  mealId         String  @map("meal_id")
+  foodId         String  @map("food_id")
+  recipeId       String? @map("recipe_id")
+  recipeBatchId  String? @map("recipe_batch_id")
+  recipePortions Float?  @map("recipe_portions")
+  grams          Float
+  isFixed        Boolean @default(false) @map("is_fixed")
+  isBlocked      Boolean @default(false) @map("is_blocked")
 
-  meal DietMeal @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  food Food     @relation(fields: [foodId], references: [id])
+  meal   DietMeal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food   Food     @relation(fields: [foodId], references: [id])
+  recipe Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
+  @@index([recipeId])
+  @@index([recipeBatchId])
   @@map("diet_meal_items")
 }
 
@@ -582,8 +588,9 @@ model Recipe {
   instructions String?
   createdAt    DateTime @default(now()) @map("created_at")
 
-  user  User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items RecipeItem[]
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items         RecipeItem[]
+  dietMealItems DietMealItem[]
 
   @@map("recipes")
 }

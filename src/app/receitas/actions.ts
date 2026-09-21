@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { findFoodByQuery } from "@/lib/food-search";
@@ -190,10 +191,14 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
   if (!meal || !recipe) return;
 
   const multiplier = portions / recipe.servings;
+  const recipeBatchId = randomUUID();
   await prisma.dietMealItem.createMany({
     data: recipe.items.map((item) => ({
       mealId,
       foodId: item.foodId,
+      recipeId: recipe.id,
+      recipeBatchId,
+      recipePortions: portions,
       grams: Math.round(item.grams * multiplier * 10) / 10,
     })),
   });

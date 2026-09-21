@@ -1,8 +1,11 @@
 ﻿import { Plus, Send, ShoppingBag, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { ChefHat } from "lucide-react";
+import { ShoppingListExport } from "@/components/diet/shopping-list-export";
 import { FoodSearchField } from "@/components/food/food-search-field";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile";
@@ -16,6 +19,7 @@ import {
   generateAiDietPlanAction,
   generateDietPlanAction,
   removeDietItemAction,
+  removeRecipeFromDietMealAction,
   setActiveDietPlanAction,
   syncShoppingBudgetToFluxaAction,
   updateDietMealsAction,
@@ -32,7 +36,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const dietPlans = await prisma.dietPlan.findMany({
     where: { userId: user.id },
-    include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
+    include: { meals: { include: { items: { include: { food: true, recipe: { select: { id: true, name: true } } } } }, orderBy: { order: "asc" } } },
     orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
     take: 12,
   });
@@ -74,6 +78,12 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     current.buyGrams += conversion.buyGrams;
     shopping.set(item.food.name, current);
   }));
+  const shoppingExportItems = [...shopping.entries()].map(([name, item]) => {
+    const quantity = item.isWholeChickenEgg
+      ? formatEggUnits(item.buyGrams)
+      : `${item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}${formatShoppingWeight(item.buyGrams)}`;
+    return `${name} - ${quantity}`;
+  });
   const estimatedCost = [...shopping.values()].reduce((total, item) => total + shoppingItemCost(item), 0);
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
@@ -253,7 +263,35 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               <div key={meal.id} className="rounded-3xl bg-white/[0.04] p-4">
                 <p className="font-medium">{normalizeMealName(meal.name)}</p>
                 <div className="mt-3 grid gap-2">
-                  {meal.items.map((item) => {
+                  {groupDietMealItems(meal.items).map((group) => {
+                    if (group.kind === "recipe") {
+                      const recipeKcal = group.items.reduce((total, item) => total + nutrientsForGrams({
+                        name: item.food.name,
+                        kcalPer100g: item.food.kcalPer100g,
+                        proteinPer100g: item.food.proteinPer100g,
+                        carbsPer100g: item.food.carbsPer100g,
+                        fatPer100g: item.food.fatPer100g,
+                      }, item.grams).kcal, 0);
+                      return (
+                        <div key={group.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-lime-300/15 bg-lime-300/[0.05] px-3 py-3">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-lime-300/12 text-lime-300"><ChefHat size={16} /></span>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-zinc-100">{group.name}</p>
+                              <p className="mt-0.5 text-xs text-zinc-500">{formatRecipePortions(group.portions)} · {Math.round(recipeKcal)} kcal</p>
+                            </div>
+                          </div>
+                          <form action={removeRecipeFromDietMealAction}>
+                            <input type="hidden" name="recipeBatchId" value={group.recipeBatchId ?? ""} />
+                            <button className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label={`Remover receita ${group.name}`}>
+                              <Trash2 size={15} />
+                            </button>
+                          </form>
+                        </div>
+                      );
+                    }
+
+                    const item = group.items[0];
                     const nutrients = nutrientsForGrams({
                       name: item.food.name,
                       kcalPer100g: item.food.kcalPer100g,
@@ -264,7 +302,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                       sodiumPer100g: item.food.sodiumPer100g ?? 0,
                     }, item.grams);
                     return (
-                      <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/25 px-3 py-2">
+                      <div key={group.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/25 px-3 py-2">
                         <span className="min-w-0 flex-1 text-sm text-zinc-200">{item.food.name} - {nutrients.kcal} kcal</span>
                         <form action={updateDietItemGramsAction} className="flex items-center gap-2">
                           <input type="hidden" name="itemId" value={item.id} />
@@ -325,6 +363,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             </form>
           </div>
           {fluxa ? <FluxaSyncStatus status={fluxa} /> : null}
+          <ShoppingListExport title={`Lista de compras ShapeOS - ${days} dias`} items={shoppingExportItems} />
           <div className="mt-5 grid gap-3 text-sm text-zinc-300">
             {[...shopping.entries()].map(([name, item]) => (
               <div key={name} className="rounded-2xl bg-black/25 px-4 py-3">

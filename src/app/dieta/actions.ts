@@ -427,6 +427,23 @@ export async function removeDietItemAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function removeRecipeFromDietMealAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const recipeBatchId = String(formData.get("recipeBatchId") ?? "");
+  if (!recipeBatchId) return;
+
+  await prisma.dietMealItem.deleteMany({
+    where: { recipeBatchId, meal: { dietPlan: { userId: user.id } } },
+  });
+
+  revalidatePath("/dieta");
+  revalidatePath("/dashboard");
+  revalidatePath("/diario");
+  revalidatePath("/relatorio-nutricionista");
+}
+
 async function generateMealsWithGemini(input: {
   foods: Array<{ name: string; kcal: number; protein: number; carbs: number; fat: number; pricePerKg?: number | null }>;
   targets: ReturnType<typeof computeProfileMetrics>["targets"];
