@@ -313,14 +313,14 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
             <div>
-              <p className="text-sm font-medium text-zinc-200">Planejamento financeiro</p>
-              <p className="mt-1 text-xs text-zinc-500">Envia a estimativa de 30 dias como despesa planejada, não como compra paga.</p>
+              <p className="text-sm font-medium text-zinc-200">Meta de mercado no Fluxa</p>
+              <p className="mt-1 text-xs text-zinc-500">Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga.</p>
             </div>
             <form action={syncShoppingBudgetToFluxaAction}>
               <input type="hidden" name="periodo" value={periodo ?? "quinzenal"} />
               <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15">
                 <Send size={15} />
-                Enviar ao Fluxa
+                Atualizar meta
               </button>
             </form>
           </div>
@@ -374,7 +374,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
 
 function FluxaSyncStatus({ status }: { status: string }) {
   const messages: Record<string, { text: string; tone: string }> = {
-    ok: { text: "Orçamento mensal atualizado no Fluxa.", tone: "border-lime-300/25 bg-lime-300/10 text-lime-100" },
+    ok: { text: "Meta mensal de Mercado atualizada no Fluxa.", tone: "border-lime-300/25 bg-lime-300/10 text-lime-100" },
     config: { text: "Integração ainda não configurada na Vercel.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
     "no-plan": { text: "Ative uma dieta antes de enviar ao Fluxa.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
     "no-prices": { text: "Cadastre preços nos alimentos antes de enviar o orçamento.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
