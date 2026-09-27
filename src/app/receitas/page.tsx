@@ -1,3 +1,6 @@
+import { ReliabilityNotice, SafetyReview } from "@/components/diet/reliability-notice";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { dietaryReviewIssue } from "@/lib/food-reliability";
 import { BookOpen, Pencil, Plus, Save, Sparkles, Trash2, Utensils, Wand2 } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { RecipeIngredientFields } from "@/components/recipes/recipe-ingredient-fields";
@@ -16,9 +19,11 @@ import {
   updateRecipeAction,
 } from "./actions";
 
-export default async function ReceitasPage() {
-  const { user } = await requireUserProfile();
+export default async function ReceitasPage({ searchParams }: { searchParams: Promise<{ recipeStatus?: string }> }) {
+  const { recipeStatus } = await searchParams;
+  const { user, profile } = await requireUserProfile();
   const foods = await prisma.food.findMany({
+    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true },
   });
@@ -49,6 +54,7 @@ export default async function ReceitasPage() {
         </div>
       </div>
 
+      <ReliabilityNotice status={recipeStatus ?? dietaryReviewIssue(profile)} />
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
         <GlassCard className="border-lime-300/20 bg-lime-300/[0.06]">
           <div className="flex items-center gap-3">
@@ -72,10 +78,10 @@ export default async function ReceitasPage() {
               </select>
               <input name="query" className={inputClass} placeholder="Ex: café da manhã doce, jantar barato, lanche com whey" />
             </div>
-            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+            <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
               <Wand2 size={18} />
               Gerar e salvar receita
-            </button>
+            </SubmitButton>
             <p className="text-xs leading-5 text-zinc-500">
               A sugestão usa repertório geral da IA e sua base de alimentos. Confira marcas e quantidades antes de seguir.
             </p>
@@ -99,10 +105,10 @@ export default async function ReceitasPage() {
               placeholder="Ex: comi uma panqueca média com banana, aveia, 2 ovos e um pouco de mel"
               required
             />
-            <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white/10 px-5 font-semibold text-white transition hover:bg-white/15">
+            <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white/10 px-5 font-semibold text-white transition hover:bg-white/15">
               <Sparkles size={18} />
               Estimar e salvar
-            </button>
+            </SubmitButton>
             <p className="text-xs leading-5 text-zinc-500">
               Isso é estimativa. Para mais precisão, cadastre os ingredientes e gramas manualmente.
             </p>
@@ -131,10 +137,10 @@ export default async function ReceitasPage() {
             className="min-h-24 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
             placeholder="Modo de preparo opcional"
           />
-          <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+          <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
             <Plus size={18} />
             Salvar receita manual
-          </button>
+          </SubmitButton>
         </form>
       </GlassCard>
 
@@ -176,9 +182,9 @@ export default async function ReceitasPage() {
                 {recipe.userId === user.id ? (
                   <form action={deleteRecipeAction}>
                     <input type="hidden" name="recipeId" value={recipe.id} />
-                    <button className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir receita">
+                    <SubmitButton className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir receita">
                       <Trash2 size={16} />
-                    </button>
+                    </SubmitButton>
                   </form>
                 ) : null}
               </div>
@@ -235,10 +241,10 @@ export default async function ReceitasPage() {
                       defaultValue={recipe.instructions ?? ""}
                       placeholder="Modo de preparo opcional"
                     />
-                    <button className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+                    <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
                       <Save size={17} />
                       Salvar alterações
-                    </button>
+                    </SubmitButton>
                   </form>
                 </details>
               ) : null}
@@ -251,25 +257,26 @@ export default async function ReceitasPage() {
                     <select name="mealName" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
                       {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
                     </select>
-                    <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
+                    <SubmitButton className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
                       <Plus size={15} />
                       Diário
-                    </button>
+                    </SubmitButton>
                   </div>
                 </form>
 
                 {activePlan ? (
                   <form action={addRecipePortionToPlanAction} className="rounded-3xl bg-black/25 p-3">
+                    <SafetyReview required={Boolean(dietaryReviewIssue(profile))} />
                     <input type="hidden" name="recipeId" value={recipe.id} />
                     <div className="grid gap-2 sm:grid-cols-[80px_1fr_auto]">
                       <input name="portions" defaultValue="1" inputMode="decimal" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
                       <select name="mealId" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
                         {activePlanMeals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
                       </select>
-                      <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white">
+                      <SubmitButton className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white">
                         <BookOpen size={15} />
                         Plano
-                      </button>
+                      </SubmitButton>
                     </div>
                   </form>
                 ) : null}

@@ -1,3 +1,7 @@
+import { ReliabilityNotice, SafetyReview } from "@/components/diet/reliability-notice";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { dietaryReviewIssue } from "@/lib/food-reliability";
+import { buildFluxaShoppingBudget } from "@/lib/fluxa-integration";
 ﻿import { Plus, Send, ShoppingBag, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ChefHat } from "lucide-react";
@@ -26,13 +30,14 @@ import {
   updateDietItemGramsAction,
 } from "./actions";
 
-type SearchParams = Promise<{ periodo?: string; fluxa?: string }>;
+type SearchParams = Promise<{ periodo?: string; fluxa?: string; dietStatus?: string }>;
 
 export default async function DietaPage({ searchParams }: { searchParams: SearchParams }) {
-  const { periodo, fluxa } = await searchParams;
+  const { periodo, fluxa, dietStatus: actionStatus } = await searchParams;
   const days = periodo === "semanal" ? 7 : periodo === "mensal" ? 30 : 15;
   const periodLabel = days === 7 ? "Semanal" : days === 30 ? "Mensal" : "Quinzenal";
   const { user, profile } = await requireUserProfile();
+  const reviewIssue = dietaryReviewIssue(profile);
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const dietPlans = await prisma.dietPlan.findMany({
     where: { userId: user.id },
@@ -40,13 +45,14 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
     take: 12,
   });
-  const plan = dietPlans.find((dietPlan) => dietPlan.isActive) ?? dietPlans[0] ?? null;
+  const plan = dietPlans.find((dietPlan) => dietPlan.isActive) ?? null;
   const planMeals = plan ? sortMeals(plan.meals) : [];
   const mealChoices = uniqueMeals([...mealNames, ...planMeals.map((meal) => normalizeMealName(meal.name))]);
   const activeMealNames = new Set(planMeals.map((meal) => normalizeMealName(meal.name)));
   const foods = await prisma.food.findMany({
+    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, category: true },
+    select: { id: true, name: true, category: true, kcalPer100g: true },
   });
   const shopping = new Map<string, {
     category: string;
@@ -85,6 +91,8 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     return `${name} - ${quantity}`;
   });
   const estimatedCost = [...shopping.values()].reduce((total, item) => total + shoppingItemCost(item), 0);
+  const missingPriceCount = [...shopping.values()].filter((item) => item.pricePerKg == null).length;
+  const monthlyBudget = buildFluxaShoppingBudget(planMeals.flatMap((meal) => meal.items), 30);
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
       const n = nutrientsForGrams({
@@ -109,6 +117,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Montador de dieta</h1>
       <p className="mt-3 max-w-2xl text-zinc-400">Gere um plano inicial, edite gramas ou registre a dieta do nutricionista. O foco aqui é bater sua meta real do dia.</p>
+      <ReliabilityNotice status={actionStatus ?? reviewIssue} />
       <div className="mt-8 grid items-start gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <GlassCard>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,12 +125,13 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             <div className="flex flex-wrap gap-2">
               <form action={generateAiDietPlanAction} className="flex flex-wrap gap-2">
                 <input name="monthlyBudget" inputMode="decimal" className="h-9 w-36 rounded-full bg-white/10 px-4 text-sm outline-none" placeholder="R$/mês" />
-                <button className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Gerar com IA</button>
+                <SubmitButton className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Gerar com IA</SubmitButton>
               </form>
-              <form action={generateDietPlanAction}><button className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">Gerar básico</button></form>
+              <form action={generateDietPlanAction}><SubmitButton className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">Gerar básico</SubmitButton></form>
             </div>
           </div>
-          <form action={createManualDietPlanAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+          <form id="plano-manual" action={createManualDietPlanAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+            <SafetyReview required={Boolean(reviewIssue)} />
             <div className="flex flex-wrap items-end gap-3">
               <label className="min-w-0 flex-1">
                 <span className="text-sm text-zinc-400">Plano manual do nutricionista</span>
@@ -131,10 +141,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                   placeholder="Ex: Dieta prescrita - fase 1"
                 />
               </label>
-              <button className="inline-flex h-11 items-center gap-2 rounded-full border border-white/15 px-4 text-sm font-semibold text-white transition hover:bg-white/10">
+              <SubmitButton className="inline-flex h-11 items-center gap-2 rounded-full border border-white/15 px-4 text-sm font-semibold text-white transition hover:bg-white/10">
                 <Plus size={16} />
                 Criar manual
-              </button>
+              </SubmitButton>
             </div>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
               Use quando o cliente já tem dieta do nutricionista. Depois adicione alimento e gramas em cada refeição.
@@ -167,19 +177,20 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                             {Math.round(summary.kcal)} kcal · P {Math.round(summary.protein)}g C {Math.round(summary.carbs)}g G {Math.round(summary.fat)}g
                           </p>
                         </div>
-                        <div className="flex shrink-0 gap-1">
+                        <div className="flex min-w-0 flex-wrap gap-1">
                           {!dietPlan.isActive ? (
-                            <form action={setActiveDietPlanAction}>
+                            <form action={setActiveDietPlanAction} className="max-w-60">
+                              <SafetyReview required={Boolean(reviewIssue)} />
                               <input type="hidden" name="planId" value={dietPlan.id} />
-                              <button className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:bg-white/15">Usar</button>
+                              <SubmitButton className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:bg-white/15">Usar</SubmitButton>
                             </form>
                           ) : null}
                           {dietPlans.length > 1 ? (
                             <form action={deleteDietPlanAction}>
                               <input type="hidden" name="planId" value={dietPlan.id} />
-                              <button className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir dieta">
+                              <SubmitButton className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir dieta">
                                 <Trash2 size={14} />
-                              </button>
+                              </SubmitButton>
                             </form>
                           ) : null}
                         </div>
@@ -199,9 +210,9 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 className="h-11 w-full rounded-2xl bg-white/10 px-4 text-sm outline-none transition focus:ring-1 focus:ring-lime-300/50"
                 placeholder="Nova proteína. Ex: tilápia, patinho, whey"
               />
-              <button disabled={!plan} className="inline-flex h-11 items-center justify-center rounded-full bg-lime-300 px-5 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40">
+              <SubmitButton disabled={!plan} className="inline-flex h-11 items-center justify-center rounded-full bg-lime-300 px-5 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40">
                 Criar variação
-              </button>
+              </SubmitButton>
             </form>
             <p className="mt-3 text-xs leading-5 text-zinc-500">
               A troca preserva aproximadamente a proteína da refeição. Calorias e gordura podem mudar conforme o alimento escolhido.
@@ -215,9 +226,9 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                   Marque só as refeições que você realmente faz. Se você treina 6h e não usa pré-treino, desmarque essa opção.
                 </p>
               </div>
-              <button disabled={!plan} className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40">
+              <SubmitButton disabled={!plan} className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40">
                 Salvar refeições
-              </button>
+              </SubmitButton>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {mealChoices.map((mealName) => (
@@ -283,9 +294,9 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                           </div>
                           <form action={removeRecipeFromDietMealAction}>
                             <input type="hidden" name="recipeBatchId" value={group.recipeBatchId ?? ""} />
-                            <button className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label={`Remover receita ${group.name}`}>
+                            <SubmitButton className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label={`Remover receita ${group.name}`}>
                               <Trash2 size={15} />
-                            </button>
+                            </SubmitButton>
                           </form>
                         </div>
                       );
@@ -307,33 +318,34 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                         <form action={updateDietItemGramsAction} className="flex items-center gap-2">
                           <input type="hidden" name="itemId" value={item.id} />
                           <input name="grams" defaultValue={item.grams} className="h-9 w-24 rounded-xl bg-white/10 px-3 text-sm outline-none" />
-                          <button className="rounded-full bg-white/10 px-3 py-2 text-xs">Salvar</button>
+                          <SubmitButton className="rounded-full bg-white/10 px-3 py-2 text-xs">Salvar</SubmitButton>
                         </form>
                         <form action={removeDietItemAction}>
                           <input type="hidden" name="itemId" value={item.id} />
-                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Remover alimento">
+                          <SubmitButton className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Remover alimento">
                             <Trash2 size={15} />
-                          </button>
+                          </SubmitButton>
                         </form>
                       </div>
                     );
                   })}
                   <form action={addManualDietItemAction} className="grid gap-2 rounded-2xl border border-dashed border-white/10 bg-black/20 p-3 md:grid-cols-[minmax(0,1fr)_110px_auto]">
                     <input type="hidden" name="mealId" value={meal.id} />
+                    <SafetyReview required={Boolean(reviewIssue)} />
                     <FoodSearchField
                       foods={foods}
                       className="h-10 w-full rounded-xl bg-white/10 px-3 text-sm outline-none transition focus:ring-1 focus:ring-lime-300/50"
                       placeholder="Digite para buscar alimento"
                     />
                     <input name="grams" inputMode="decimal" className="h-10 rounded-xl bg-white/10 px-3 text-sm outline-none" placeholder="gramas" required />
-                    <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
+                    <SubmitButton className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
                       <Plus size={15} />
                       Adicionar
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>
-            )) : <p className="text-sm text-zinc-500">Clique em gerar plano para criar uma dieta inicial com alimentos brasileiros comuns.</p>}
+            )) : <p className="text-sm text-zinc-500">Gere um plano, monte uma dieta manual ou escolha Usar em uma das opções salvas.</p>}
           </div>
         </GlassCard>
         <GlassCard className="lg:sticky lg:top-24">
@@ -354,12 +366,15 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               <p className="text-sm font-medium text-zinc-200">Meta de mercado no Fluxa</p>
               <p className="mt-1 text-xs text-zinc-500">Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga.</p>
             </div>
-            <form action={syncShoppingBudgetToFluxaAction}>
+            <form action={syncShoppingBudgetToFluxaAction} className="grid w-full gap-3">
+              <p className="text-sm text-zinc-200">Valor para 30 dias: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {monthlyBudget.items.length} itens com preço.</p>
+              <p className="text-xs leading-5 text-zinc-400">Ao confirmar, a meta mensal de Mercado será substituída por este valor. Uma meta ajustada manualmente no Fluxa também será substituída.</p>
+              {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-amber-100"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1 accent-lime-300" />Estou ciente de que {monthlyBudget.summary.missingPriceCount} itens estão sem preço e quero enviar apenas a estimativa parcial.</label> : null}
               <input type="hidden" name="periodo" value={periodo ?? "quinzenal"} />
-              <button className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15">
+              <SubmitButton disabled={!plan?.isActive || monthlyBudget.summary.estimatedTotal <= 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-40">
                 <Send size={15} />
-                Atualizar meta
-              </button>
+                Confirmar atualização da meta
+              </SubmitButton>
             </form>
           </div>
           {fluxa ? <FluxaSyncStatus status={fluxa} /> : null}
@@ -388,18 +403,19 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 {item.isWholeChickenEgg ? (
                   <p className="mt-1 text-xs text-zinc-500">Conversão: 1 ovo = aproximadamente 53 g.</p>
                 ) : null}
-                {item.pricePerKg ? (
+                {item.pricePerKg != null ? (
                   <p className="mt-1 text-xs text-zinc-500">
                     {item.isWholeChickenEgg ? `R$ ${wholeEggUnitPrice(item.pricePerKg).toFixed(2).replace(".", ",")}/unidade - ` : ""}
                     Estimado: R$ {shoppingItemCost(item).toFixed(2).replace(".", ",")}
                   </p>
-                ) : null}
+                ) : <p className="mt-1 text-xs text-amber-200">Sem preço · fora da estimativa</p>}
               </div>
             ))}
             {!shopping.size ? <p className="text-zinc-500">Gere um plano para ver a lista.</p> : null}
             {estimatedCost > 0 ? (
               <div className="rounded-2xl border border-lime-300/20 bg-lime-300/10 px-4 py-3 text-lime-100">
-                Custo estimado do período: R$ {estimatedCost.toFixed(2)}
+                {missingPriceCount > 0 ? "Estimativa parcial" : "Custo estimado do período"}: {estimatedCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                <p className="mt-1 text-xs">{shopping.size - missingPriceCount} de {shopping.size} itens com preço.{missingPriceCount > 0 ? " O total da compra será maior ao incluir os itens faltantes." : " Valores podem variar por marca e mercado."}</p>
               </div>
             ) : (
               shopping.size ? <p className="text-xs leading-5 text-zinc-500">Preencha os preços dos alimentos para estimar o custo da lista.</p> : null
@@ -414,9 +430,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
 function FluxaSyncStatus({ status }: { status: string }) {
   const messages: Record<string, { text: string; tone: string }> = {
     ok: { text: "Meta mensal de Mercado atualizada no Fluxa.", tone: "border-lime-300/25 bg-lime-300/10 text-lime-100" },
-    config: { text: "Integração ainda não configurada na Vercel.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
+    config: { text: "A conexão com o Fluxa ainda não está disponível. Tente novamente mais tarde.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
     "no-plan": { text: "Ative uma dieta antes de enviar ao Fluxa.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
     "no-prices": { text: "Cadastre preços nos alimentos antes de enviar o orçamento.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
+    "partial-prices": { text: "Há itens sem preço. Confira o valor mensal e confirme o envio da estimativa parcial.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
     account: { text: "Não encontrei no Fluxa uma conta com o mesmo e-mail.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
     offline: { text: "O Fluxa não respondeu. Tente novamente em alguns instantes.", tone: "border-red-300/25 bg-red-300/10 text-red-100" },
     error: { text: "O Fluxa recusou a sincronização. Confira a configuração.", tone: "border-red-300/25 bg-red-300/10 text-red-100" },

@@ -5,16 +5,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { appDateParts } from "@/lib/date-time";
-import { findFoodByQuery } from "@/lib/food-search";
 import { buildFluxaShoppingBudget, signFluxaPayload } from "@/lib/fluxa-integration";
 import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, computeProfileMetrics } from "@/lib/profile";
+import { dietaryReviewIssue, foodAllowedForProfile, planCompatibilityIssue, manualPlanCompatibilityIssue, prepareCalorieMatchedPlan, starterMealDrafts, starterMealsForNames, type MealDraft } from "@/lib/food-reliability";
 
-type AiMeal = {
-  name: string;
-  items: Array<{ foodName: string; grams: number }>;
-};
+type AiMeal = MealDraft;
 
 export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -35,6 +32,7 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
 
   const budget = buildFluxaShoppingBudget(plan.meals.flatMap((meal) => meal.items), 30);
   if (budget.summary.estimatedTotal <= 0) redirect(`${returnUrl}&fluxa=no-prices`);
+  if (budget.summary.missingPriceCount > 0 && formData.get("confirmPartialEstimate") !== "on") redirect(`${returnUrl}&fluxa=partial-prices`);
 
   const now = new Date();
   const currentDate = appDateParts(now);
@@ -61,6 +59,7 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
       },
       body,
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
     status = response.ok ? "ok" : response.status === 404 ? "account" : "error";
   } catch {
@@ -72,137 +71,87 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
 
 export async function generateDietPlanAction() {
   const user = await getCurrentUser();
-  if (!user) return;
-
+  if (!user) redirect("/login");
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  if (!profile) return;
-
+  if (!profile) redirect("/onboarding");
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const foods = await prisma.food.findMany({
-    where: { name: { in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"] } },
+    where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }], name: { in: starterMealDrafts.flatMap((meal) => meal.items.map((item) => item.foodName)) } },
   });
-  const byName = new Map(foods.map((food) => [food.name, food]));
   const selectedMealNames = await getPreferredMealNames(user.id);
-  const meals = filterMealsBySelection([
-    { name: "Café da manhã", items: [["Aveia em flocos", 60], ["Banana prata", 100], ["Ovo de galinha inteiro", 100]] },
-    { name: "Almoço", items: [["Arroz branco cozido", 180], ["Feijao carioca cozido", 120], ["Peito de frango grelhado", 180]] },
-    { name: "Pré-treino", items: [["Banana prata", 120], ["Aveia em flocos", 30]] },
-    { name: "Jantar", items: [["Tilapia grelhada", 180], ["Batata doce cozida", 220]] },
-    { name: "Ceia", items: [["Ovo de galinha inteiro", 100]] },
-  ], selectedMealNames);
-
-  await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
-  await prisma.dietPlan.create({
-    data: {
-      userId: user.id,
-      name: `Plano ${new Date().toLocaleDateString("pt-BR")}`,
-      goal: profile.goal,
-      targetCalories: metrics.targets.calories,
-      targetProteinG: metrics.targets.proteinG,
-      targetCarbsG: metrics.targets.carbsG,
-      targetFatG: metrics.targets.fatG,
-      targetFiberG: metrics.targets.fiberG,
-      sodiumLimitMg: metrics.targets.sodiumMg,
-      isActive: true,
-      meals: {
-        create: meals.map((meal, index) => ({
-          name: meal.name,
-          order: index + 1,
-          items: {
-            create: meal.items.flatMap(([foodName, grams]) => {
-              const food = byName.get(String(foodName));
-              return food ? [{ foodId: food.id, grams: Number(grams) }] : [];
-            }),
-          },
-        })),
-      },
-    },
-  });
-
+  const prepared = prepareCalorieMatchedPlan(starterMealsForNames(selectedMealNames), foods, profile, metrics.targets.calories);
+  if (!prepared.meals) redirect(`/dieta?dietStatus=${prepared.issue}`);
+  await saveDietPlan({ userId: user.id, profile, metrics, meals: prepared.meals, byName: new Map(foods.map((food) => [food.name, food])), name: `Plano ${new Date().toLocaleDateString("pt-BR")}` });
   revalidatePath("/dieta");
+  revalidatePath("/dashboard");
+  redirect("/dieta?dietStatus=plan-created");
 }
 
 export async function generateAiDietPlanAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
-
+  if (!user) redirect("/login");
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  if (!profile) return;
-
+  if (!profile) redirect("/onboarding");
+  const review = dietaryReviewIssue(profile);
+  if (review) redirect(`/dieta?dietStatus=${review}`);
+  if (!process.env.GEMINI_API_KEY) redirect("/dieta?dietStatus=ai-unavailable");
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const monthlyBudget = Number(String(formData.get("monthlyBudget") ?? "").replace(",", "."));
   const selectedMealNames = await getPreferredMealNames(user.id);
-  const foods = await prisma.food.findMany({ orderBy: { name: "asc" }, take: 80 });
-  const foodNames = new Set(foods.map((food) => food.name));
-  const byName = new Map(foods.map((food) => [food.name, food]));
-  const meals = process.env.GEMINI_API_KEY
-    ? await generateMealsWithGemini({
-        foods: foods.map((food) => ({
-          name: food.name,
-          kcal: food.kcalPer100g,
-          protein: food.proteinPer100g,
-          carbs: food.carbsPer100g,
-          fat: food.fatPer100g,
-          pricePerKg: food.pricePerKg,
-        })),
-        targets: metrics.targets,
-        dislikedFoods: profile.dislikedFoods,
-        restrictions: profile.restrictions,
-        dietPreference: profile.dietPreference ?? "balanced",
-        monthlyBudget: Number.isFinite(monthlyBudget) && monthlyBudget > 0 ? monthlyBudget : undefined,
-        mealNames: selectedMealNames,
-      })
-    : null;
-
-  const validMeals = (meals ?? fallbackMeals()).map((meal) => ({
-    ...meal,
-    items: meal.items.filter((item) => foodNames.has(item.foodName) && Number.isFinite(item.grams) && item.grams > 0),
-  })).filter((meal) => meal.items.length > 0);
-
-  await saveDietPlan({
-    userId: user.id,
-    profile,
-    metrics,
-    meals: validMeals.length ? validMeals : filterMealsBySelection(fallbackMeals(), selectedMealNames),
-    byName,
-    name: `Plano IA ${new Date().toLocaleDateString("pt-BR")}`,
+  const candidates = await prisma.food.findMany({ where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] }, orderBy: { name: "asc" } });
+  const foods = candidates.filter((food) => foodAllowedForProfile(food.name, profile));
+  if (!foods.length) redirect("/dieta?dietStatus=insufficient-foods");
+  const meals = await generateMealsWithGemini({
+    foods: foods.map((food) => ({ name: food.name, kcal: food.kcalPer100g, protein: food.proteinPer100g, carbs: food.carbsPer100g, fat: food.fatPer100g, pricePerKg: food.pricePerKg })),
+    targets: metrics.targets, dislikedFoods: profile.dislikedFoods, restrictions: profile.restrictions,
+    dietPreference: profile.dietPreference ?? "balanced", monthlyBudget: Number.isFinite(monthlyBudget) && monthlyBudget > 0 ? monthlyBudget : undefined, mealNames: selectedMealNames,
   });
-
+  const allowedNames = new Set(foods.map((food) => food.name));
+  if (!meals || meals.length !== selectedMealNames.length || new Set(meals.map((meal) => meal.name)).size !== selectedMealNames.length || meals.some((meal) => !selectedMealNames.includes(meal.name) || !Array.isArray(meal.items) || !meal.items.length || meal.items.some((item) => !allowedNames.has(item.foodName) || !Number.isFinite(item.grams) || item.grams <= 0))) redirect("/dieta?dietStatus=ai-unavailable");
+  const prepared = prepareCalorieMatchedPlan(meals, foods, profile, metrics.targets.calories);
+  if (!prepared.meals) redirect(`/dieta?dietStatus=${prepared.issue}`);
+  await saveDietPlan({ userId: user.id, profile, metrics, meals: prepared.meals, byName: new Map(foods.map((food) => [food.name, food])), name: `Plano IA ${new Date().toLocaleDateString("pt-BR")}` });
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
+  redirect("/dieta?dietStatus=plan-created");
 }
 
 export async function createManualDietPlanAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  if (!profile) return;
+  if (!profile) redirect("/onboarding");
 
+  const review = dietaryReviewIssue(profile);
+  if (review && formData.get("confirmSafetyReview") !== "on") redirect(`/dieta?dietStatus=${review}`);
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
   const name = String(formData.get("name") ?? "").trim() || `Plano manual ${new Date().toLocaleDateString("pt-BR")}`;
   const manualMealNames = baseMealNames;
 
-  await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
-  await prisma.dietPlan.create({
-    data: {
-      userId: user.id,
-      name,
-      goal: profile.goal,
-      targetCalories: metrics.targets.calories,
-      targetProteinG: metrics.targets.proteinG,
-      targetCarbsG: metrics.targets.carbsG,
-      targetFatG: metrics.targets.fatG,
-      targetFiberG: metrics.targets.fiberG,
-      sodiumLimitMg: metrics.targets.sodiumMg,
-      isActive: true,
-      meals: {
-        create: manualMealNames.map((mealName, index) => ({
-          name: mealName,
-          order: index + 1,
-        })),
+  await prisma.$transaction(async (tx) => {
+    await tx.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
+    await tx.dietPlan.create({
+      data: {
+        userId: user.id,
+        name,
+        goal: profile.goal,
+        targetCalories: metrics.targets.calories,
+        targetProteinG: metrics.targets.proteinG,
+        targetCarbsG: metrics.targets.carbsG,
+        targetFatG: metrics.targets.fatG,
+        targetFiberG: metrics.targets.fiberG,
+        sodiumLimitMg: metrics.targets.sodiumMg,
+        isActive: true,
+        meals: {
+          create: manualMealNames.map((mealName, index) => ({
+            name: mealName,
+            order: index + 1,
+          })),
+        },
       },
-    },
+    });
+
   });
 
   revalidatePath("/dieta");
@@ -211,11 +160,15 @@ export async function createManualDietPlanAction(formData: FormData) {
 
 export async function setActiveDietPlanAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const planId = String(formData.get("planId") ?? "");
-  const plan = await prisma.dietPlan.findFirst({ where: { id: planId, userId: user.id }, select: { id: true } });
+  const plan = await prisma.dietPlan.findFirst({ where: { id: planId, userId: user.id }, include: { meals: { include: { items: { include: { food: true } } } } } });
   if (!plan) return;
+  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
+  if (!profile) redirect("/onboarding");
+  const issue = manualPlanCompatibilityIssue(plan.meals.flatMap((meal) => meal.items.map((item) => item.food.name)), profile, formData.get("confirmSafetyReview") === "on");
+  if (issue) redirect(`/dieta?dietStatus=${issue}`);
 
   await prisma.$transaction([
     prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } }),
@@ -228,7 +181,7 @@ export async function setActiveDietPlanAction(formData: FormData) {
 
 export async function deleteDietPlanAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const planId = String(formData.get("planId") ?? "");
   const plan = await prisma.dietPlan.findFirst({ where: { id: planId, userId: user.id }, select: { id: true, isActive: true } });
@@ -239,10 +192,6 @@ export async function deleteDietPlanAction(formData: FormData) {
 
   await prisma.dietPlan.delete({ where: { id: plan.id } });
 
-  if (plan.isActive) {
-    const nextPlan = await prisma.dietPlan.findFirst({ where: { userId: user.id }, orderBy: { updatedAt: "desc" }, select: { id: true } });
-    if (nextPlan) await prisma.dietPlan.update({ where: { id: nextPlan.id }, data: { isActive: true } });
-  }
 
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
@@ -250,57 +199,64 @@ export async function deleteDietPlanAction(formData: FormData) {
 
 export async function createProteinSwapDietPlanAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const foodId = String(formData.get("foodId") ?? "");
-  const foodQuery = String(formData.get("foodQuery") ?? "").trim();
   const variantName = String(formData.get("variantName") ?? "").trim();
-  if (!foodId && !foodQuery) return;
+  if (!foodId) redirect("/dieta?dietStatus=invalid-ingredients");
 
   const [activePlan, selectedFoodCandidate] = await Promise.all([
     prisma.dietPlan.findFirst({
       where: { userId: user.id, isActive: true },
       include: { meals: { include: { items: { include: { food: true } } }, orderBy: { order: "asc" } } },
     }),
-    foodId ? prisma.food.findUnique({ where: { id: foodId } }) : findFoodByQuery(foodQuery),
+    prisma.food.findFirst({ where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] } }),
   ]);
-  const selectedFood = selectedFoodCandidate
-    ? await prisma.food.findUnique({ where: { id: selectedFoodCandidate.id } })
-    : null;
-  if (!activePlan || !selectedFood || selectedFood.proteinPer100g <= 0) return;
+  const selectedFood = selectedFoodCandidate;
+  if (!activePlan || !selectedFood || selectedFood.proteinPer100g <= 0) redirect("/dieta?dietStatus=invalid-ingredients");
 
-  await prisma.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
-  await prisma.dietPlan.create({
-    data: {
-      userId: user.id,
-      name: variantName || nextVariantName(activePlan.name, selectedFood.name),
-      goal: activePlan.goal,
-      targetCalories: activePlan.targetCalories,
-      targetProteinG: activePlan.targetProteinG,
-      targetCarbsG: activePlan.targetCarbsG,
-      targetFatG: activePlan.targetFatG,
-      targetFiberG: activePlan.targetFiberG,
-      sodiumLimitMg: activePlan.sodiumLimitMg,
-      isActive: true,
-      meals: {
-        create: activePlan.meals.map((meal) => ({
-          name: meal.name,
-          order: meal.order,
-          macroShare: meal.macroShare ?? undefined,
-          items: {
-            create: meal.items.map((item) => {
-              const shouldSwap = isPrimaryProteinFood(item.food);
-              return {
-                foodId: shouldSwap ? selectedFood.id : item.foodId,
-                grams: shouldSwap ? equivalentProteinGrams(item.grams, item.food.proteinPer100g, selectedFood.proteinPer100g) : item.grams,
-                isFixed: item.isFixed,
-                isBlocked: item.isBlocked,
-              };
-            }),
-          },
-        })),
+  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
+  if (!profile) redirect("/onboarding");
+  const names = activePlan.meals.flatMap((meal) => meal.items.map((item) => isPrimaryProteinFood(item.food) ? selectedFood.name : item.food.name));
+  const issue = planCompatibilityIssue(names, profile);
+  if (issue) redirect(`/dieta?dietStatus=${issue}`);
+  if (activePlan.meals.some((meal) => meal.items.some((item) => isPrimaryProteinFood(item.food) && equivalentProteinGrams(item.grams, item.food.proteinPer100g, selectedFood.proteinPer100g) > 800))) redirect("/dieta?dietStatus=invalid-target");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dietPlan.updateMany({ where: { userId: user.id }, data: { isActive: false } });
+    await tx.dietPlan.create({
+      data: {
+        userId: user.id,
+        name: variantName || nextVariantName(activePlan.name, selectedFood.name),
+        goal: activePlan.goal,
+        targetCalories: activePlan.targetCalories,
+        targetProteinG: activePlan.targetProteinG,
+        targetCarbsG: activePlan.targetCarbsG,
+        targetFatG: activePlan.targetFatG,
+        targetFiberG: activePlan.targetFiberG,
+        sodiumLimitMg: activePlan.sodiumLimitMg,
+        isActive: true,
+        meals: {
+          create: activePlan.meals.map((meal) => ({
+            name: meal.name,
+            order: meal.order,
+            macroShare: meal.macroShare ?? undefined,
+            items: {
+              create: meal.items.map((item) => {
+                const shouldSwap = isPrimaryProteinFood(item.food);
+                return {
+                  foodId: shouldSwap ? selectedFood.id : item.foodId,
+                  grams: shouldSwap ? equivalentProteinGrams(item.grams, item.food.proteinPer100g, selectedFood.proteinPer100g) : item.grams,
+                  isFixed: item.isFixed,
+                  isBlocked: item.isBlocked,
+                };
+              }),
+            },
+          })),
+        },
       },
-    },
+    });
+
   });
 
   revalidatePath("/dieta");
@@ -309,7 +265,7 @@ export async function createProteinSwapDietPlanAction(formData: FormData) {
 
 export async function updateDietMealsAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const selected = [...new Set(formData.getAll("mealNames").map((value) => normalizeMealName(String(value))).filter(Boolean))];
   if (!selected.length) return;
@@ -365,13 +321,12 @@ export async function updateDietMealsAction(formData: FormData) {
 
 export async function addManualDietItemAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const mealId = String(formData.get("mealId") ?? "");
   const foodId = String(formData.get("foodId") ?? "");
-  const foodQuery = String(formData.get("foodQuery") ?? "").trim();
   const grams = Number(String(formData.get("grams") ?? "").replace(",", "."));
-  if (!mealId || (!foodId && !foodQuery) || !Number.isFinite(grams) || grams <= 0) return;
+  if (!mealId || !foodId || !Number.isFinite(grams) || grams <= 0 || grams > 10000) redirect("/dieta?dietStatus=invalid-ingredients");
 
   const meal = await prisma.dietMeal.findFirst({
     where: { id: mealId, dietPlan: { userId: user.id, isActive: true } },
@@ -379,10 +334,12 @@ export async function addManualDietItemAction(formData: FormData) {
   });
   if (!meal) return;
 
-  const food = foodId
-    ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
-    : await findFoodByQuery(foodQuery);
-  if (!food) return;
+  const food = await prisma.food.findFirst({ where: { id: foodId, OR: [{ createdByUserId: null }, { createdByUserId: user.id }] } });
+  if (!food) redirect("/dieta?dietStatus=invalid-ingredients");
+  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
+  if (!profile) redirect("/onboarding");
+  const issue = manualPlanCompatibilityIssue([food.name], profile, formData.get("confirmSafetyReview") === "on");
+  if (issue) redirect(`/dieta?dietStatus=${issue}`);
 
   await prisma.dietMealItem.create({
     data: {
@@ -398,11 +355,11 @@ export async function addManualDietItemAction(formData: FormData) {
 
 export async function updateDietItemGramsAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const itemId = String(formData.get("itemId") ?? "");
   const grams = Number(String(formData.get("grams") ?? "").replace(",", "."));
-  if (!itemId || !Number.isFinite(grams) || grams <= 0) return;
+  if (!itemId || !Number.isFinite(grams) || grams <= 0 || grams > 10000) redirect("/dieta?dietStatus=invalid-ingredients");
 
   await prisma.dietMealItem.updateMany({
     where: { id: itemId, meal: { dietPlan: { userId: user.id } } },
@@ -414,7 +371,7 @@ export async function updateDietItemGramsAction(formData: FormData) {
 
 export async function removeDietItemAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const itemId = String(formData.get("itemId") ?? "");
   if (!itemId) return;
@@ -429,7 +386,7 @@ export async function removeDietItemAction(formData: FormData) {
 
 export async function removeRecipeFromDietMealAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const recipeBatchId = String(formData.get("recipeBatchId") ?? "");
   if (!recipeBatchId) return;
@@ -454,7 +411,7 @@ async function generateMealsWithGemini(input: {
   mealNames: string[];
 }): Promise<AiMeal[] | null> {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 20000 } });
     const response = await ai.models.generateContent({
       model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
       contents: [{
@@ -483,7 +440,7 @@ async function generateMealsWithGemini(input: {
       }],
     });
     const parsed = JSON.parse((response.text ?? "").replace(/^```json|```$/g, "").trim()) as { meals?: AiMeal[] };
-    return Array.isArray(parsed.meals) ? parsed.meals : null;
+    return Array.isArray(parsed.meals) && parsed.meals.every((meal) => meal && typeof meal.name === "string" && Array.isArray(meal.items) && meal.items.every((item) => item && typeof item.foodName === "string" && typeof item.grams === "number")) ? parsed.meals : null;
   } catch {
     return null;
   }
@@ -508,42 +465,37 @@ async function saveDietPlan(input: {
   byName: Map<string, { id: string }>;
   name: string;
 }) {
-  await prisma.dietPlan.updateMany({ where: { userId: input.userId }, data: { isActive: false } });
-  await prisma.dietPlan.create({
-    data: {
-      userId: input.userId,
-      name: input.name,
-      goal: input.profile.goal,
-      targetCalories: input.metrics.targets.calories,
-      targetProteinG: input.metrics.targets.proteinG,
-      targetCarbsG: input.metrics.targets.carbsG,
-      targetFatG: input.metrics.targets.fatG,
-      targetFiberG: input.metrics.targets.fiberG,
-      sodiumLimitMg: input.metrics.targets.sodiumMg,
-      isActive: true,
-      meals: {
-        create: input.meals.map((meal, index) => ({
-          name: meal.name,
-          order: index + 1,
-          items: {
-            create: meal.items.flatMap((item) => {
-              const food = input.byName.get(item.foodName);
-              return food ? [{ foodId: food.id, grams: Math.round(item.grams) }] : [];
-            }),
-          },
-        })),
+  const issue = planCompatibilityIssue(input.meals.flatMap((meal) => meal.items.map((item) => item.foodName)), input.profile);
+  if (issue) redirect(`/dieta?dietStatus=${issue}`);
+  await prisma.$transaction(async (tx) => {
+    await tx.dietPlan.updateMany({ where: { userId: input.userId }, data: { isActive: false } });
+    await tx.dietPlan.create({
+      data: {
+        userId: input.userId,
+        name: input.name,
+        goal: input.profile.goal,
+        targetCalories: input.metrics.targets.calories,
+        targetProteinG: input.metrics.targets.proteinG,
+        targetCarbsG: input.metrics.targets.carbsG,
+        targetFatG: input.metrics.targets.fatG,
+        targetFiberG: input.metrics.targets.fiberG,
+        sodiumLimitMg: input.metrics.targets.sodiumMg,
+        isActive: true,
+        meals: {
+          create: input.meals.map((meal, index) => ({
+            name: meal.name,
+            order: index + 1,
+            items: {
+              create: meal.items.flatMap((item) => {
+                const food = input.byName.get(item.foodName);
+                return food ? [{ foodId: food.id, grams: item.grams }] : [];
+              }),
+            },
+          })),
+        },
       },
-    },
+    });
   });
-}
-
-function fallbackMeals(): AiMeal[] {
-  return [
-    { name: "Café da manhã", items: [{ foodName: "Aveia em flocos", grams: 60 }, { foodName: "Banana prata", grams: 100 }, { foodName: "Ovo de galinha inteiro", grams: 100 }] },
-    { name: "Almoço", items: [{ foodName: "Arroz branco cozido", grams: 180 }, { foodName: "Feijao carioca cozido", grams: 120 }, { foodName: "Peito de frango grelhado", grams: 180 }] },
-    { name: "Pré-treino", items: [{ foodName: "Banana prata", grams: 120 }, { foodName: "Aveia em flocos", grams: 30 }] },
-    { name: "Jantar", items: [{ foodName: "Tilapia grelhada", grams: 180 }, { foodName: "Batata doce cozida", grams: 220 }] },
-  ];
 }
 
 async function getPreferredMealNames(userId: string) {
@@ -554,12 +506,6 @@ async function getPreferredMealNames(userId: string) {
 
   const mealNames = activePlan?.meals.map((meal) => meal.name).filter(Boolean) ?? [];
   return mealNames.length ? [...new Set(mealNames.map(normalizeMealName))] : [...baseMealNames];
-}
-
-function filterMealsBySelection<T extends { name: string }>(meals: T[], selectedNames: string[]) {
-  const selected = new Set(selectedNames);
-  const filtered = meals.filter((meal) => selected.has(meal.name));
-  return filtered.length ? filtered : meals.filter((meal) => baseMealNames.includes(meal.name as (typeof baseMealNames)[number]));
 }
 
 type ProteinFood = {

@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createBodyCompositionSnapshot } from "@/lib/body-composition";
 import { prisma } from "@/lib/prisma";
-import { activityFactors, advancedMacroTargets, guidedMacroTargets, calculateBmr, calculateTdee, MAX_CALORIE_DEFICIT_KCAL, type ActivityLevel, type Goal, type Sex } from "@/lib/nutrition";
+import { activityFactors, advancedMacroTargets, guidedMacroTargets, calculateBmr, calculateTdee } from "@/lib/nutrition";
+import { parseOnboardingInput } from "@/lib/onboarding-input";
+import { planCompatibilityIssue, prepareCalorieMatchedPlan, starterMealDrafts, type DietaryProfile } from "@/lib/food-reliability";
 
 const sexMap = {
   male: "MALE",
@@ -32,40 +34,36 @@ export async function saveOnboardingAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const sex = String(formData.get("sex")) as Sex;
-  const goal = String(formData.get("goal")) as Goal;
-  const activityLevel = String(formData.get("activityLevel")) as ActivityLevel;
-  const experience = String(formData.get("experience")) as keyof typeof experienceMap;
-  const mode = String(formData.get("mode")) as keyof typeof modeMap;
-  const age = Number(formData.get("age"));
-  const heightCm = normalizeHeight(String(formData.get("height") ?? ""));
-  const weightKg = normalizeDecimal(String(formData.get("weight") ?? ""));
-  const neckCm = optionalDecimal(formData.get("neckCm"));
-  const waistCm = optionalDecimal(formData.get("waistCm"));
-  const hipCm = sex === "female" ? optionalDecimal(formData.get("hipCm")) : null;
-  const guidedActivityFactor = activityFactors[activityLevel];
-  const manualActivityFactor = normalizeDecimal(String(formData.get("manualActivityFactor") ?? ""));
-  const activityFactor =
-    mode === "advanced" && Number.isFinite(manualActivityFactor) && manualActivityFactor >= 1.1 && manualActivityFactor <= 2.2
-      ? manualActivityFactor
-      : guidedActivityFactor;
-
+  const parsed = parseOnboardingInput(formData, user.name);
+  if (!parsed.success) {
+    const field = String(parsed.error.issues[0]?.path[0] ?? "dados");
+    redirect(`/onboarding?onboardingError=invalid-input&field=${encodeURIComponent(field)}`);
+  }
+  const { sex, goal, activityLevel, experience, mode, age, heightCm, weightKg, neckCm, waistCm,
+    manualActivityFactor, deficitKcal, proteinPerKg, fatPerKg, dietPreference, name } = parsed.data;
+  const hipCm = parsed.data.hipCm ?? null;
+  const dietaryProfile = {
+    restrictions: splitList(String(formData.get("restrictions") ?? "")),
+    allergies: splitList(String(formData.get("allergies") ?? "")),
+    dislikedFoods: splitList(String(formData.get("dislikedFoods") ?? "")),
+  };
+  const activityFactor = mode === "advanced" && manualActivityFactor !== undefined ? manualActivityFactor : activityFactors[activityLevel];
   const bmr = calculateBmr({ sex, age, heightCm, weightKg });
   const tdee = calculateTdee(bmr, activityFactor);
-  const requestedDeficit = Number(formData.get("calorieDeficitKcal") ?? 400);
-  const deficitKcal = Number.isFinite(requestedDeficit) ? Math.min(MAX_CALORIE_DEFICIT_KCAL, Math.max(100, requestedDeficit)) : 400;
   const calorieAdjustment = goal === "fat_loss" ? -deficitKcal : undefined;
-  const proteinPerKg = clampNumber(normalizeDecimal(String(formData.get("proteinPerKg") ?? "2")), 1.2, 3);
-  const fatPerKg = clampNumber(normalizeDecimal(String(formData.get("fatPerKg") ?? "0.8")), 0.4, 1.5);
   const targets =
     mode === "advanced"
       ? advancedMacroTargets({ calories: goal === "fat_loss" ? tdee - deficitKcal : goal === "muscle_gain" ? tdee + 300 : tdee, weightKg, proteinPerKg, fatPerKg, useRemainingCarbs: true, fiberG: 30, sodiumMg: 2300 })
       : guidedMacroTargets({ weightKg, tdee, goal, calorieAdjustment, proteinPerKg, fatPerKg, fiberG: 30, sodiumMg: 2300 });
 
+  if (targets.calories < 1000 || targets.calories > 6000 || targets.proteinG * 4 + targets.fatG * 9 > targets.calories) {
+    redirect("/onboarding?onboardingError=invalid-target");
+  }
+
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      name: String(formData.get("name") ?? user.name).trim(),
+      name,
       profile: {
         upsert: {
           create: {
@@ -79,11 +77,11 @@ export async function saveOnboardingAction(formData: FormData) {
             goal: goalMap[goal],
             activityFactor,
             experience: experienceMap[experience],
-            restrictions: splitList(String(formData.get("restrictions") ?? "")),
-            allergies: splitList(String(formData.get("allergies") ?? "")),
-            dislikedFoods: splitList(String(formData.get("dislikedFoods") ?? "")),
+            restrictions: dietaryProfile.restrictions,
+            allergies: dietaryProfile.allergies,
+            dislikedFoods: dietaryProfile.dislikedFoods,
             medicalConditions: splitList(String(formData.get("medicalConditions") ?? "")),
-            dietPreference: String(formData.get("dietPreference") ?? "balanced"),
+            dietPreference,
             mode: modeMap[mode],
             targetCalories: targets.calories,
             calorieDeficitKcal: goal === "fat_loss" ? deficitKcal : null,
@@ -104,11 +102,11 @@ export async function saveOnboardingAction(formData: FormData) {
             goal: goalMap[goal],
             activityFactor,
             experience: experienceMap[experience],
-            restrictions: splitList(String(formData.get("restrictions") ?? "")),
-            allergies: splitList(String(formData.get("allergies") ?? "")),
-            dislikedFoods: splitList(String(formData.get("dislikedFoods") ?? "")),
+            restrictions: dietaryProfile.restrictions,
+            allergies: dietaryProfile.allergies,
+            dislikedFoods: dietaryProfile.dislikedFoods,
             medicalConditions: splitList(String(formData.get("medicalConditions") ?? "")),
-            dietPreference: String(formData.get("dietPreference") ?? "balanced"),
+            dietPreference,
             mode: modeMap[mode],
             targetCalories: targets.calories,
             calorieDeficitKcal: goal === "fat_loss" ? deficitKcal : null,
@@ -133,69 +131,48 @@ export async function saveOnboardingAction(formData: FormData) {
     hipCm,
   });
 
-  await createStarterDietPlan({
+  const planIssue = await createStarterDietPlan({
     userId: user.id,
     goal: goalMap[goal],
     targets,
+    dietaryProfile,
   });
 
-  redirect("/dashboard");
+  redirect(planIssue ? `/dieta?dietStatus=${planIssue}` : "/dashboard");
 }
 
 async function createStarterDietPlan(input: {
   userId: string;
   goal: (typeof goalMap)[keyof typeof goalMap];
-  targets: ReturnType<typeof guidedMacroTargets> | ReturnType<typeof advancedMacroTargets>;
-}) {
+  targets: ReturnType<typeof guidedMacroTargets>;
+  dietaryProfile: DietaryProfile;
+}): Promise<string | null> {
   const existing = await prisma.dietPlan.findFirst({
     where: { userId: input.userId, isActive: true },
-    select: { id: true },
+    include: { meals: { include: { items: { include: { food: true } } } } },
   });
-  if (existing) return;
-
+  if (existing) {
+    const issue = planCompatibilityIssue(existing.meals.flatMap((meal) => meal.items.map((item) => item.food.name)), input.dietaryProfile);
+    if (issue) await prisma.dietPlan.update({ where: { id: existing.id }, data: { isActive: false } });
+    return issue;
+  }
   const foods = await prisma.food.findMany({
-    where: {
-      createdByUserId: null,
-      name: {
-        in: ["Arroz branco cozido", "Feijao carioca cozido", "Peito de frango grelhado", "Ovo de galinha inteiro", "Aveia em flocos", "Banana prata", "Tilapia grelhada", "Batata doce cozida"],
-      },
-    },
-    select: { id: true, name: true },
+    where: { createdByUserId: null, name: { in: starterMealDrafts.flatMap((meal) => meal.items.map((item) => item.foodName)) } },
+    select: { id: true, name: true, kcalPer100g: true },
   });
+  const prepared = prepareCalorieMatchedPlan(starterMealDrafts.filter((meal) => meal.name !== "Ceia"), foods, input.dietaryProfile, input.targets.calories);
+  if (prepared.issue || !prepared.meals) return prepared.issue;
   const byName = new Map(foods.map((food) => [food.name, food.id]));
-  const meals = [
-    { name: "Café da manhã", items: [["Aveia em flocos", 60], ["Banana prata", 100], ["Ovo de galinha inteiro", 100]] },
-    { name: "Almoço", items: [["Arroz branco cozido", 180], ["Feijao carioca cozido", 120], ["Peito de frango grelhado", 180]] },
-    { name: "Pré-treino", items: [["Banana prata", 120], ["Aveia em flocos", 30]] },
-    { name: "Jantar", items: [["Tilapia grelhada", 180], ["Batata doce cozida", 220]] },
-  ];
-
-  await prisma.dietPlan.create({
-    data: {
-      userId: input.userId,
-      name: `Plano inicial ${new Date().toLocaleDateString("pt-BR")}`,
-      goal: input.goal,
-      targetCalories: input.targets.calories,
-      targetProteinG: input.targets.proteinG,
-      targetCarbsG: input.targets.carbsG,
-      targetFatG: input.targets.fatG,
-      targetFiberG: input.targets.fiberG,
-      sodiumLimitMg: input.targets.sodiumMg,
-      isActive: true,
-      meals: {
-        create: meals.map((meal, index) => ({
-          name: meal.name,
-          order: index + 1,
-          items: {
-            create: meal.items.flatMap(([foodName, grams]) => {
-              const foodId = byName.get(String(foodName));
-              return foodId ? [{ foodId, grams: Number(grams) }] : [];
-            }),
-          },
-        })),
-      },
-    },
-  });
+  await prisma.dietPlan.create({ data: {
+    userId: input.userId, name: `Plano inicial ${new Date().toLocaleDateString("pt-BR")}`,
+    goal: input.goal, targetCalories: input.targets.calories, targetProteinG: input.targets.proteinG,
+    targetCarbsG: input.targets.carbsG, targetFatG: input.targets.fatG, targetFiberG: input.targets.fiberG,
+    sodiumLimitMg: input.targets.sodiumMg, isActive: true,
+    meals: { create: prepared.meals.map((meal, index) => ({ name: meal.name, order: index + 1,
+      items: { create: meal.items.map((item) => ({ foodId: byName.get(item.foodName)!, grams: item.grams })) },
+    })) },
+  } });
+  return null;
 }
 
 function splitList(value: string) {
@@ -203,24 +180,4 @@ function splitList(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function normalizeDecimal(value: string) {
-  return Number(value.replace(",", "."));
-}
-
-function normalizeHeight(value: string) {
-  const parsed = normalizeDecimal(value);
-  return parsed > 3 ? parsed : Math.round(parsed * 100);
-}
-
-function optionalDecimal(value: FormDataEntryValue | null) {
-  if (!value) return null;
-  const parsed = normalizeDecimal(String(value));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, value));
 }

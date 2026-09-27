@@ -1,3 +1,5 @@
+import { OnboardingMode } from "@/components/onboarding/onboarding-mode";
+import { SubmitButton } from "@/components/ui/submit-button";
 ﻿import { redirect } from "next/navigation";
 import { Activity, HeartPulse, Scale, Settings2, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
@@ -30,7 +32,8 @@ const fieldNames: Record<string, string> = {
   "preferência alimentar": "dietPreference",
 };
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ onboardingError?: string; field?: string }> }) {
+  const { onboardingError, field: errorField } = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect("/login?erro=Sessão não encontrada. Entre novamente.");
 
@@ -53,9 +56,14 @@ export default async function OnboardingPage() {
           </div>
         </GlassCard>
       </div>
+      {onboardingError ? <p role="alert" className="mt-6 rounded-2xl border border-amber-200/20 bg-amber-200/5 p-4 text-sm text-amber-100">{onboardingError === "invalid-target" ? "As metas calculadas precisam de revisão. Confira peso, altura e ajustes avançados." : `Confira os dados informados${errorField ? ` no campo ${Object.entries(fieldNames).find(([, value]) => value === errorField)?.[0] ?? "indicado"}` : ""} e tente novamente.`}</p> : null}
       <GlassCard className="mt-8">
         <form action={saveOnboardingAction}>
-          <div className="grid gap-5">
+          <OnboardingMode advanced={<FieldSection icon={<Settings2 size={18} />} title="Ajustes avançados" text="Ajuste estas opções se você já acompanha suas metas ou recebeu orientação profissional.">
+              <div className="grid gap-4 md:grid-cols-2">
+                {["déficit calórico", "proteína por kg", "gordura por kg", "fator de atividade manual"].map((field) => <Field key={field} field={field} />)}
+              </div>
+            </FieldSection>}>
             <FieldSection icon={<Scale size={18} />} title="1. Seu corpo e medidas" text="Dados usados para calcular metabolismo, IMC e gordura estimada. Quadril só aparece para mulheres.">
               <div className="grid gap-4 md:grid-cols-2">
                 {["nome", "sexo", "idade", "altura", "peso"].map((field) => (
@@ -74,30 +82,19 @@ export default async function OnboardingPage() {
               </div>
             </FieldSection>
 
-            <FieldSection icon={<Settings2 size={18} />} title="3. Metas ajustáveis" text="Usuário avançado pode reduzir inflação do gasto e escolher déficit, proteína e gordura.">
-              <div className="grid gap-4 md:grid-cols-2">
-                {["déficit calórico", "proteína por kg", "gordura por kg", "fator de atividade manual"].map((field) => <Field key={field} field={field} />)}
-              </div>
-            </FieldSection>
 
-            <FieldSection icon={<Utensils size={18} />} title="4. Preferências alimentares" text="Isso ajuda a IA a evitar uma dieta bonita no papel e ruim de seguir.">
+
+            <FieldSection icon={<Utensils size={18} />} title="3. Preferências alimentares" text="Informe alergias e restrições. Quando a composição não puder ser verificada, você poderá montar um plano manual revisado.">
               <div className="grid gap-4 md:grid-cols-2">
                 {["restrições", "alergias", "alimentos que não gosta"].map((field) => <Field key={field} field={field} />)}
               </div>
             </FieldSection>
 
-            <FieldSection icon={<HeartPulse size={18} />} title="5. Segurança" text="O ShapeOS não faz prescrição clínica. Se algo se aplica, use acompanhamento profissional.">
+            <FieldSection icon={<HeartPulse size={18} />} title="4. Saúde" text="O ShapeOS não faz prescrição clínica. Se algo se aplica, use acompanhamento profissional.">
               <Field field="condições médicas" />
             </FieldSection>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <button name="mode" value="guided" type="submit" className="rounded-full bg-lime-300 px-5 py-3 font-medium text-black">
-              Continuar no modo guiado
-            </button>
-            <button name="mode" value="advanced" type="submit" className="rounded-full border border-white/15 px-5 py-3 font-medium text-white">
-              Continuar no modo avançado
-            </button>
-          </div>
+          </OnboardingMode>
+          <div className="mt-6"><SubmitButton pendingLabel="Preparando seu perfil…">Salvar perfil e continuar</SubmitButton></div>
         </form>
       </GlassCard>
     </AppShell>
@@ -186,6 +183,8 @@ function renderField(field: string, name: string, defaultValue?: string) {
     <input
       name={name}
       defaultValue={defaultValue}
+      inputMode={["idade", "altura", "peso", "pescoco", "cintura", "quadril"].includes(field) ? "decimal" : undefined}
+      maxLength={field === "nome" ? 120 : 500}
       className={className}
       placeholder={measurementPlaceholder(field)}
       required={["nome", "idade", "altura", "peso", "pescoco", "cintura"].includes(field)}
@@ -194,7 +193,10 @@ function renderField(field: string, name: string, defaultValue?: string) {
 }
 
 function measurementPlaceholder(field: string) {
-  if (field === "altura") return "ex: 1,92 ou 192";
+  if (field === "altura") return "cm ou metros. Ex.: 180 ou 1,80";
+  if (field === "peso") return "kg. Ex.: 80,5";
+  if (field === "idade") return "anos. Ex.: 30";
+  if (["alergias", "restrições", "alimentos que não gosta"].includes(field)) return "Separe por vírgulas; deixe vazio se não houver";
   if (field === "pescoco") return "cm. Ex: 43";
   if (field === "cintura") return "cm na linha do umbigo. Ex: 108";
   if (field === "quadril") return "cm. Obrigatório para mulheres";

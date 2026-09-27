@@ -1,4 +1,6 @@
-﻿import { redirect } from "next/navigation";
+import { ReliabilityNotice } from "@/components/diet/reliability-notice";
+import { dietaryReviewIssue } from "@/lib/food-reliability";
+import { redirect } from "next/navigation";
 import { Activity, Apple, ArrowRight, BarChart3, CalendarDays, Droplets, Dumbbell, Flame, FlaskConical, Gauge, Plus, Scale, Sparkles, Target, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -8,7 +10,7 @@ import { WaterReminder } from "@/components/water/water-reminder";
 import { getCurrentUser } from "@/lib/auth";
 import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
-import { dailyBriefing, generateCoachInsights, consistencyScore } from "@/lib/coach";
+import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
 import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { mealOrder, normalizeMealName } from "@/lib/meals";
@@ -185,22 +187,7 @@ export default async function DashboardPage() {
   const insights = hasEnoughCoachData(coachContext) ? generateCoachInsights(coachContext) : [];
   const dayPct = Math.min(100, Math.round((consumed.kcal / targets.calories) * 100));
   const remainingCalories = Math.max(0, Math.round(targets.calories - consumed.kcal));
-  const briefing = dailyBriefing({
-    averageWeightKg: currentBody.weightKg,
-    adherencePct: 88,
-    macroCompletionPct: dayPct,
-    sleepScore: 7,
-    insights,
-  });
-  const score = consistencyScore({
-    dietAdherencePct: 88,
-    checkinsDone: weeklyCheckins.length ? 1 : 0,
-    checkinsTarget: 1,
-    proteinHitDays: recentFoodLogs.filter((log) => log.items.length).length,
-    sleepScore: weeklyCheckins.at(-1)?.sleep ?? 7,
-    trainingDone: weeklyCheckins.at(-1)?.trainingDone ? 3 : 0,
-    trainingTarget: 4,
-  });
+  const trackedDays = recentFoodLogs.filter((log) => log.items.length && log.date >= new Date(startOfToday().getTime() - 6 * 86400000) && log.date <= endOfToday()).length;
   const macroPcts = {
     protein: percent(consumed.proteinG, targets.proteinG),
     carbs: percent(consumed.carbsG, targets.carbsG),
@@ -269,7 +256,7 @@ export default async function DashboardPage() {
               <h1 className="mt-3 max-w-3xl text-5xl font-semibold tracking-tight text-white md:text-6xl">
                 {remainingCalories} kcal restantes
               </h1>
-              <p className="mt-4 max-w-2xl text-lg leading-8 text-zinc-300">{briefing.recommendation}</p>
+              <p className="mt-4 max-w-2xl text-lg leading-8 text-zinc-300">{todayLog?.items.length ? "Seu progresso considera os alimentos registrados hoje. Complete o diário para comparar seu consumo com a meta." : "Comece registrando sua primeira refeição. Seu acompanhamento será construído com os dados que você informar."}</p>
             </div>
             <div className="mt-8 flex flex-wrap gap-2">
               <QuickAction href="/diario" icon={<Plus size={16} />} label="Registrar alimento" primary />
@@ -310,13 +297,13 @@ export default async function DashboardPage() {
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
         <MetricTile icon={<Flame size={18} />} label="Consumido" value={`${consumed.kcal} kcal`} detail={`${remainingCalories} kcal restantes`} />
-        <MetricTile icon={<Target size={18} />} label="Score" value={`${score}`} detail="dieta, proteína, sono, treino e check-ins" />
+        <MetricTile icon={<Target size={18} />} label="Dias registrados" value={`${trackedDays} / 7`} detail="dias com alimentos nos últimos 7 dias" />
         <MetricTile icon={<Scale size={18} />} label="Peso" value={`${currentBody.weightKg.toLocaleString("pt-BR")} kg`} detail={`IMC ${bmi}`} />
         <MetricTile icon={<Activity size={18} />} label="BF estimado" value={latestBody?.bodyFatPct ? `${latestBody.bodyFatPct.toLocaleString("pt-BR")}%` : "pendente"} detail={latestBody?.leanMassKg ? `MM ${latestBody.leanMassKg.toLocaleString("pt-BR")} kg` : `${profile.heightCm} cm`} />
         <MetricTile icon={<Activity size={18} />} label="Atividade" value={`${Math.round(activityKcal)} kcal`} detail={`${tdeeResult.ignoredActivityKcal} kcal ignoradas`} />
         <MetricTile icon={<Gauge size={18} />} label="Conf. TDEE" value={confidenceLabel(trendValidation.confidence)} detail={trendValidation.message} />
         <MetricTile icon={<Droplets size={18} />} label="Água" value={`${formatLiters(waterConsumed)} / ${formatLiters(waterTarget)}`} detail={`média mês ${formatLiters(waterMonth.averageMl)} em ${waterMonth.registeredDays} dias`} />
-        <MetricTile icon={<Dumbbell size={18} />} label="Performance" value={`${trainingPerformance.score}`} detail={trainingDashboardDetail(trainingPerformance)} />
+        <MetricTile icon={<Dumbbell size={18} />} label="Performance" value={trainingPerformance.trend === "insufficient" ? "Em formação" : `${trainingPerformance.score}`} detail={trainingDashboardDetail(trainingPerformance)} />
       </div>
 
       <GlassCard className="mt-5 border-sky-300/20 bg-sky-300/[0.06]">
@@ -417,6 +404,8 @@ export default async function DashboardPage() {
                 <ArrowRight size={15} />
               </a>
             </div>
+            <ReliabilityNotice status={dietaryReviewIssue(profile)} />
+            {activePlanTotals && Math.abs(activePlanTotals.kcal - targets.calories) / targets.calories > 0.1 ? <p role="status" className="mt-4 rounded-2xl border border-amber-200/20 bg-amber-200/5 p-4 text-sm leading-6 text-amber-100">Seu plano soma {Math.round(activePlanTotals.kcal)} kcal, e sua meta atual é {targets.calories} kcal. Abra a dieta para revisar as porções antes de seguir.</p> : null}
             {activePlanTotals ? (
               <div className="mt-5 grid gap-2 sm:grid-cols-4">
                 <PlanTotal label="Kcal" value={`${Math.round(activePlanTotals.kcal)}`} />

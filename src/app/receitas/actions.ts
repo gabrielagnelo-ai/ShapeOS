@@ -3,52 +3,49 @@
 import { GoogleGenAI } from "@google/genai";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { dietaryReviewIssue, foodAllowedForProfile, planCompatibilityIssue, manualPlanCompatibilityIssue, parseVerifiedRecipe, type AiRecipeDraft } from "@/lib/food-reliability";
 import { getCurrentUser } from "@/lib/auth";
-import { findFoodByQuery } from "@/lib/food-search";
 import { prisma } from "@/lib/prisma";
-import { endOfToday, startOfToday } from "@/lib/profile";
+import { startOfToday } from "@/lib/profile";
 import { recipeIngredientInputs } from "@/lib/recipe-form";
 
-type AiRecipe = {
-  name: string;
-  servings: number;
-  instructions?: string;
-  items: Array<{ foodName: string; grams: number }>;
-};
+type AiRecipe = AiRecipeDraft;
 
 export async function createRecipeAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const name = String(formData.get("name") ?? "").trim();
   const servings = Number(formData.get("servings") ?? 1);
   const instructions = String(formData.get("instructions") ?? "").trim();
-  const items = await parseRecipeItems(formData);
-  if (!name || items.length === 0) return;
+  const items = await parseRecipeItems(formData, user.id);
+  if (!name || name.length > 200 || !Number.isInteger(servings) || servings < 1 || servings > 100 || !items?.length) redirect("/receitas?recipeStatus=invalid-ingredients");
 
   await prisma.recipe.create({
     data: {
       userId: user.id,
       name,
-      servings: Number.isFinite(servings) && servings > 0 ? servings : 1,
+      servings,
       instructions: instructions || null,
       items: { create: items },
     },
   });
 
   revalidateRecipePaths();
+  redirect("/receitas?recipeStatus=recipe-created");
 }
 
 export async function updateRecipeAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const recipeId = String(formData.get("recipeId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const servings = Number(formData.get("servings") ?? 1);
   const instructions = String(formData.get("instructions") ?? "").trim();
-  const items = await parseRecipeItems(formData);
-  if (!recipeId || !name || items.length === 0) return;
+  const items = await parseRecipeItems(formData, user.id);
+  if (!recipeId || !name || name.length > 200 || !Number.isInteger(servings) || servings < 1 || servings > 100 || !items?.length) redirect("/receitas?recipeStatus=invalid-ingredients");
 
   const ownedRecipe = await prisma.recipe.findFirst({
     where: { id: recipeId, userId: user.id },
@@ -62,7 +59,7 @@ export async function updateRecipeAction(formData: FormData) {
       where: { id: ownedRecipe.id },
       data: {
         name,
-        servings: Number.isFinite(servings) && servings > 0 ? Math.round(servings) : 1,
+        servings,
         instructions: instructions || null,
         items: { create: items },
       },
@@ -70,66 +67,48 @@ export async function updateRecipeAction(formData: FormData) {
   ]);
 
   revalidateRecipePaths();
+  redirect("/receitas?recipeStatus=recipe-updated");
 }
 
 export async function generateAiRecipeSuggestionAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
-
+  if (!user) redirect("/login");
+  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
+  if (!profile) redirect("/onboarding");
+  const review = dietaryReviewIssue(profile);
+  if (review) redirect(`/receitas?recipeStatus=${review}`);
+  if (!process.env.GEMINI_API_KEY) redirect("/receitas?recipeStatus=ai-unavailable");
   const style = String(formData.get("style") ?? "satiety");
   const query = String(formData.get("query") ?? "").trim();
-  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  const foods = await recipeFoodContext(user.id);
-  const recipe = process.env.GEMINI_API_KEY
-    ? await generateRecipeWithGemini({
-        mode: "suggestion",
-        style,
-        query,
-        profileContext: {
-          restrictions: profile?.restrictions ?? [],
-          allergies: profile?.allergies ?? [],
-          dislikedFoods: profile?.dislikedFoods ?? [],
-          dietPreference: profile?.dietPreference ?? "balanced",
-        },
-        foods,
-      })
-    : fallbackRecipe(style, query);
-
-  await saveAiRecipe(user.id, recipe, foods, fallbackRecipe(style, query));
+  const foods = (await recipeFoodContext(user.id)).filter((food) => foodAllowedForProfile(food.name, profile));
+  const recipe = await generateRecipeWithGemini({ mode: "suggestion", style, query, profileContext: { restrictions: profile.restrictions, allergies: profile.allergies, dislikedFoods: profile.dislikedFoods, dietPreference: profile.dietPreference ?? "balanced" }, foods });
+  if (!recipe) redirect("/receitas?recipeStatus=ai-unavailable");
+  const issue = planCompatibilityIssue(recipe.items.map((item) => item.foodName), profile);
+  if (issue) redirect(`/receitas?recipeStatus=${issue}`);
+  await saveAiRecipe(user.id, recipe, foods);
   revalidateRecipePaths();
+  redirect("/receitas?recipeStatus=recipe-created");
 }
 
 export async function estimateEatenRecipeAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
-
+  if (!user) redirect("/login");
   const description = String(formData.get("description") ?? "").trim();
-  if (!description) return;
-
+  if (!description || description.length > 3000) redirect("/receitas?recipeStatus=invalid-ingredients");
+  if (!process.env.GEMINI_API_KEY) redirect("/receitas?recipeStatus=ai-unavailable");
   const foods = await recipeFoodContext(user.id);
-  const fallback = fallbackRecipe("estimate", description);
-  const recipe = process.env.GEMINI_API_KEY
-    ? await generateRecipeWithGemini({
-        mode: "estimate",
-        style: "estimate",
-        query: description,
-        profileContext: {
-          restrictions: [],
-          allergies: [],
-          dislikedFoods: [],
-          dietPreference: "balanced",
-        },
-        foods,
-      })
-    : fallback;
-
-  await saveAiRecipe(user.id, recipe, foods, fallback);
+  // Estimate a past meal as described; never substitute foods to fit a dietary preference.
+  const recipe = await generateRecipeWithGemini({ mode: "estimate", style: "estimate", query: description,
+    profileContext: { restrictions: [], allergies: [], dislikedFoods: [], dietPreference: "balanced" }, foods });
+  if (!recipe) redirect("/receitas?recipeStatus=ai-unavailable");
+  await saveAiRecipe(user.id, { ...recipe, name: `Estimativa: ${recipe.name}`.slice(0, 200), instructions: `Estimativa para revisão, não uma medição. ${recipe.instructions ?? "Confira ingredientes e porções antes de registrar."}` }, foods);
   revalidateRecipePaths();
+  redirect("/receitas?recipeStatus=recipe-estimated");
 }
 
 export async function deleteRecipeAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const recipeId = String(formData.get("recipeId") ?? "");
   if (!recipeId) return;
@@ -140,10 +119,11 @@ export async function deleteRecipeAction(formData: FormData) {
 
 export async function addRecipePortionToDiaryAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const recipeId = String(formData.get("recipeId") ?? "");
-  const portions = parsePositiveNumber(formData.get("portions")) ?? 1;
+  const portions = parsePositiveNumber(formData.get("portions"));
+  if (!portions || portions > 100) redirect("/receitas?recipeStatus=invalid-ingredients");
   const mealName = String(formData.get("mealName") ?? "Refeicao");
   const recipe = await prisma.recipe.findFirst({
     where: { id: recipeId, OR: [{ userId: user.id }, { userId: null }] },
@@ -151,10 +131,8 @@ export async function addRecipePortionToDiaryAction(formData: FormData) {
   });
   if (!recipe) return;
 
-  let log = await prisma.foodLog.findFirst({
-    where: { userId: user.id, date: { gte: startOfToday(), lte: endOfToday() } },
-  });
-  log ??= await prisma.foodLog.create({ data: { userId: user.id, date: startOfToday() } });
+  const date = startOfToday();
+  const log = await prisma.foodLog.upsert({ where: { userId_date: { userId: user.id, date } }, create: { userId: user.id, date }, update: {}, select: { id: true } });
 
   const multiplier = portions / recipe.servings;
   await prisma.foodLogItem.createMany({
@@ -169,15 +147,17 @@ export async function addRecipePortionToDiaryAction(formData: FormData) {
   revalidateRecipePaths();
   revalidatePath("/diario");
   revalidatePath("/dashboard");
+  redirect("/receitas?recipeStatus=recipe-logged");
 }
 
 export async function addRecipePortionToPlanAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) redirect("/login");
 
   const recipeId = String(formData.get("recipeId") ?? "");
   const mealId = String(formData.get("mealId") ?? "");
-  const portions = parsePositiveNumber(formData.get("portions")) ?? 1;
+  const portions = parsePositiveNumber(formData.get("portions"));
+  if (!portions || portions > 100) redirect("/receitas?recipeStatus=invalid-ingredients");
   if (!recipeId || !mealId) return;
 
   const meal = await prisma.dietMeal.findFirst({
@@ -186,9 +166,14 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
   });
   const recipe = await prisma.recipe.findFirst({
     where: { id: recipeId, OR: [{ userId: user.id }, { userId: null }] },
-    include: { items: true },
+    include: { items: { include: { food: true } } },
   });
   if (!meal || !recipe) return;
+
+  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
+  if (!profile) redirect("/onboarding");
+  const issue = manualPlanCompatibilityIssue(recipe.items.map((item) => item.food.name), profile, formData.get("confirmSafetyReview") === "on");
+  if (issue) redirect(`/receitas?recipeStatus=${issue}`);
 
   const multiplier = portions / recipe.servings;
   const recipeBatchId = randomUUID();
@@ -206,25 +191,27 @@ export async function addRecipePortionToPlanAction(formData: FormData) {
   revalidateRecipePaths();
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
+  redirect("/receitas?recipeStatus=recipe-planned");
 }
 
-async function parseRecipeItems(formData: FormData) {
-  const items = await Promise.all(recipeIngredientInputs(formData).map(async ({ foodId, foodQuery, grams }) => {
-    const food = foodId
-      ? await prisma.food.findUnique({ where: { id: foodId }, select: { id: true } })
-      : await findFoodByQuery(foodQuery);
-
+async function parseRecipeItems(formData: FormData, userId: string) {
+  const rows = recipeIngredientInputs(formData);
+  const enteredRows = Math.max(formData.getAll("foodId").length, formData.getAll("foodQuery").length, formData.getAll("grams").length);
+  if (!rows.length || rows.length !== enteredRows || rows.some((row) => !row.foodId || row.grams > 10000)) return null;
+  const items = await Promise.all(rows.map(async ({ foodId, grams }) => {
+    const food = await prisma.food.findFirst({
+      where: { id: foodId, OR: [{ createdByUserId: userId }, { createdByUserId: null }] },
+      select: { id: true },
+    });
     return food ? { foodId: food.id, grams } : null;
   }));
-
-  return items.filter((item): item is { foodId: string; grams: number } => item !== null);
+  return items.some((item) => item === null) ? null : items.filter((item): item is { foodId: string; grams: number } => item !== null);
 }
 
 async function recipeFoodContext(userId: string) {
   return prisma.food.findMany({
-    where: { OR: [{ createdByUserId: userId }, { createdByUserId: null }, { source: { not: "" } }] },
+    where: { OR: [{ createdByUserId: userId }, { createdByUserId: null }] },
     orderBy: [{ category: "asc" }, { name: "asc" }],
-    take: 220,
     select: {
       id: true,
       name: true,
@@ -249,9 +236,9 @@ async function generateRecipeWithGemini(input: {
     dietPreference: string;
   };
   foods: Awaited<ReturnType<typeof recipeFoodContext>>;
-}): Promise<AiRecipe> {
+}): Promise<AiRecipe | null> {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY!, httpOptions: { timeout: 20000 } });
     const response = await ai.models.generateContent({
       model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
       contents: [{
@@ -262,7 +249,7 @@ async function generateRecipeWithGemini(input: {
             "Responda apenas JSON valido, sem markdown.",
             "Formato: {\"name\":\"nome\",\"servings\":1,\"instructions\":\"modo de preparo curto\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}",
             "Use SOMENTE foodName exatamente igual a um alimento da lista.",
-            "Nao invente alimentos fora da lista. Se faltar algo, use o substituto mais proximo.",
+            "Nao invente alimentos fora da lista e nao substitua ingredientes relatados. Se nao conseguir identificar a refeicao, retorne null.",
             "Nao diagnostique, nao prometa resultado, nao use linguagem clinica.",
             input.mode === "suggestion"
               ? "Crie uma receita saudavel, pratica e realista baseada no estilo escolhido."
@@ -287,86 +274,22 @@ async function generateRecipeWithGemini(input: {
       }],
     });
 
-    return parseAiRecipe(response.text ?? "") ?? fallbackRecipe(input.style, input.query);
-  } catch {
-    return fallbackRecipe(input.style, input.query);
-  }
-}
-
-async function saveAiRecipe(userId: string, recipe: AiRecipe, foods: Awaited<ReturnType<typeof recipeFoodContext>>, fallback: AiRecipe) {
-  const byName = new Map(foods.map((food) => [food.name, food.id]));
-  let items = await resolveRecipeItems(recipe, byName);
-
-  if (!items.length) {
-    items = await resolveRecipeItems(fallback, byName);
-    recipe = fallback;
-  }
-
-  if (!items.length) {
-    throw new Error("Nao foi possivel salvar a receita: nenhum alimento encontrado na base.");
-  }
-
-  await prisma.recipe.create({
-    data: {
-      userId,
-      name: recipe.name || "Receita gerada pela IA",
-      servings: Number.isFinite(recipe.servings) && recipe.servings > 0 ? Math.round(recipe.servings) : 1,
-      instructions: recipe.instructions || "Receita gerada por IA. Confira ingredientes e modo de preparo antes de usar.",
-      items: { create: items },
-    },
-  });
-}
-
-async function resolveRecipeItems(recipe: AiRecipe, byName: Map<string, string>) {
-  const items: Array<{ foodId: string; grams: number }> = [];
-
-  for (const item of recipe.items) {
-    const foodId = byName.get(item.foodName) ?? (await findFoodByQuery(item.foodName))?.id;
-    const grams = Number(item.grams);
-    if (foodId && Number.isFinite(grams) && grams > 0) {
-      items.push({ foodId, grams: Math.round(grams * 10) / 10 });
-    }
-  }
-
-  return items;
-}
-
-function parseAiRecipe(text: string): AiRecipe | null {
-  try {
-    const cleaned = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned) as AiRecipe;
-    if (!parsed.name || !Array.isArray(parsed.items)) return null;
-    return parsed;
+    return parseVerifiedRecipe(response.text ?? "", new Set(input.foods.map((food) => food.name)));
   } catch {
     return null;
   }
 }
 
-function fallbackRecipe(style: string, query: string): AiRecipe {
-  const isSweet = style === "sweet" || /panqueca|doce|banana|chocolate|sobremesa/i.test(query);
-  if (isSweet) {
-    return {
-      name: query ? `Estimativa: ${query}` : "Panqueca proteica de banana",
-      servings: 1,
-      instructions: "Misture os ingredientes, prepare em frigideira antiaderente e ajuste os toppings conforme sua meta.",
-      items: [
-        { foodName: "Banana prata", grams: 100 },
-        { foodName: "Aveia em flocos", grams: 40 },
-        { foodName: "Ovo de galinha inteiro", grams: 100 },
-      ],
-    };
-  }
-
-  return {
-    name: query ? `Receita IA: ${query}` : "Bowl de frango com arroz e legumes",
-    servings: 1,
-    instructions: "Monte uma refeicao simples com proteina, carboidrato e vegetais. Ajuste gramas conforme sua meta.",
-    items: [
-      { foodName: "Peito de frango grelhado", grams: 160 },
-      { foodName: "Arroz branco cozido", grams: 160 },
-      { foodName: "Brocolis cozido", grams: 100 },
-    ],
-  };
+async function saveAiRecipe(userId: string, recipe: AiRecipe, foods: Awaited<ReturnType<typeof recipeFoodContext>>) {
+  const byName = new Map(foods.map((food) => [food.name, food.id]));
+  // Validation is all-or-nothing: never silently replace or drop an AI ingredient.
+  const validated = parseVerifiedRecipe(JSON.stringify(recipe), new Set(byName.keys()));
+  if (!validated) redirect("/receitas?recipeStatus=invalid-ingredients");
+  await prisma.recipe.create({ data: {
+    userId, name: validated.name, servings: validated.servings,
+    instructions: validated.instructions || "Confira os ingredientes e as porções antes de usar.",
+    items: { create: validated.items.map((item) => ({ foodId: byName.get(item.foodName)!, grams: item.grams })) },
+  } });
 }
 
 function describeRecipeStyle(style: string) {

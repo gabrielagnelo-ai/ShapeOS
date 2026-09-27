@@ -1,26 +1,36 @@
 ﻿import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
-import { FoodSearchField } from "@/components/food/food-search-field";
+import { DiaryFoodForm, DiaryItemEditor } from "@/components/food/diary-forms";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { diaryDate } from "@/lib/diary-input";
 import Link from "next/link";
 import { Check, CheckCircle2, Pill, RotateCcw, Trash2, Utensils } from "lucide-react";
-import { appDateInputValue } from "@/lib/date-time";
+import { appDateInputValue, endOfTodayInAppTimeZone } from "@/lib/date-time";
 import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { prisma } from "@/lib/prisma";
-import { computeCurrentProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
+import { computeCurrentProfileMetrics, requireUserProfile, startOfToday } from "@/lib/profile";
 import { macroProgress, sumNutrients } from "@/lib/nutrition";
 import { sumSupplementMicronutrients, supplementDoseUnit, supplementNutrientDefinitions } from "@/lib/supplements";
-import { addFoodLogAction, deleteFoodLogItemAction, registerDietMealAction, unregisterDietMealAction } from "./actions";
+import { registerDietMealAction, unregisterDietMealAction } from "./actions";
 import { deleteSupplementLogAction, logSupplementDoseAction } from "@/app/suplementos/actions";
 
-export default async function DiarioPage() {
+export default async function DiarioPage({ searchParams }: { searchParams: Promise<{ data?: string; status?: string }> }) {
+  const { data, status } = await searchParams;
+  const realToday = appDateInputValue();
+  const selectedDate = data ? diaryDate(data) : startOfToday();
+  const invalidDate = Boolean(data && !selectedDate);
   const { user, profile } = await requireUserProfile();
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
-  const todayStart = startOfToday();
-  const todayEnd = endOfToday();
+  const todayStart = selectedDate ?? startOfToday();
+  const todayEnd = endOfTodayInAppTimeZone(todayStart);
+  const today = appDateInputValue(todayStart);
+  const isToday = today === realToday;
+  const yesterday = appDateInputValue(new Date(startOfToday().getTime() - 12 * 60 * 60 * 1000));
   const [foods, log, multivitamins, activePlan] = await Promise.all([
     prisma.food.findMany({
+      where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] },
       orderBy: [{ category: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, category: true },
+      select: { id: true, name: true, category: true, kcalPer100g: true },
     }),
     prisma.foodLog.findFirst({
       where: { userId: user.id, date: { gte: todayStart, lte: todayEnd } },
@@ -103,12 +113,21 @@ export default async function DiarioPage() {
   const hasMicronutrientData = Boolean(log?.items.length || hasSupplementDose);
   const foodTrackedKeys = microBars.map(([, key]) => key as string);
   const supplementOnlyNutrients = supplementNutrientDefinitions.filter(({ key }) => !foodTrackedKeys.includes(key));
-  const today = appDateInputValue();
 
   return (
     <AppShell>
       <h1 className="text-4xl font-semibold tracking-tight">Diário alimentar</h1>
       <p className="mt-3 text-zinc-400">Registro real vs meta diária de calorias, proteínas, carboidratos, gorduras, fibra e sódio.</p>
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-3xl border border-white/10 bg-white/[0.025] p-4">
+        <Link href="/diario" aria-current={isToday ? "date" : undefined} className={`rounded-full px-4 py-3 text-sm ${isToday ? "bg-lime-300 text-black" : "bg-white/10 text-zinc-200"}`}>Hoje</Link>
+        <Link href={`/diario?data=${yesterday}`} aria-current={today === yesterday ? "date" : undefined} className={`rounded-full px-4 py-3 text-sm ${today === yesterday ? "bg-lime-300 text-black" : "bg-white/10 text-zinc-200"}`}>Ontem</Link>
+        <form method="get" className="flex min-w-0 flex-wrap items-end gap-2">
+          <label className="min-w-0 text-xs text-zinc-400">Consultar outro dia<input key={today} type="date" name="data" defaultValue={today} min="1900-01-01" max={realToday} required className="mt-1 block h-11 max-w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
+          <button className="h-11 rounded-full border border-white/15 px-4 text-sm">Ver dia</button>
+        </form>
+        <p className="text-sm text-zinc-300">{todayStart.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "long" })}</p>
+      </div>
+      {invalidDate || status ? <p role="alert" className="mt-4 rounded-2xl border border-amber-200/20 p-4 text-sm text-amber-100">{invalidDate || status === "invalid-date" ? "Data inválida. Exibindo o diário de hoje." : status === "save-failed" ? "Não foi possível registrar a refeição. Tente novamente." : "A refeição não está disponível. Confira a dieta ativa."}</p> : null}
       <GlassCard className="mt-8 border-lime-300/20 bg-lime-300/[0.035]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -116,9 +135,9 @@ export default async function DiarioPage() {
               <Utensils size={20} />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase text-lime-300">Plano de hoje</p>
+              <p className="text-xs font-medium uppercase text-lime-300">{isToday ? "Plano de hoje" : "Plano atual como referência"}</p>
               <h2 className="mt-1 text-xl font-semibold">{activePlan?.name ?? "Nenhuma dieta ativa"}</h2>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Marque a refeição quando consumir os alimentos e as quantidades planejadas.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">{isToday ? "Marque a refeição quando consumir os alimentos e as quantidades planejadas." : "Este é seu plano ativo atual. Registre apenas o que você realmente consumiu nesta data."}</p>
             </div>
           </div>
           <Link href="/dieta" className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/15">
@@ -142,6 +161,7 @@ export default async function DiarioPage() {
                 },
               })));
               const registeredItems = log?.items.filter((item) => item.sourceDietMealId === meal.id).length ?? 0;
+              const wasAdjusted = meal.items.some((planned) => !log?.items.some((logged) => logged.sourceDietMealId === meal.id && logged.foodId === planned.foodId && logged.grams === planned.grams && logged.mealName === meal.name));
               const isCompleted = meal.items.length > 0 && registeredItems === meal.items.length;
               return (
                 <div key={meal.id} className={`grid gap-4 rounded-3xl border p-4 transition md:grid-cols-[1fr_auto] md:items-center ${isCompleted ? "border-lime-300/30 bg-lime-300/[0.06]" : "border-white/8 bg-black/25"}`}>
@@ -150,7 +170,7 @@ export default async function DiarioPage() {
                       <h3 className="font-semibold text-zinc-100">{meal.name}</h3>
                       {isCompleted ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-lime-300/15 px-2.5 py-1 text-xs font-medium text-lime-200">
-                          <CheckCircle2 size={13} /> Registrada
+                          <CheckCircle2 size={13} /> {wasAdjusted ? "Registrada com ajustes" : "Registrada"}
                         </span>
                       ) : null}
                     </div>
@@ -174,17 +194,17 @@ export default async function DiarioPage() {
 
                   {isCompleted ? (
                     <form action={unregisterDietMealAction}>
-                      <input type="hidden" name="mealId" value={meal.id} />
-                      <button className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/15 md:w-auto">
+                      <input type="hidden" name="mealId" value={meal.id} /><input type="hidden" name="date" value={today} />
+                      <SubmitButton className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/15 md:w-auto">
                         <RotateCcw size={15} /> Desmarcar
-                      </button>
+                      </SubmitButton>
                     </form>
                   ) : (
                     <form action={registerDietMealAction}>
-                      <input type="hidden" name="mealId" value={meal.id} />
-                      <button disabled={!meal.items.length} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto">
+                      <input type="hidden" name="mealId" value={meal.id} /><input type="hidden" name="date" value={today} />
+                      <SubmitButton pendingLabel="Registrando…" disabled={!meal.items.length} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto">
                         <Check size={15} /> Registrar refeição
-                      </button>
+                      </SubmitButton>
                     </form>
                   )}
                 </div>
@@ -200,20 +220,11 @@ export default async function DiarioPage() {
       <div className="mt-8 grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
         <GlassCard>
           <h2 className="text-xl font-semibold">Registrar alimento</h2>
-          <form action={addFoodLogAction} className="mt-5 grid gap-3">
-            <FoodSearchField foods={foods} />
-            <input name="grams" inputMode="decimal" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none" placeholder="Gramas. Ex: 150" required />
-            <select name="mealName" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none">
-              {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
-            </select>
-            <button className="rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Adicionar ao dia</button>
-          </form>
-          <p className="mt-3 text-sm leading-6 text-zinc-500">
-            A busca funciona como um Ctrl+F: digite parte do nome e confirme as gramas.
-          </p>
+          <DiaryFoodForm key={today} foods={foods} date={today} />
         </GlassCard>
         <GlassCard>
-          <h2 className="text-xl font-semibold">Progresso de hoje</h2>
+          <h2 className="text-xl font-semibold">Progresso do dia selecionado</h2>
+          {!isToday ? <p className="mt-2 text-xs leading-5 text-zinc-400">Comparação com suas metas atuais. O histórico de alterações de meta ainda não é armazenado.</p> : null}
           <div className="mt-5 grid gap-5">
             {bars.map(([label, value]) => (
               <div key={label}>
@@ -232,7 +243,7 @@ export default async function DiarioPage() {
             </div>
             <div>
               <h2 className="text-xl font-semibold">Multivitamínico</h2>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">Confirme a dose tomada para somar os valores do rótulo aos micronutrientes de hoje.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-500">Confirme a dose tomada para somar os valores do rótulo aos micronutrientes do dia selecionado.</p>
             </div>
           </div>
           <Link href="/suplementos" className="rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/15">
@@ -283,7 +294,7 @@ export default async function DiarioPage() {
       </GlassCard>
       <GlassCard className="mt-4">
         <h2 className="text-xl font-semibold">Micronutrientes</h2>
-        <p className="mt-2 text-sm text-zinc-500">Total consumido hoje, separando o que veio dos alimentos e do multivitamínico registrado.</p>
+        <p className="mt-2 text-sm text-zinc-500">Total consumido no dia selecionado, separando o que veio dos alimentos e do multivitamínico registrado.</p>
         {hasMicronutrientData ? (<>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {microBars.map(([label, key, target, unit]) => {
@@ -345,17 +356,8 @@ export default async function DiarioPage() {
         <h2 className="text-xl font-semibold">Itens registrados</h2>
         <div className="mt-4 grid gap-3">
           {log?.items.length ? log.items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-2xl bg-white/[0.04] px-4 py-3">
-              <div>
-                <p className="font-medium">{item.food.name}</p>
-                <p className="text-sm text-zinc-500">{item.mealName} - {item.grams} g</p>
-              </div>
-              <form action={deleteFoodLogItemAction}>
-                <input type="hidden" name="itemId" value={item.id} />
-                <button className="rounded-full bg-white/10 px-3 py-2 text-sm">Remover</button>
-              </form>
-            </div>
-          )) : <p className="text-sm text-zinc-500">Nenhum alimento registrado hoje.</p>}
+            <DiaryItemEditor key={`${item.id}-${today}`} item={{ id: item.id, foodId: item.foodId, grams: item.grams, mealName: item.mealName, foodName: item.food.name }} date={today} maxDate={realToday} />
+          )) : <p className="text-sm text-zinc-500">Nenhum alimento registrado neste dia.</p>}
         </div>
       </GlassCard>
     </AppShell>

@@ -23,19 +23,20 @@ export function SexAwareMeasurements({ className }: { className: string }) {
       </label>
 
       <label className="block">
-        <span className="text-sm capitalize text-zinc-400">pescoco</span>
-        <input name="neckCm" className={className} placeholder="cm. Ex: 43" required />
+        <span className="text-sm capitalize text-zinc-400">pescoço (cm)</span>
+        <input inputMode="decimal" name="neckCm" className={className} placeholder="cm. Ex: 43" required />
       </label>
 
       <label className="block">
-        <span className="text-sm capitalize text-zinc-400">cintura</span>
-        <input name="waistCm" className={className} placeholder="cm na linha do umbigo. Ex: 108" required />
+        <span className="text-sm capitalize text-zinc-400">cintura (cm)</span>
+        <input inputMode="decimal" name="waistCm" className={className} placeholder="cm na linha do umbigo. Ex: 108" required />
       </label>
 
       {sex === "female" ? (
         <label className="block">
-          <span className="text-sm capitalize text-zinc-400">quadril</span>
+          <span className="text-sm capitalize text-zinc-400">quadril (cm)</span>
           <input
+            inputMode="decimal"
             name="hipCm"
             className={className}
             placeholder="cm. Obrigatório para mulheres"
