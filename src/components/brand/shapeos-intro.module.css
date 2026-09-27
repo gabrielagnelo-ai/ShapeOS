@@ -1,0 +1,240 @@
+/* Palette: void #030403, graphite #10130d, halo #789c20,
+   lime #b8ff00, reflection #edffc4. Typography comes only from the PNG. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background: #030403;
+  user-select: none;
+  touch-action: none;
+}
+
+.content {
+  display: contents;
+}
+
+:global(html[data-shapeos-intro]) .overlay {
+  display: grid;
+}
+
+:global(html[data-shapeos-intro="pending"]),
+:global(html[data-shapeos-intro="playing"]) {
+  overflow: hidden;
+}
+
+:global(html[data-shapeos-intro="pending"]) .content,
+:global(html[data-shapeos-intro="playing"]) .content {
+  pointer-events: none;
+}
+
+.halo {
+  position: absolute;
+  width: min(125vw, 1500px);
+  aspect-ratio: 1.6;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #789c2014 0%, #b8ff0008 28%, #10130d0a 48%, transparent 68%);
+  opacity: 0;
+  transform: scale(0.92);
+  will-change: opacity, transform;
+}
+
+.stage {
+  position: relative;
+  width: min(86vw, 1000px, 260vh);
+  aspect-ratio: 1105 / 285;
+  transform: scale(0.987);
+}
+
+.artwork {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.logo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* x=29% separates the symbol from the wordmark; y=77% separates
+   the wordmark from its tagline. Final regions cover 100% of the PNG. */
+.symbol {
+  clip-path: inset(0 100% 0 0);
+}
+
+.wordmark {
+  clip-path: inset(0 71% 23% 29%);
+}
+
+.tagline {
+  clip-path: inset(77% 0 0 29%);
+  opacity: 0;
+}
+
+.edgeLight {
+  position: absolute;
+  inset: -18%;
+  background: radial-gradient(ellipse, transparent 40%, #b8ff0009 52%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scanner {
+  position: absolute;
+  inset: -42% 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-56%);
+  will-change: transform, opacity;
+}
+
+.scanner::before,
+.scanner::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+}
+
+.scanner::before {
+  width: 13%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, #b8ff0026, #b8ff0009 40%, transparent 70%);
+}
+
+.scanner::after {
+  width: 1px;
+  background: linear-gradient(transparent 8%, #edffc412 28%, #edffc466 50%, #edffc412 72%, transparent 92%);
+}
+
+.reflection {
+  position: absolute;
+  inset: -30% 0;
+  opacity: 0;
+  background: linear-gradient(108deg, transparent 35%, #edffc412 48%, #ffffff16 50%, transparent 63%);
+  transform: translateX(-110%);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Every layer shares one six-second clock. Leaving keeps the final frame. */
+:global(html[data-shapeos-intro="playing"]) .halo,
+:global(html[data-shapeos-intro="leaving"]) .halo {
+  animation: atmosphere var(--intro-duration) ease-out both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .stage,
+:global(html[data-shapeos-intro="leaving"]) .stage {
+  animation: approach var(--intro-duration) ease-in-out both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .symbol,
+:global(html[data-shapeos-intro="leaving"]) .symbol {
+  animation: symbolReveal var(--intro-duration) linear both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .wordmark,
+:global(html[data-shapeos-intro="leaving"]) .wordmark {
+  animation: wordmarkReveal var(--intro-duration) linear both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .tagline,
+:global(html[data-shapeos-intro="leaving"]) .tagline {
+  animation: taglineReveal var(--intro-duration) ease-in-out both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .scanner,
+:global(html[data-shapeos-intro="leaving"]) .scanner {
+  animation: scan var(--intro-duration) linear both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .reflection,
+:global(html[data-shapeos-intro="leaving"]) .reflection {
+  animation: reflect var(--intro-duration) ease-in-out both;
+}
+
+:global(html[data-shapeos-intro="playing"]) .edgeLight,
+:global(html[data-shapeos-intro="leaving"]) .edgeLight {
+  animation: edgeGlow var(--intro-duration) ease-in-out both;
+}
+
+:global(html[data-shapeos-intro="leaving"]) .overlay {
+  pointer-events: none;
+  animation: depart var(--intro-fade) cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes atmosphere {
+  0% { opacity: 0; transform: scale(0.92); }
+  25% { opacity: 0.65; }
+  58.333% { opacity: 1; }
+  100% { opacity: 0.72; transform: scale(1); }
+}
+
+@keyframes approach {
+  0%, 58.333% { transform: scale(0.987); }
+  80%, 100% { transform: scale(1); }
+}
+
+@keyframes symbolReveal {
+  0%, 25% { clip-path: inset(0 100% 0 0); }
+  34.667%, 100% { clip-path: inset(0 71% 0 0); }
+}
+
+@keyframes wordmarkReveal {
+  0%, 34.667% { clip-path: inset(0 71% 23% 29%); }
+  58.333%, 100% { clip-path: inset(0 0 23% 29%); }
+}
+
+@keyframes taglineReveal {
+  0%, 80% { opacity: 0; }
+  92.5%, 100% { opacity: 1; }
+}
+
+@keyframes scan {
+  0%, 25% { opacity: 0; transform: translateX(-56%); }
+  28% { opacity: 0.7; }
+  54% { opacity: 0.55; }
+  58.333%, 100% { opacity: 0; transform: translateX(56%); }
+}
+
+@keyframes reflect {
+  0%, 58.333% { opacity: 0; transform: translateX(-110%); }
+  64% { opacity: 0.5; }
+  72% { opacity: 0.35; }
+  78%, 100% { opacity: 0; transform: translateX(110%); }
+}
+
+@keyframes edgeGlow {
+  0%, 25% { opacity: 0; }
+  58.333% { opacity: 0.7; }
+  80%, 100% { opacity: 0.3; }
+}
+
+@keyframes depart {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
+}
+
+@media (max-width: 640px) {
+  .stage { width: 94vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html[data-shapeos-intro]) .overlay { display: none; }
+  .overlay, .overlay * { animation: none !important; will-change: auto; }
+  :global(html[data-shapeos-intro]) { overflow: auto; }
+  :global(html[data-shapeos-intro]) .content { pointer-events: auto; }
+}
+
+@media print {
+  .overlay { display: none !important; }
+}

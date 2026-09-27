@@ -35,6 +35,36 @@ npx prisma migrate deploy
 npm run prisma:seed
 ```
 
+## Intro ShapeOS
+
+A abertura é montada uma vez no layout raiz (`src/app/layout.tsx`), sem alterar
+as páginas existentes. O conteúdo permanece renderizado/carregando por trás.
+
+- `src/components/brand/shapeos-intro.tsx`: ciclo de vida, imagem e acessibilidade.
+- `src/components/brand/shapeos-intro.module.css`: enquadramento, iluminação e timeline.
+- `src/components/brand/shapeos-intro.config.ts`: asset, duração e bootstrap inicial.
+- `public/shapeos-logo.png`: PNG original, inalterado e sem otimização/recompressão.
+
+Timeline padrão: ambiente 0–1,5 s; símbolo 1,5–2,08 s; nome 2,08–3,5 s;
+reflexo 3,5–4,68 s; tagline 4,8–5,55 s; frame final até 6 s; fade de 650 ms.
+As três regiões CSS se complementam para exibir o PNG inteiro, com sua
+transparência, cores, proporções e tipografia originais. Não há texto recriado.
+
+Para testar, abra `/?intro=replay`. Para ignorar, use `/?intro=off`.
+Para desativar globalmente, defina `NEXT_PUBLIC_SHAPEOS_INTRO=false` em
+`.env.local` e reinicie o servidor (refaça o build em produção).
+O parâmetro de replay respeita a desativação global e `prefers-reduced-motion`.
+A chave `shapeos:intro:seen` em `sessionStorage` evita repetição, inclusive em
+navegações que recarregam a página. Se storage não estiver disponível, a página
+continua funcionando; a persistência entre reloads depende do navegador.
+
+Escape, Tab ou um toque/clique encerram a intro. Movimento reduzido pula a
+sequência. Sem JavaScript, o site aparece diretamente. Falha da imagem libera
+o site, com espera máxima de 1 s para seu carregamento após a hidratação; um
+timeout independente de 8 s também libera a tela se a hidratação falhar.
+Não foram adicionadas dependências. A animação usa CSS; os timers JavaScript
+controlam apenas início, encerramento e contingências.
+
 ## Rotas
 
 - `/` landing page
