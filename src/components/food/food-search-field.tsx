@@ -11,7 +11,7 @@ export type FoodOption = {
 
 export function FoodSearchField({
   foods,
-  className = "h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50",
+  className = "h-12 w-full rounded-[14px] bg-fill px-4 outline-none",
   placeholder = "Digite o alimento. Ex: frango, arroz, banana",
   defaultFood,
 }: {
@@ -90,9 +90,9 @@ export function FoodSearchField({
         placeholder={placeholder}
         required
       />
-      <p id={`${id}-hint`} className="mt-1.5 text-xs text-zinc-400">{selectedId ? "Alimento selecionado." : "Digite e escolha uma opção da lista."}</p>
+      <p id={`${id}-hint`} className="mt-1.5 text-xs text-text-muted">{selectedId ? "Alimento selecionado." : "Digite e escolha uma opção da lista."}</p>
       {open ? (
-        <div id={`${id}-results`} role="listbox" aria-label="Alimentos encontrados" className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-72 overflow-y-auto rounded-3xl border border-white/10 bg-[#111] p-2 shadow-2xl shadow-black/70">
+        <div id={`${id}-results`} role="listbox" aria-label="Alimentos encontrados" className="glass-menu absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-72 overflow-y-auto rounded-[22px] p-1.5">
           {matches.length ? (
             matches.map((food, index) => (
               <button
@@ -104,13 +104,13 @@ export function FoodSearchField({
                 aria-selected={food.id === selectedId}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => selectFood(food)}
-                className={`flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-white/10 focus:bg-white/10 focus:outline-none ${highlighted === index ? "bg-white/10" : ""}`}
+                className={`flex w-full items-center justify-between gap-3 rounded-[14px] px-3 py-2.5 text-left hover:bg-fill-strong focus:bg-fill-strong focus:outline-none ${highlighted === index ? "bg-fill-strong" : ""}`}
               >
-                <span className="min-w-0 flex-1 text-sm font-medium text-zinc-100">{food.name}<span className="mt-1 block text-xs font-normal text-zinc-400">{food.category ?? "Base"}{food.kcalPer100g !== undefined ? ` · ${Math.round(food.kcalPer100g)} kcal/100 g` : ""}</span></span>
+                <span className="min-w-0 flex-1 text-sm font-medium text-text-primary">{food.name}<span className="mt-0.5 block text-xs font-normal text-text-muted">{food.category ?? "Base"}{food.kcalPer100g !== undefined ? ` · ${Math.round(food.kcalPer100g)} kcal/100 g` : ""}</span></span>
               </button>
             ))
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm leading-6 text-zinc-400">
+            <div className="p-3 text-sm leading-6 text-text-muted">
               Nenhum alimento encontrado. Tente outro termo ou cadastre-o na área Alimentos.
             </div>
           )}

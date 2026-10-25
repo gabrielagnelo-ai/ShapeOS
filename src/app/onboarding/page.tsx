@@ -18,6 +18,10 @@ const fieldNames: Record<string, string> = {
   pescoco: "neckCm",
   cintura: "waistCm",
   quadril: "hipCm",
+  "peito ou busto": "chestCm",
+  braço: "armCm",
+  coxa: "thighCm",
+  panturrilha: "calfCm",
   objetivo: "goal",
   "déficit calórico": "calorieDeficitKcal",
   "proteína por kg": "proteinPerKg",
@@ -41,22 +45,22 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     <AppShell>
       <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr] lg:items-end">
         <div>
-          <p className="text-sm font-medium text-lime-300">Primeira configuração</p>
+          <p className="text-sm text-text-muted">Primeira configuração</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">Vamos montar sua base sem complicar.</h1>
-          <p className="mt-4 max-w-2xl text-zinc-400">
+          <p className="mt-4 max-w-2xl text-text-muted">
             Responda como você vive hoje. O ShapeOS calcula calorias, proteínas, gorduras e deixa carboidrato como o restante da meta.
           </p>
         </div>
-        <GlassCard className="bg-lime-300/10">
-          <p className="text-sm font-semibold text-lime-200">O que acontece ao finalizar</p>
-          <div className="mt-4 grid gap-3 text-sm leading-6 text-zinc-300">
+        <GlassCard>
+          <p className="text-sm font-semibold text-success">O que acontece ao finalizar</p>
+          <div className="mt-4 grid gap-3 text-sm leading-6 text-text-secondary">
             <p>1. Seu gasto diário e sua meta calórica são calculados.</p>
             <p>2. Seu percentual de gordura estimado fica salvo no histórico.</p>
             <p>3. A tela Hoje mostra a próxima ação para começar.</p>
           </div>
         </GlassCard>
       </div>
-      {onboardingError ? <p role="alert" className="mt-6 rounded-2xl border border-amber-200/20 bg-amber-200/5 p-4 text-sm text-amber-100">{onboardingError === "invalid-target" ? "As metas calculadas precisam de revisão. Confira peso, altura e ajustes avançados." : `Confira os dados informados${errorField ? ` no campo ${Object.entries(fieldNames).find(([, value]) => value === errorField)?.[0] ?? "indicado"}` : ""} e tente novamente.`}</p> : null}
+      {onboardingError ? <p role="alert" className="mt-6 rounded-2xl border bg-warning/10 p-4 text-sm text-warning">{onboardingError === "invalid-target" ? "As metas calculadas precisam de revisão. Confira peso, altura e ajustes avançados." : `Confira os dados informados${errorField ? ` no campo ${Object.entries(fieldNames).find(([, value]) => value === errorField)?.[0] ?? "indicado"}` : ""} e tente novamente.`}</p> : null}
       <GlassCard className="mt-8">
         <form action={saveOnboardingAction}>
           <OnboardingMode advanced={<FieldSection icon={<Settings2 size={18} />} title="Ajustes avançados" text="Ajuste estas opções se você já acompanha suas metas ou recebeu orientação profissional.">
@@ -68,7 +72,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
               <div className="grid gap-4 md:grid-cols-2">
                 {["nome", "sexo", "idade", "altura", "peso"].map((field) => (
                   field === "sexo" ? (
-                    <SexAwareMeasurements key="sex-measurements" className="mt-2 h-12 w-full appearance-none rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none transition focus:border-lime-300/50 disabled:cursor-not-allowed disabled:opacity-45" />
+                    <SexAwareMeasurements key="sex-measurements" className="mt-2 h-12 w-full appearance-none rounded-[14px] bg-fill px-4 outline-none disabled:cursor-not-allowed disabled:opacity-45" />
                   ) : (
                     <Field key={field} field={field} defaultValue={field === "nome" ? user.name : undefined} />
                   )
@@ -103,12 +107,12 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
 function FieldSection({ icon, title, text, children }: { icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-black/20 p-4 md:p-5">
+    <section className="rounded-[28px] border border-hairline bg-surface-tertiary p-4 md:p-5">
       <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">{icon}</div>
+        <div className="icon-tile [--tile:#0a84ff]">{icon}</div>
         <div>
           <h2 className="font-semibold">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-zinc-500">{text}</p>
+          <p className="mt-1 text-sm leading-6 text-text-muted">{text}</p>
         </div>
       </div>
       {children}
@@ -119,14 +123,14 @@ function FieldSection({ icon, title, text, children }: { icon: React.ReactNode; 
 function Field({ field, defaultValue }: { field: string; defaultValue?: string }) {
   return (
     <label className="block">
-      <span className="text-sm capitalize text-zinc-400">{field}</span>
+      <span className="text-sm capitalize text-text-muted">{field}</span>
       {renderField(field, fieldNames[field], defaultValue)}
     </label>
   );
 }
 
 function renderField(field: string, name: string, defaultValue?: string) {
-  const className = "mt-2 h-12 w-full appearance-none rounded-2xl border border-white/10 bg-black/30 px-4 text-white outline-none transition focus:border-lime-300/50";
+  const className = "mt-2 h-12 w-full appearance-none rounded-[14px] bg-fill px-4 outline-none";
 
   if (field === "objetivo") {
     return <select name={name} className={className} defaultValue="" required><option value="" disabled>Selecione</option><option value="maintenance">Manutenção</option><option value="fat_loss">Perda de peso</option><option value="muscle_gain">Ganho de massa muscular</option></select>;

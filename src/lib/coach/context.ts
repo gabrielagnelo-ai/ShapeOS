@@ -1,5 +1,5 @@
 import type { FoodLog, FoodLogItem, Food, WeeklyCheckin } from "@prisma/client";
-import { sumNutrients, type Goal, type MacroTargets } from "@/lib/nutrition";
+import { sumNutrients, type Goal, type MacroTargets, toFoodNutrients } from "@/lib/nutrition";
 import type { CoachContext } from "./types";
 
 type FoodLogWithItems = FoodLog & {
@@ -20,15 +20,7 @@ export function buildCoachContext(input: {
       ? input.foodLogs.slice(0, 3).map((log) => {
           const consumed = sumNutrients(log.items.map((item) => ({
             grams: item.grams,
-            food: {
-              name: item.food.name,
-              kcalPer100g: item.food.kcalPer100g,
-              proteinPer100g: item.food.proteinPer100g,
-              carbsPer100g: item.food.carbsPer100g,
-              fatPer100g: item.food.fatPer100g,
-              fiberPer100g: item.food.fiberPer100g ?? 0,
-              sodiumPer100g: item.food.sodiumPer100g ?? 0,
-            },
+            food: toFoodNutrients(item.food),
           })));
           return Math.round((consumed.proteinG / input.proteinTargetG) * 100);
         })
@@ -72,13 +64,7 @@ function consecutiveMacroDays(logs: FoodLogWithItems[], target: Pick<MacroTarget
   for (const log of logs) {
     const consumed = sumNutrients(log.items.map((item) => ({
       grams: item.grams,
-      food: {
-        name: item.food.name,
-        kcalPer100g: item.food.kcalPer100g,
-        proteinPer100g: item.food.proteinPer100g,
-        carbsPer100g: item.food.carbsPer100g,
-        fatPer100g: item.food.fatPer100g,
-      },
+      food: toFoodNutrients(item.food),
     })));
     const caloriesOk = consumed.kcal >= target.calories * 0.9 && consumed.kcal <= target.calories * 1.1;
     const proteinOk = consumed.proteinG >= target.proteinG * 0.9;

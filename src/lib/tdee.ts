@@ -107,7 +107,7 @@ export function effectiveTdee(input: {
 
 export function tdeeInflationWarning(input: { activityFactor: number; activityKey: string; mode: TdeeMode }) {
   return input.mode === "COEFFICIENT" && input.activityFactor >= 1.55 && activityCategory(input.activityKey) === "strength"
-    ? "Musculacao provavelmente ja esta incluida no fator de atividade. Somar novamente pode inflar seu TDEE."
+    ? "Musculação provavelmente já está incluída no fator de atividade. Somar novamente pode inflar seu TDEE."
     : null;
 }
 
@@ -121,7 +121,7 @@ export function validateTdeeTrend(input: {
     return {
       confidence: "MEDIUM" as TdeeConfidence,
       suggestedAdjustmentKcal: 0,
-      message: "Precisa de pelo menos 3 check-ins semanais para validar tendencia corporal.",
+      message: "Precisa de pelo menos 3 check-ins semanais para validar tendência corporal.",
     };
   }
 
@@ -139,7 +139,7 @@ export function validateTdeeTrend(input: {
     return {
       confidence: "LOW" as TdeeConfidence,
       suggestedAdjustmentKcal: -150,
-      message: "Tendencia corporal abaixo do deficit previsto. Possivel TDEE superestimado; reduza a estimativa aos poucos.",
+      message: "Tendência corporal abaixo do déficit previsto. Possível TDEE superestimado; reduza a estimativa aos poucos.",
     };
   }
 
@@ -147,7 +147,7 @@ export function validateTdeeTrend(input: {
     return {
       confidence: "LOW" as TdeeConfidence,
       suggestedAdjustmentKcal: 150,
-      message: "Perda maior que o previsto por mais de 2 semanas. Possivel TDEE subestimado ou ingestao abaixo do registrado.",
+      message: "Perda maior que o previsto por mais de 2 semanas. Possível TDEE subestimado ou ingestão abaixo do registrado.",
     };
   }
 
@@ -156,13 +156,13 @@ export function validateTdeeTrend(input: {
     return {
       confidence: "HIGH" as TdeeConfidence,
       suggestedAdjustmentKcal: 0,
-      message: "Tendencia de peso e cintura compativel com o deficit estimado.",
+      message: "Tendência de peso e cintura compatível com o déficit estimado.",
     };
   }
 
   return {
     confidence: "MEDIUM" as TdeeConfidence,
     suggestedAdjustmentKcal: 0,
-    message: "Ha pequenas divergencias. Mantenha mais uma semana antes de ajustar.",
+    message: "Há pequenas divergências. Mantenha mais uma semana antes de ajustar.",
   };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAppDate } from "./date-time";
-import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "./period-averages";
+import { calendarPeriods, foodPeriodSummary, proteinHitRate, waterPeriodSummary } from "./period-averages";
 
 const food = {
   name: "Arroz",
@@ -47,5 +47,12 @@ describe("period averages", () => {
     expect(summary.registeredDays).toBe(2);
     expect(summary.averageMl).toBe(1875);
     expect(summary.totalMl).toBe(3750);
+  });
+
+  it("counts the days that reached at least 90% of the protein target", () => {
+    const day = (proteinG: number) => ({ totals: { proteinG } });
+    expect(proteinHitRate([day(180), day(173), day(172), day(100)], 192)).toBe(0.5); // 90% of 192 g is 172.8 g
+    expect(proteinHitRate([], 192)).toBeNull();
+    expect(proteinHitRate([day(180)], 0)).toBeNull();
   });
 });

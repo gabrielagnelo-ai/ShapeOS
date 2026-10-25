@@ -49,7 +49,7 @@ export const coachTriggers: Trigger[] = [
     priority: 60,
     category: "training",
     when: (ctx) => ctx.trainingDoneThisWeek <= 1,
-    message: "Seu volume de treino esta baixo nesta semana. Ajuste a agenda antes de mexer nas calorias.",
+    message: "Seu volume de treino está baixo nesta semana. Ajuste a agenda antes de mexer nas calorias.",
   },
   {
     id: "micros_low",

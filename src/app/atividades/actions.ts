@@ -14,6 +14,7 @@ import {
 import { parseAppDate, startOfTodayInAppTimeZone } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { shouldCountActivity, type TdeeMode } from "@/lib/tdee";
+import { clamp } from "@/lib/common";
 
 export async function addPhysicalActivityAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -120,10 +121,6 @@ function parseDate(value: string) {
 
 function startOfToday() {
   return startOfTodayInAppTimeZone();
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function normalizeTdeeChoice(value: string) {

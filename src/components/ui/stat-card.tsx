@@ -27,7 +27,7 @@ export function StatCard({
             "grid size-11 place-items-center rounded-2xl",
             tone === "green" && "bg-lime-300/15 text-lime-300",
             tone === "blue" && "bg-sky-400/15 text-sky-300",
-            tone === "white" && "bg-white/10 text-white",
+            tone === "white" && "bg-surface-tertiary text-white",
           )}
         >
           <Icon size={20} />

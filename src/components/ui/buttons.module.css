@@ -1,0 +1,6 @@
+/* The two capsule buttons of the grouped pages: the filled main action and the gray secondary one. */
+.primary, .secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 20px; border-radius: 999px; font-size: 15px; font-weight: 600; text-decoration: none; touch-action: manipulation; }
+.primary { background: var(--primary); color: var(--primary-ink); }
+.primary:hover { background: var(--primary-light); }
+.secondary { --button-min-height: 40px; min-height: 40px; padding: 8px 18px; font-size: 14px; background: var(--fill); border: 0; color: var(--text-primary); }
+.secondary:hover { background: var(--fill-strong); }

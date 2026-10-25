@@ -1,168 +1,67 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
-import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
+import { loadNutritionistReport } from "@/lib/data/nutritionist-report";
 import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
-import { sumNutrients, type FoodNutrients } from "@/lib/nutrition";
-import { calendarPeriods, foodPeriodSummary, waterPeriodSummary } from "@/lib/period-averages";
-import { prisma } from "@/lib/prisma";
-import { computeProfileMetrics, endOfToday, requireUserProfile, startOfToday } from "@/lib/profile";
-import { effectiveTdee, validateTdeeTrend } from "@/lib/tdee";
-import { analyzeTrainingPerformance, trainingLogsFromPlans } from "@/lib/training-performance";
+import { sumNutrients, toFoodNutrients } from "@/lib/nutrition";
+import { requireUserProfile } from "@/lib/profile";
 import { supplementDoseUnit, type SupplementType } from "@/lib/supplements";
-import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
+import { waterPreferenceLabel } from "@/lib/water";
 import { PrintReportButton } from "./print-button";
+import { confidenceLabel, formatNumber } from "@/lib/common";
 
 export default async function NutritionistReportPage() {
   const { user, profile } = await requireUserProfile();
-  let metrics = computeProfileMetrics(profile);
-  const periods = calendarPeriods();
-  const since = new Date();
-  since.setDate(since.getDate() - 30);
-
-  const [rawBodySnapshots, checkins, foodLogs, activePlan, activities, waterLogs, healthSummaries, supplementPlans, trainingPlan, trainingPlansForPerformance] = await Promise.all([
-    prisma.bodyCompositionSnapshot.findMany({ where: { userId: user.id }, orderBy: { measuredAt: "desc" }, take: 12 }),
-    prisma.weeklyCheckin.findMany({
-      where: { userId: user.id },
-      include: { bodyPhotos: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } },
-      orderBy: { weekStart: "desc" },
-      take: 12,
-    }),
-    prisma.foodLog.findMany({
-      where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } },
-      include: { items: { include: { food: true } } },
-      orderBy: { date: "desc" },
-    }),
-    prisma.dietPlan.findFirst({
-      where: { userId: user.id, isActive: true },
-      include: { meals: { include: { items: { include: { food: true, recipe: { select: { id: true, name: true } } } } }, orderBy: { order: "asc" } } },
-    }),
-    prisma.physicalActivityLog.findMany({ where: { userId: user.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 60 }),
-    prisma.waterLog.findMany({ where: { userId: user.id, date: { gte: periods.semester.start, lt: periods.semester.end } }, orderBy: { date: "desc" } }),
-    prisma.healthDailySummary.findMany({ where: { userId: user.id, date: { gte: since } }, orderBy: { date: "desc" }, take: 30 }),
-    prisma.supplementPlan.findMany({
-      where: { userId: user.id },
-      include: { logs: { orderBy: { date: "desc" }, take: 10 }, periods: { orderBy: { startDate: "desc" }, take: 5 } },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.trainingPlan.findFirst({
-      where: { userId: user.id, isActive: true },
-      include: {
-        days: {
-          orderBy: { order: "asc" },
-          include: { exercises: { orderBy: { order: "asc" }, include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } } } },
-        },
-      },
-    }),
-    prisma.trainingPlan.findMany({
-      where: { userId: user.id },
-      include: {
-        days: {
-          include: { exercises: { include: { logs: { where: { userId: user.id }, orderBy: { date: "desc" }, take: 4 } } } },
-        },
-      },
-      take: 12,
-    }),
-  ]);
-
-  const bodySnapshots = recalculateBodyCompositionSnapshots(rawBodySnapshots, { sex: metrics.sex, heightCm: profile.heightCm });
-  const latestBody = bodySnapshots[0];
-  const currentBody = bodyStateFromLatestSnapshot(profile, bodySnapshots);
-  metrics = computeProfileMetrics(profile, currentBody);
-  const foodLogsForPeriod = foodLogs.map((log) => ({
-    date: log.date,
-    items: log.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams })),
-  }));
-  const foodMonth = foodPeriodSummary(foodLogsForPeriod, periods.month);
-  const foodQuarter = foodPeriodSummary(foodLogsForPeriod, periods.quarter);
-  const foodSemester = foodPeriodSummary(foodLogsForPeriod, periods.semester);
-  const averageIntake = foodMonth.average;
-  const planTotals = activePlan ? sumNutrients(activePlan.meals.flatMap((meal) => meal.items.map((item) => ({ food: toFoodNutrients(item.food), grams: item.grams })))) : null;
-  const todayStart = startOfToday();
-  const todayEnd = endOfToday();
-  const todayActivities = activities.filter((activity) => activity.date >= todayStart && activity.date <= todayEnd);
-  const tdeeResult = effectiveTdee({
-    bmr: metrics.bmr,
-    activityFactor: profile.activityFactor,
-    adjustmentKcal: profile.tdeeAdjustmentKcal,
-    mode: profile.tdeeCalculationMode,
-    activities: todayActivities,
-  });
-  const tdeeValidation = validateTdeeTrend({
-    tdee: metrics.tdee,
-    averageIntakeKcal: Math.round(averageIntake.kcal),
-    checkins: [...checkins].reverse(),
-  });
-  const bodyComposition = buildBodyCompositionProjection({
-    currentWeightKg: currentBody.weightKg,
-    currentWaistCm: currentBody.waistCm,
-    currentBodyFatPct: latestBody?.bodyFatPct ?? metrics.bodyFat.percentage,
-    targetBodyFatPct: profile.targetBodyFatPct,
-    targetWaistCm: profile.targetWaistCm,
-    targetDate: profile.targetDate,
-    checkins: [...checkins].reverse(),
-    snapshots: bodySnapshots,
-    proteinHitRate: proteinHitRate(foodMonth.dayTotals, metrics.targets.proteinG),
-    deficitPct: metrics.tdee ? Math.round(((metrics.tdee - metrics.targets.calories) / metrics.tdee) * 100) : null,
-  });
-  const waterTarget = waterTargetMl(currentBody.weightKg, profile.waterPreference);
-  const todayWaterMl = waterLogs.filter((log) => log.date >= todayStart && log.date <= todayEnd).reduce((sum, log) => sum + log.amountMl, 0);
-  const waterMonth = waterPeriodSummary(waterLogs, periods.month);
-  const waterQuarter = waterPeriodSummary(waterLogs, periods.quarter);
-  const waterSemester = waterPeriodSummary(waterLogs, periods.semester);
-  const activitiesTotals = {
-    raw: Math.round(activities.reduce((sum, item) => sum + item.caloriesKcal, 0)),
-    conservative: Math.round(activities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
-    todayConservative: Math.round(todayActivities.reduce((sum, item) => sum + (item.conservativeCaloriesKcal ?? item.caloriesKcal), 0)),
-  };
-  const averageConservativeActivityKcal = Math.round(activitiesTotals.conservative / 30);
-  const trainingPerformance = analyzeTrainingPerformance(trainingLogsFromPlans(trainingPlansForPerformance));
+  const {
+    metrics, checkins, activePlan, activities, healthSummaries, supplementPlans, trainingPlan, bodySnapshots, currentBody,
+    foodMonth, foodQuarter, foodSemester, planTotals, tdeeResult, tdeeValidation, bodyComposition, waterTarget, todayWaterMl,
+    waterMonth, waterQuarter, waterSemester, activitiesTotals, averageConservativeActivityKcal, trainingPerformance,
+  } = await loadNutritionistReport(user.id, profile);
   const heroMetrics = [
-    { label: "Meta calorica", value: `${metrics.targets.calories} kcal` },
+    { label: "Meta calórica", value: `${metrics.targets.calories} kcal` },
     { label: "TDEE hoje", value: `${tdeeResult.total} kcal` },
     { label: "BF atual", value: bodyComposition.bodyFatProgress.currentBodyFatPct == null ? "pendente" : `${formatNumber(bodyComposition.bodyFatProgress.currentBodyFatPct)}%` },
     { label: "Massa magra", value: bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg` },
   ];
 
   return (
-    <main className="shapeos-report-page min-h-screen bg-[#070807] px-4 py-8 text-zinc-100 print:bg-[#070807] print:px-0 print:py-0">
-      <div className="shapeos-report-sheet mx-auto max-w-5xl overflow-hidden rounded-[36px] border border-lime-300/20 bg-[#10110f] shadow-2xl shadow-lime-950/20 print:max-w-none print:rounded-none print:border-0 print:shadow-none">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-6 py-5 backdrop-blur print:hidden">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-white/12">
+    <main className="shapeos-report-page min-h-screen bg-surface-primary px-4 py-8 text-text-primary print:bg-[#070807] print:px-0 print:py-0">
+      <div className="shapeos-report-sheet panel mx-auto max-w-5xl overflow-hidden print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-black/40 px-6 py-5 backdrop-blur print:hidden">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-hairline bg-white/8 px-4 py-2 text-sm font-semibold text-text-secondary transition hover:bg-white/12">
             <ArrowLeft size={16} />
             Voltar
           </Link>
           <PrintReportButton />
         </div>
 
-        <header className="relative overflow-hidden border-b border-lime-300/20 bg-[radial-gradient(circle_at_15%_0%,rgba(184,255,0,.22),transparent_35%),linear-gradient(135deg,#080908_0%,#151712_58%,#0b0c0b_100%)] px-6 py-8 sm:px-8 print:px-7 print:py-7">
-          <div className="absolute right-[-90px] top-[-110px] size-72 rounded-full border border-lime-300/20 bg-lime-300/10 blur-3xl" />
+        <header className="relative overflow-hidden border-b border-hairline px-6 py-8 sm:px-8 print:px-7 print:py-7">
+
           <div className="relative flex flex-wrap items-start justify-between gap-6">
             <div className="max-w-2xl">
               <Image src="/shapeos-logo.png" alt="ShapeOS" width={260} height={67} className="mb-7 h-auto w-56 sm:w-64 print:w-48" priority />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-lime-300">Relatorio tecnico para nutricionista</p>
+              <p className="text-sm text-text-muted">Relatório técnico para nutricionista</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl print:text-4xl">{user.name}</h1>
-              <p className="mt-2 text-sm text-zinc-300">{user.email}</p>
+              <p className="mt-2 text-sm text-text-secondary">{user.email}</p>
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-black/35 p-4 text-left text-sm text-zinc-300 shadow-2xl shadow-black/25 backdrop-blur">
-              <p className="text-zinc-500">Emitido em</p>
+            <div className="rounded-[14px] bg-surface-tertiary p-4 text-left text-sm text-text-secondary">
+              <p className="text-text-muted">Emitido em</p>
               <p className="font-semibold text-white">{formatDate(new Date())}</p>
-              <p className="mt-3 text-zinc-500">Janela de analise</p>
-              <p className="font-semibold text-white">Mes atual + trimestre/semestre</p>
+              <p className="mt-3 text-text-muted">Janela de análise</p>
+              <p className="font-semibold text-white">Mês atual + trimestre/semestre</p>
             </div>
           </div>
 
           <div className="relative mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
             {heroMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-[22px] border border-white/10 bg-white/[0.07] p-4 shadow-inner shadow-white/5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">{metric.label}</p>
+              <div key={metric.label} className="rounded-[14px] bg-surface-tertiary p-4">
+                <p className="text-xs font-medium text-text-muted">{metric.label}</p>
                 <p className="mt-2 text-2xl font-black text-white">{metric.value}</p>
               </div>
             ))}
           </div>
-          <p className="relative mt-6 rounded-[22px] border border-amber-300/45 bg-amber-300/10 px-4 py-3 text-xs leading-5 text-amber-100">
-            Documento informativo gerado a partir de registros do usuario. Nao substitui consulta, diagnostico ou prescricao profissional.
+          <p className="relative mt-6 rounded-[14px] bg-warning/10 px-4 py-3 text-xs leading-5 text-warning">
+            Documento informativo gerado a partir de registros do usuário. Não substitui consulta, diagnóstico ou prescrição profissional.
           </p>
         </header>
 
@@ -175,53 +74,53 @@ export default async function NutritionistReportPage() {
               <Info label="Peso atual" value={`${formatNumber(currentBody.weightKg)} kg`} />
               <Info label="Objetivo" value={goalLabel(profile.goal)} />
               <Info label="Conhecimento de dieta" value={experienceLabel(profile.experience)} />
-              <Info label="Controle do app" value={profile.mode === "ADVANCED" ? "Manual avancado" : "Guiado"} />
-              <Info label="Preferencia alimentar" value={profile.dietPreference ?? "nao informado"} />
+              <Info label="Controle do app" value={profile.mode === "ADVANCED" ? "Manual avançado" : "Guiado"} />
+              <Info label="Preferência alimentar" value={profile.dietPreference ?? "não informado"} />
             </InfoGrid>
-            <TextBlock label="Restricoes / alergias / condicoes" value={[
-              `Restricoes: ${profile.restrictions.join(", ") || "nenhuma"}`,
+            <TextBlock label="Restrições / alergias / condições" value={[
+              `Restrições: ${profile.restrictions.join(", ") || "nenhuma"}`,
               `Alergias: ${profile.allergies.join(", ") || "nenhuma"}`,
-              `Nao gosta: ${profile.dislikedFoods.join(", ") || "nenhum"}`,
-              `Condicoes relevantes: ${profile.medicalConditions.join(", ") || "nenhuma informada"}`,
+              `Não gosta: ${profile.dislikedFoods.join(", ") || "nenhum"}`,
+              `Condições relevantes: ${profile.medicalConditions.join(", ") || "nenhuma informada"}`,
             ].join("\n")} />
           </ReportSection>
 
-          <ReportSection title="2. Calculos metabolicos e metas">
+          <ReportSection title="2. Cálculos metabólicos e metas">
             <InfoGrid>
               <Info label="BMR Mifflin-St Jeor" value={`${metrics.bmr} kcal`} />
               <Info label="Fator atividade" value={`${formatNumber(profile.activityFactor)} (${profile.tdeeCalculationMode})`} />
               <Info label="TDEE base" value={`${metrics.tdee} kcal`} />
               <Info label="TDEE efetivo hoje" value={`${tdeeResult.total} kcal`} />
-              <Info label="Extras validos hoje" value={`${tdeeResult.activityKcal} kcal`} />
+              <Info label="Extras válidos hoje" value={`${tdeeResult.activityKcal} kcal`} />
               <Info label="Ajuste adaptativo" value={`${profile.tdeeAdjustmentKcal} kcal`} />
-              <Info label="Confianca TDEE" value={confidenceLabel(tdeeValidation.confidence)} />
-              <Info label="Meta calorica" value={`${metrics.targets.calories} kcal`} />
-              <Info label="Deficit/superavit" value={`${metrics.targets.calories - metrics.tdee} kcal/dia`} />
+              <Info label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} />
+              <Info label="Meta calórica" value={`${metrics.targets.calories} kcal`} />
+              <Info label="Déficit/superávit" value={`${metrics.targets.calories - metrics.tdee} kcal/dia`} />
             </InfoGrid>
             <InfoGrid>
-              <Info label="Proteina" value={`${metrics.targets.proteinG} g (${formatNumber(profile.proteinPerKg ?? 1.8)} g/kg)`} />
+              <Info label="Proteína" value={`${metrics.targets.proteinG} g (${formatNumber(profile.proteinPerKg ?? 1.8)} g/kg)`} />
               <Info label="Carboidratos" value={`${metrics.targets.carbsG} g`} />
               <Info label="Gorduras" value={`${metrics.targets.fatG} g (${formatNumber(profile.fatPerKg ?? 0.8)} g/kg)`} />
-              <Info label="Fibra alvo" value={metrics.targets.fiberG ? `${metrics.targets.fiberG} g` : "nao definido"} />
-              <Info label="Sodio limite" value={metrics.targets.sodiumMg ? `${metrics.targets.sodiumMg} mg` : "nao definido"} />
+              <Info label="Fibra alvo" value={metrics.targets.fiberG ? `${metrics.targets.fiberG} g` : "não definido"} />
+              <Info label="Sódio limite" value={metrics.targets.sodiumMg ? `${metrics.targets.sodiumMg} mg` : "não definido"} />
             </InfoGrid>
-            <p className="mt-3 text-xs leading-5 text-zinc-400">{tdeeValidation.message}</p>
+            <p className="mt-3 text-xs leading-5 text-text-muted">{tdeeValidation.message}</p>
           </ReportSection>
 
-          <ReportSection title="3. Composicao corporal">
+          <ReportSection title="3. Composição corporal">
             <InfoGrid>
               <Info label="BF atual" value={bodyComposition.bodyFatProgress.currentBodyFatPct == null ? "pendente" : `${formatNumber(bodyComposition.bodyFatProgress.currentBodyFatPct)}%`} />
               <Info label="Massa magra estimada" value={bodyComposition.currentLeanMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentLeanMassKg)} kg`} />
               <Info label="Massa gorda atual" value={bodyComposition.currentFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.currentFatMassKg)} kg`} />
-              <Info label="BF alvo" value={bodyComposition.targetBodyFatPct == null ? "nao definido" : `${formatNumber(bodyComposition.targetBodyFatPct)}%`} />
+              <Info label="BF alvo" value={bodyComposition.targetBodyFatPct == null ? "não definido" : `${formatNumber(bodyComposition.targetBodyFatPct)}%`} />
               <Info label="Gordura alvo" value={bodyComposition.targetFatMassKg == null ? "pendente" : `${formatNumber(bodyComposition.targetFatMassKg)} kg`} />
               <Info label="Gordura a perder" value={bodyComposition.fatMassToLoseKg == null ? "pendente" : `${formatNumber(bodyComposition.fatMassToLoseKg)} kg`} />
-              <Info label="Faixa provavel" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} />
-              <Info label="Confianca corporal" value={bodyComposition.confidenceLabel} />
+              <Info label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatNumber(bodyComposition.probableWeightRangeKg.minKg)}-${formatNumber(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} />
+              <Info label="Confiança corporal" value={confidenceLabel(bodyComposition.confidenceLabel)} />
             </InfoGrid>
-            <p className="mt-3 text-xs leading-5 text-zinc-400">{bodyComposition.recomposition.message}</p>
+            <p className="mt-3 text-xs leading-5 text-text-muted">{bodyComposition.recomposition.message}</p>
             <Table
-              columns={["Data", "Peso", "Cintura", "Pescoco", "Quadril", "BF", "Massa magra", "Fonte"]}
+              columns={["Data", "Peso", "Cintura", "Pescoço", "Quadril", "BF", "Massa magra", "Fonte"]}
               rows={bodySnapshots.map((item) => [
                 formatDate(item.measuredAt),
                 `${formatNumber(item.weightKg)} kg`,
@@ -235,21 +134,21 @@ export default async function NutritionistReportPage() {
             />
           </ReportSection>
 
-          <ReportSection title="4. Consumo alimentar por periodo">
+          <ReportSection title="4. Consumo alimentar por período">
             <InfoGrid>
-              <Info label="Media kcal mes" value={`${Math.round(foodMonth.average.kcal)} kcal/dia`} />
-              <Info label="Proteina mes" value={`${formatNumber(foodMonth.average.proteinG)} g/dia`} />
-              <Info label="Dias lancados mes" value={`${foodMonth.registeredDays}`} />
-              <Info label="Media kcal trimestre" value={`${Math.round(foodQuarter.average.kcal)} kcal/dia`} />
-              <Info label="Dias lancados trimestre" value={`${foodQuarter.registeredDays}`} />
-              <Info label="Media kcal semestre" value={`${Math.round(foodSemester.average.kcal)} kcal/dia`} />
-              <Info label="Dias lancados semestre" value={`${foodSemester.registeredDays}`} />
+              <Info label="Média kcal mês" value={`${Math.round(foodMonth.average.kcal)} kcal/dia`} />
+              <Info label="Proteína mês" value={`${formatNumber(foodMonth.average.proteinG)} g/dia`} />
+              <Info label="Dias lançados mês" value={`${foodMonth.registeredDays}`} />
+              <Info label="Média kcal trimestre" value={`${Math.round(foodQuarter.average.kcal)} kcal/dia`} />
+              <Info label="Dias lançados trimestre" value={`${foodQuarter.registeredDays}`} />
+              <Info label="Média kcal semestre" value={`${Math.round(foodSemester.average.kcal)} kcal/dia`} />
+              <Info label="Dias lançados semestre" value={`${foodSemester.registeredDays}`} />
             </InfoGrid>
-            <p className="mt-3 text-xs leading-5 text-zinc-400">
-              Alimentacao e agua usam somente dias com registro. Dias sem lancamento nao entram como zero.
+            <p className="mt-3 text-xs leading-5 text-text-muted">
+              Alimentação e água usam somente dias com registro. Dias sem lançamento não entram como zero.
             </p>
             <Table
-              columns={["Periodo", "Janela", "Dias", "Kcal media", "Proteina", "Carbo", "Gordura", "Fibra", "Sodio"]}
+              columns={["Período", "Janela", "Dias", "Kcal média", "Proteína", "Carbo", "Gordura", "Fibra", "Sódio"]}
               rows={[foodMonth, foodQuarter, foodSemester].map((summary) => [
                 periodTitle(summary.period.key),
                 summary.period.label,
@@ -263,7 +162,7 @@ export default async function NutritionistReportPage() {
               ])}
             />
             <Table
-              columns={["Data", "Kcal", "Proteina", "Carbo", "Gordura", "Fibra", "Sodio"]}
+              columns={["Data", "Kcal", "Proteína", "Carbo", "Gordura", "Fibra", "Sódio"]}
               rows={foodMonth.dayTotals.slice(0, 14).map((day) => [
                 formatDate(day.date),
                 String(Math.round(day.totals.kcal)),
@@ -282,14 +181,14 @@ export default async function NutritionistReportPage() {
                 <InfoGrid>
                   <Info label="Nome" value={activePlan.name} />
                   <Info label="Meta kcal" value={`${activePlan.targetCalories} kcal`} />
-                  <Info label="Proteina alvo" value={`${formatNumber(activePlan.targetProteinG)} g`} />
+                  <Info label="Proteína alvo" value={`${formatNumber(activePlan.targetProteinG)} g`} />
                   <Info label="Carbo alvo" value={`${formatNumber(activePlan.targetCarbsG)} g`} />
                   <Info label="Gordura alvo" value={`${formatNumber(activePlan.targetFatG)} g`} />
                   <Info label="Total calculado" value={planTotals ? `${Math.round(planTotals.kcal)} kcal` : "pendente"} />
                 </InfoGrid>
                 {activePlan.meals.map((meal) => (
                   <div key={meal.id} className="mt-4 break-inside-avoid">
-                    <h3 className="font-semibold text-zinc-100">{meal.name}</h3>
+                    <h3 className="font-semibold text-text-primary">{meal.name}</h3>
                     <Table
                       compact
                       columns={["Alimento", "Gramas", "Kcal", "P", "C", "G"]}
@@ -309,12 +208,12 @@ export default async function NutritionistReportPage() {
                   </div>
                 ))}
               </>
-            ) : <p className="text-sm text-zinc-500">Nenhum plano alimentar ativo.</p>}
+            ) : <p className="text-sm text-text-muted">Nenhum plano alimentar ativo.</p>}
           </ReportSection>
 
           <ReportSection title="6. Check-ins semanais">
             <Table
-              columns={["Semana", "Peso medio", "Cintura", "Aderencia", "Fome", "Energia", "Sono", "Treino", "Obs."]}
+              columns={["Semana", "Peso médio", "Cintura", "Aderência", "Fome", "Energia", "Sono", "Treino", "Obs."]}
               rows={checkins.map((item) => [
                 formatDate(item.weekStart),
                 `${formatNumber(item.averageWeightKg)} kg`,
@@ -323,7 +222,7 @@ export default async function NutritionistReportPage() {
                 `${item.hunger}/10`,
                 `${item.energy}/10`,
                 `${item.sleep}/10`,
-                item.trainingDone ? "sim" : "nao",
+                item.trainingDone ? "sim" : "não",
                 item.notes ?? "",
               ])}
             />
@@ -333,23 +232,23 @@ export default async function NutritionistReportPage() {
             {checkins.some((checkin) => checkin.bodyPhotos.length) ? (
               <div className="grid gap-4">
                 {checkins.filter((checkin) => checkin.bodyPhotos.length).map((checkin, checkinIndex) => (
-                  <div key={checkin.id} className="break-inside-avoid rounded-[22px] border border-white/10 bg-black/20 p-4">
+                  <div key={checkin.id} className="break-inside-avoid rounded-[14px] bg-surface-tertiary p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-zinc-100">Semana {checkins.length - checkinIndex} - check-in de {formatDate(checkin.weekStart)}</p>
-                        <p className="mt-1 text-xs text-zinc-500">
+                        <p className="text-sm font-semibold text-text-primary">Semana {checkins.length - checkinIndex} - check-in de {formatDate(checkin.weekStart)}</p>
+                        <p className="mt-1 text-xs text-text-muted">
                           Peso {formatNumber(checkin.averageWeightKg)} kg
                           {checkin.waistCm ? ` - cintura ${formatNumber(checkin.waistCm)} cm` : ""}
-                          {` - adesao ${formatNumber(checkin.adherencePct)}%`}
+                          {` - adesão ${formatNumber(checkin.adherencePct)}%`}
                         </p>
                       </div>
-                      <span className="rounded-full bg-lime-300/12 px-3 py-1 text-xs font-semibold text-lime-100">{checkin.bodyPhotos.length}/8 fotos</span>
+                      <span className="text-xs text-text-muted">{checkin.bodyPhotos.length}/8 fotos</span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
                       {checkin.bodyPhotos.map((photo, index) => (
-                        <figure key={photo.id} className="overflow-hidden rounded-[18px] border border-white/10 bg-[#080908]">
+                        <figure key={photo.id} className="overflow-hidden rounded-[12px] bg-surface-primary">
                           <Image src={bodyPhotoSrc(photo)} alt={`Foto ${index + 1} do check-in ${formatDate(checkin.weekStart)}`} width={360} height={480} unoptimized className="aspect-[3/4] w-full object-cover" />
-                          <figcaption className="px-2 py-2 text-[10px] uppercase tracking-[0.12em] text-zinc-500">
+                          <figcaption className="px-2 py-2 text-[10px] text-text-muted">
                             Foto {index + 1} - {formatDate(checkin.weekStart)}
                           </figcaption>
                         </figure>
@@ -358,39 +257,39 @@ export default async function NutritionistReportPage() {
                   </div>
                 ))}
               </div>
-            ) : <p className="text-sm text-zinc-500">Nenhuma foto corporal anexada aos check-ins.</p>}
+            ) : <p className="text-sm text-text-muted">Nenhuma foto corporal anexada aos check-ins.</p>}
           </ReportSection>
 
-          <ReportSection title="8. Atividade, hidratacao e saude integrada">
+          <ReportSection title="8. Atividade, hidratação e saúde integrada">
             <InfoGrid>
               <Info label="Atividades registradas" value={`${activities.length}`} />
               <Info label="Kcal atividade bruta" value={`${activitiesTotals.raw} kcal / 30 dias`} />
               <Info label="Kcal conservadora" value={`${activitiesTotals.conservative} kcal / 30 dias`} />
-              <Info label="Media conservadora" value={`${averageConservativeActivityKcal} kcal/dia`} />
-              <Info label="Extras validos hoje" value={`${tdeeResult.activityKcal} kcal`} />
-              <Info label="Agua hoje" value={`${todayWaterMl} ml`} />
-              <Info label="Meta agua" value={`${waterTarget} ml/dia (${waterPreferenceLabel(profile.waterPreference)})`} />
-              <Info label="Media agua mes" value={`${waterMonth.averageMl} ml/dia`} />
-              <Info label="Dias agua mes" value={`${waterMonth.registeredDays}`} />
-              <Info label="Media agua trimestre" value={`${waterQuarter.averageMl} ml/dia`} />
-              <Info label="Dias agua trimestre" value={`${waterQuarter.registeredDays}`} />
-              <Info label="Media agua semestre" value={`${waterSemester.averageMl} ml/dia`} />
-              <Info label="Dias agua semestre" value={`${waterSemester.registeredDays}`} />
+              <Info label="Média conservadora" value={`${averageConservativeActivityKcal} kcal/dia`} />
+              <Info label="Extras válidos hoje" value={`${tdeeResult.activityKcal} kcal`} />
+              <Info label="Água hoje" value={`${todayWaterMl} ml`} />
+              <Info label="Meta água" value={`${waterTarget} ml/dia (${waterPreferenceLabel(profile.waterPreference)})`} />
+              <Info label="Média água mês" value={`${waterMonth.averageMl} ml/dia`} />
+              <Info label="Dias água mês" value={`${waterMonth.registeredDays}`} />
+              <Info label="Média água trimestre" value={`${waterQuarter.averageMl} ml/dia`} />
+              <Info label="Dias água trimestre" value={`${waterQuarter.registeredDays}`} />
+              <Info label="Média água semestre" value={`${waterSemester.averageMl} ml/dia`} />
+              <Info label="Dias água semestre" value={`${waterSemester.registeredDays}`} />
               <Info label="Dias Apple/Health" value={`${healthSummaries.length}`} />
             </InfoGrid>
-            <p className="mt-3 text-xs leading-5 text-zinc-400">
-              TDEE efetivo hoje usa apenas atividades validas registradas hoje. Medias de alimentacao e agua consideram apenas dias lancados no periodo.
+            <p className="mt-3 text-xs leading-5 text-text-muted">
+              TDEE efetivo hoje usa apenas atividades válidas registradas hoje. Médias de alimentação e água consideram apenas dias lançados no período.
             </p>
             <Table
               compact
-              columns={["Data", "Atividade", "Duracao", "Distancia", "Kcal cons.", "Conta TDEE"]}
+              columns={["Data", "Atividade", "Duração", "Distância", "Kcal cons.", "Conta TDEE"]}
               rows={activities.slice(0, 20).map((item) => [
                 formatDate(item.date),
                 item.name,
                 `${item.durationMinutes} min`,
                 item.distanceKm ? `${formatNumber(item.distanceKm)} km` : "-",
                 `${Math.round(item.conservativeCaloriesKcal ?? item.caloriesKcal)}`,
-                item.countsTowardTdee ? "sim" : "nao",
+                item.countsTowardTdee ? "sim" : "não",
               ])}
             />
           </ReportSection>
@@ -401,27 +300,27 @@ export default async function NutritionistReportPage() {
                 <InfoGrid>
                   <Info label="Nome" value={trainingPlan.name} />
                   <Info label="Dias" value={`${trainingPlan.days.length}`} />
-                  <Info label="Exercicios" value={`${trainingPlan.days.reduce((sum, day) => sum + day.exercises.length, 0)}`} />
+                  <Info label="Exercícios" value={`${trainingPlan.days.reduce((sum, day) => sum + day.exercises.length, 0)}`} />
                   <Info label="Origem" value={trainingPlan.sourceFileName ?? "manual"} />
                   <Info label="Score performance" value={`${trainingPerformance.score}`} />
-                  <Info label="Tendencia" value={trainingTrendLabel(trainingPerformance.trend)} />
-                  <Info label="Confianca" value={trainingConfidenceLabel(trainingPerformance.confidence)} />
+                  <Info label="Tendência" value={trainingTrendLabel(trainingPerformance.trend)} />
+                  <Info label="Confiança" value={confidenceLabel(trainingPerformance.confidence)} />
                   <Info label="Dias registrados" value={`${trainingPerformance.trainedDays}`} />
-                  <Info label="Exercicios comparados" value={`${trainingPerformance.comparableExercises}`} />
-                  <Info label="Subiram / cairam" value={`${trainingPerformance.improvedExercises} / ${trainingPerformance.declinedExercises}`} />
-                  <Info label="RPE medio" value={trainingPerformance.averageRpe == null ? "pendente" : `${formatNumber(trainingPerformance.averageRpe)}`} />
+                  <Info label="Exercícios comparados" value={`${trainingPerformance.comparableExercises}`} />
+                  <Info label="Subiram / caíram" value={`${trainingPerformance.improvedExercises} / ${trainingPerformance.declinedExercises}`} />
+                  <Info label="RPE médio" value={trainingPerformance.averageRpe == null ? "pendente" : `${formatNumber(trainingPerformance.averageRpe)}`} />
                 </InfoGrid>
-                <p className="mt-3 text-xs leading-5 text-zinc-400">{trainingPerformance.primaryMessage}</p>
+                <p className="mt-3 text-xs leading-5 text-text-muted">{trainingPerformance.primaryMessage}</p>
                 {trainingPerformance.alerts.length ? (
                   <TextBlock label="Alertas de performance" value={trainingPerformance.alerts.map((alert) => alert.message).join("\n")} />
                 ) : null}
-                {trainingPlan.notes ? <p className="mt-3 text-xs leading-5 text-zinc-400">{trainingPlan.notes}</p> : null}
+                {trainingPlan.notes ? <p className="mt-3 text-xs leading-5 text-text-muted">{trainingPlan.notes}</p> : null}
                 {trainingPlan.days.map((day) => (
                   <div key={day.id} className="mt-4 break-inside-avoid">
-                    <h3 className="font-semibold text-zinc-100">{day.name} {day.focus ? `- ${day.focus}` : ""}</h3>
+                    <h3 className="font-semibold text-text-primary">{day.name} {day.focus ? `- ${day.focus}` : ""}</h3>
                     <Table
                       compact
-                      columns={["Exercicio", "Grupo", "Series", "Reps", "Descanso", "Carga/obs."]}
+                      columns={["Exercício", "Grupo", "Séries", "Reps", "Descanso", "Carga/obs."]}
                       rows={day.exercises.map((exercise) => [
                         exercise.name,
                         exercise.muscleGroup ?? "-",
@@ -431,7 +330,7 @@ export default async function NutritionistReportPage() {
                         [
                           exercise.loadInstruction,
                           exercise.notes,
-                          exercise.logs[0]?.loadKg ? `ultima carga ${formatNumber(exercise.logs[0].loadKg)} kg` : null,
+                          exercise.logs[0]?.loadKg ? `última carga ${formatNumber(exercise.logs[0].loadKg)} kg` : null,
                           exercise.logs[0]?.repsDone ? `reps ${exercise.logs[0].repsDone}` : null,
                         ].filter(Boolean).join(" - "),
                       ])}
@@ -439,23 +338,23 @@ export default async function NutritionistReportPage() {
                   </div>
                 ))}
               </>
-            ) : <p className="text-sm text-zinc-500">Nenhum plano de treino importado.</p>}
+            ) : <p className="text-sm text-text-muted">Nenhum plano de treino importado.</p>}
           </ReportSection>
 
           <ReportSection title="10. Suplementos monitorados">
             {supplementPlans.length ? (
               <Table
-                columns={["Suplemento", "Protocolo", "Dose/dia", "Inicio", "Ativo", "Registros recentes"]}
+                columns={["Suplemento", "Protocolo", "Dose/dia", "Início", "Ativo", "Registros recentes"]}
                 rows={supplementPlans.map((plan) => [
                   plan.name,
                   plan.protocol,
                   `${formatNumber(plan.dailyDoseG)} ${supplementDoseUnit(plan.type as SupplementType, plan.dailyDoseG)}`,
                   formatDate(plan.startedAt),
-                  plan.isActive ? "sim" : "nao",
+                  plan.isActive ? "sim" : "não",
                   plan.logs.map((log) => `${formatDate(log.date)} ${formatNumber(log.doseG)} ${supplementDoseUnit(plan.type as SupplementType, log.doseG)}`).join("; "),
                 ])}
               />
-            ) : <p className="text-sm text-zinc-500">Nenhum suplemento registrado.</p>}
+            ) : <p className="text-sm text-text-muted">Nenhum suplemento registrado.</p>}
           </ReportSection>
         </div>
       </div>
@@ -465,9 +364,9 @@ export default async function NutritionistReportPage() {
 
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="break-inside-avoid rounded-[28px] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
-      <h2 className="flex items-center gap-3 border-b border-white/10 pb-3 text-lg font-bold text-white">
-        <span className="size-2 rounded-full bg-lime-300 shadow-[0_0_16px_rgba(184,255,0,.75)]" />
+    <section className="break-inside-avoid rounded-[14px] bg-surface-tertiary p-5">
+      <h2 className="flex items-center gap-3 border-b border-hairline pb-3 text-lg font-bold text-white">
+        <span className="size-2 rounded-full bg-text-muted" />
         {title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -481,32 +380,32 @@ function InfoGrid({ children }: { children: React.ReactNode }) {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[18px] border border-white/10 bg-black/25 px-3 py-3 shadow-inner shadow-white/5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-zinc-100">{value}</p>
+    <div className="rounded-[18px] border border-hairline bg-black/25 px-3 py-3 shadow-inner shadow-white/5">
+      <p className="text-[10px] font-semibold text-text-muted">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-text-primary">{value}</p>
     </div>
   );
 }
 
 function TextBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="mt-3 rounded-[18px] border border-white/10 bg-black/25 px-3 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-200">{value}</p>
+    <div className="mt-3 rounded-[18px] border border-hairline bg-black/25 px-3 py-3">
+      <p className="text-[10px] font-semibold text-text-muted">{label}</p>
+      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-text-secondary">{value}</p>
     </div>
   );
 }
 
 function Table({ columns, rows, compact = false }: { columns: string[]; rows: string[][]; compact?: boolean }) {
-  if (!rows.length) return <p className="text-sm text-zinc-500">Sem dados registrados.</p>;
+  if (!rows.length) return <p className="text-sm text-text-muted">Sem dados registrados.</p>;
 
   return (
-    <div className="mt-3 overflow-x-auto rounded-[18px] border border-white/10">
+    <div className="mt-3 overflow-x-auto rounded-[18px] border border-hairline">
       <table className="w-full border-collapse text-left text-xs">
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column} className="border-b border-white/10 bg-lime-300/10 px-2 py-2 font-semibold text-lime-100">{column}</th>
+              <th key={column} className="border-b border-hairline bg-fill px-2 py-2 font-semibold text-text-primary">{column}</th>
             ))}
           </tr>
         </thead>
@@ -514,7 +413,7 @@ function Table({ columns, rows, compact = false }: { columns: string[]; rows: st
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex} className="odd:bg-white/[0.025]">
               {row.map((cell, cellIndex) => (
-                <td key={`${rowIndex}-${cellIndex}`} className={`border-b border-white/8 px-2 align-top text-zinc-200 ${compact ? "py-1.5" : "py-2"}`}>{cell || "-"}</td>
+                <td key={`${rowIndex}-${cellIndex}`} className={`border-b border-white/8 px-2 align-top text-text-secondary ${compact ? "py-1.5" : "py-2"}`}>{cell || "-"}</td>
               ))}
             </tr>
           ))}
@@ -524,55 +423,12 @@ function Table({ columns, rows, compact = false }: { columns: string[]; rows: st
   );
 }
 
-type DbFoodNutrients = {
-  name: string;
-  kcalPer100g: number;
-  proteinPer100g: number;
-  carbsPer100g: number;
-  fatPer100g: number;
-  fiberPer100g?: number | null;
-  sodiumPer100g?: number | null;
-  calciumPer100g?: number | null;
-  ironPer100g?: number | null;
-  magnesiumPer100g?: number | null;
-  potassiumPer100g?: number | null;
-  zincPer100g?: number | null;
-  vitaminCPer100g?: number | null;
-  vitaminDPer100g?: number | null;
-  vitaminB12Per100g?: number | null;
-};
-
-function toFoodNutrients(food: DbFoodNutrients): FoodNutrients {
-  return {
-    name: food.name,
-    kcalPer100g: food.kcalPer100g,
-    proteinPer100g: food.proteinPer100g,
-    carbsPer100g: food.carbsPer100g,
-    fatPer100g: food.fatPer100g,
-    fiberPer100g: food.fiberPer100g ?? 0,
-    sodiumPer100g: food.sodiumPer100g ?? 0,
-    calciumPer100g: food.calciumPer100g ?? 0,
-    ironPer100g: food.ironPer100g ?? 0,
-    magnesiumPer100g: food.magnesiumPer100g ?? 0,
-    potassiumPer100g: food.potassiumPer100g ?? 0,
-    zincPer100g: food.zincPer100g ?? 0,
-    vitaminCPer100g: food.vitaminCPer100g ?? 0,
-    vitaminDPer100g: food.vitaminDPer100g ?? 0,
-    vitaminB12Per100g: food.vitaminB12Per100g ?? 0,
-  };
-}
-
-function proteinHitRate(days: Array<{ totals: ReturnType<typeof sumNutrients> }>, targetProteinG: number) {
-  if (!days.length || !targetProteinG) return null;
-  return days.filter((day) => day.totals.proteinG >= targetProteinG * 0.9).length / days.length;
-}
-
 function formatDate(date: Date) {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function periodTitle(value: string) {
-  const labels: Record<string, string> = { month: "Mes atual", quarter: "Trimestre", semester: "Semestre" };
+  const labels: Record<string, string> = { month: "Mês atual", quarter: "Trimestre", semester: "Semestre" };
   return labels[value] ?? value;
 }
 
@@ -580,44 +436,26 @@ function bodyPhotoSrc(photo: { imageMimeType: string; imageData: Uint8Array }) {
   return `data:${photo.imageMimeType};base64,${Buffer.from(photo.imageData).toString("base64")}`;
 }
 
-function formatNumber(value: number) {
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-}
-
 function formatNullable(value: number | null | undefined, unit: string) {
   return typeof value === "number" ? `${formatNumber(value)} ${unit}` : "-";
 }
 
 function goalLabel(value: string) {
-  const labels: Record<string, string> = { FAT_LOSS: "Perda de gordura", MAINTENANCE: "Manutencao", MUSCLE_GAIN: "Ganho de massa" };
+  const labels: Record<string, string> = { FAT_LOSS: "Perda de gordura", MAINTENANCE: "Manutenção", MUSCLE_GAIN: "Ganho de massa" };
   return labels[value] ?? value;
 }
 
 function experienceLabel(value: string) {
-  const labels: Record<string, string> = { BEGINNER: "Precisa de guia", INTERMEDIATE: "Intermediario", ADVANCED: "Autonomo" };
-  return labels[value] ?? value;
-}
-
-function confidenceLabel(value: string) {
-  const labels: Record<string, string> = { HIGH: "alta", MEDIUM: "media", LOW: "baixa" };
+  const labels: Record<string, string> = { BEGINNER: "Precisa de guia", INTERMEDIATE: "Intermediário", ADVANCED: "Autônomo" };
   return labels[value] ?? value;
 }
 
 function trainingTrendLabel(value: string) {
   const labels: Record<string, string> = {
     improving: "subindo",
-    stable: "estavel",
+    stable: "estável",
     declining: "queda",
     insufficient: "poucos dados",
-  };
-  return labels[value] ?? value;
-}
-
-function trainingConfidenceLabel(value: string) {
-  const labels: Record<string, string> = {
-    high: "alta",
-    medium: "media",
-    low: "baixa",
   };
   return labels[value] ?? value;
 }

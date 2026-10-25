@@ -1,8 +1,13 @@
 import { z } from "zod";
+import { CIRCUMFERENCE_FIELDS, type CircumferenceKey } from "./body-measurements";
 import { MAX_CALORIE_DEFICIT_KCAL } from "./nutrition";
 
 const decimal = (value: FormDataEntryValue | null, fallback?: number) => value === null || String(value).trim() === "" ? fallback : Number(String(value).replace(",", "."));
+const optionalCircumferences = Object.fromEntries(
+  CIRCUMFERENCE_FIELDS.map(({ key, min, max }) => [key, z.number().min(min).max(max).optional()]),
+) as Record<CircumferenceKey, z.ZodOptional<z.ZodNumber>>;
 const inputSchema = z.object({
+  ...optionalCircumferences,
   name: z.string().trim().min(2).max(120),
   sex: z.enum(["male", "female"]), goal: z.enum(["fat_loss", "maintenance", "muscle_gain"]),
   activityLevel: z.enum(["sedentary", "light", "moderate", "high", "very_high"]),
@@ -26,7 +31,8 @@ export function parseOnboardingInput(form: Pick<FormData, "get">, defaultName: s
     activityLevel: form.get("activityLevel"), experience: form.get("experience"), mode: form.get("mode"),
     age: decimal(form.get("age")), heightCm: height === undefined ? undefined : height <= 3 ? height * 100 : height,
     weightKg: decimal(form.get("weight")), neckCm: decimal(form.get("neckCm")), waistCm: decimal(form.get("waistCm")),
-    hipCm: form.get("sex") === "female" ? decimal(form.get("hipCm")) : undefined,
+    hipCm: decimal(form.get("hipCm")),
+    ...Object.fromEntries(CIRCUMFERENCE_FIELDS.map(({ key }) => [key, decimal(form.get(key))])),
     manualActivityFactor: form.get("mode") === "advanced" ? decimal(form.get("manualActivityFactor")) : undefined,
     deficitKcal: decimal(form.get("calorieDeficitKcal"), 400), proteinPerKg: decimal(form.get("proteinPerKg"), 2), fatPerKg: decimal(form.get("fatPerKg"), 0.8),
     dietPreference: form.get("dietPreference") || "balanced",

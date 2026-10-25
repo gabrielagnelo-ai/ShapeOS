@@ -1,6 +1,5 @@
-﻿"use server";
+"use server";
 
-import { GoogleGenAI } from "@google/genai";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -9,9 +8,7 @@ import { buildFluxaShoppingBudget, signFluxaPayload } from "@/lib/fluxa-integrat
 import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, computeProfileMetrics } from "@/lib/profile";
-import { dietaryReviewIssue, foodAllowedForProfile, planCompatibilityIssue, manualPlanCompatibilityIssue, prepareCalorieMatchedPlan, starterMealDrafts, starterMealsForNames, type MealDraft } from "@/lib/food-reliability";
-
-type AiMeal = MealDraft;
+import { dietaryReviewIssue, planCompatibilityIssue, manualPlanCompatibilityIssue, prepareCalorieMatchedPlan, starterMealDrafts, starterMealsForNames, type MealDraft } from "@/lib/food-reliability";
 
 export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -82,35 +79,6 @@ export async function generateDietPlanAction() {
   const prepared = prepareCalorieMatchedPlan(starterMealsForNames(selectedMealNames), foods, profile, metrics.targets.calories);
   if (!prepared.meals) redirect(`/dieta?dietStatus=${prepared.issue}`);
   await saveDietPlan({ userId: user.id, profile, metrics, meals: prepared.meals, byName: new Map(foods.map((food) => [food.name, food])), name: `Plano ${new Date().toLocaleDateString("pt-BR")}` });
-  revalidatePath("/dieta");
-  revalidatePath("/dashboard");
-  redirect("/dieta?dietStatus=plan-created");
-}
-
-export async function generateAiDietPlanAction(formData: FormData) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  if (!profile) redirect("/onboarding");
-  const review = dietaryReviewIssue(profile);
-  if (review) redirect(`/dieta?dietStatus=${review}`);
-  if (!process.env.GEMINI_API_KEY) redirect("/dieta?dietStatus=ai-unavailable");
-  const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
-  const monthlyBudget = Number(String(formData.get("monthlyBudget") ?? "").replace(",", "."));
-  const selectedMealNames = await getPreferredMealNames(user.id);
-  const candidates = await prisma.food.findMany({ where: { OR: [{ createdByUserId: null }, { createdByUserId: user.id }] }, orderBy: { name: "asc" } });
-  const foods = candidates.filter((food) => foodAllowedForProfile(food.name, profile));
-  if (!foods.length) redirect("/dieta?dietStatus=insufficient-foods");
-  const meals = await generateMealsWithGemini({
-    foods: foods.map((food) => ({ name: food.name, kcal: food.kcalPer100g, protein: food.proteinPer100g, carbs: food.carbsPer100g, fat: food.fatPer100g, pricePerKg: food.pricePerKg })),
-    targets: metrics.targets, dislikedFoods: profile.dislikedFoods, restrictions: profile.restrictions,
-    dietPreference: profile.dietPreference ?? "balanced", monthlyBudget: Number.isFinite(monthlyBudget) && monthlyBudget > 0 ? monthlyBudget : undefined, mealNames: selectedMealNames,
-  });
-  const allowedNames = new Set(foods.map((food) => food.name));
-  if (!meals || meals.length !== selectedMealNames.length || new Set(meals.map((meal) => meal.name)).size !== selectedMealNames.length || meals.some((meal) => !selectedMealNames.includes(meal.name) || !Array.isArray(meal.items) || !meal.items.length || meal.items.some((item) => !allowedNames.has(item.foodName) || !Number.isFinite(item.grams) || item.grams <= 0))) redirect("/dieta?dietStatus=ai-unavailable");
-  const prepared = prepareCalorieMatchedPlan(meals, foods, profile, metrics.targets.calories);
-  if (!prepared.meals) redirect(`/dieta?dietStatus=${prepared.issue}`);
-  await saveDietPlan({ userId: user.id, profile, metrics, meals: prepared.meals, byName: new Map(foods.map((food) => [food.name, food])), name: `Plano IA ${new Date().toLocaleDateString("pt-BR")}` });
   revalidatePath("/dieta");
   revalidatePath("/dashboard");
   redirect("/dieta?dietStatus=plan-created");
@@ -401,67 +369,11 @@ export async function removeRecipeFromDietMealAction(formData: FormData) {
   revalidatePath("/relatorio-nutricionista");
 }
 
-async function generateMealsWithGemini(input: {
-  foods: Array<{ name: string; kcal: number; protein: number; carbs: number; fat: number; pricePerKg?: number | null }>;
-  targets: ReturnType<typeof computeProfileMetrics>["targets"];
-  dislikedFoods: string[];
-  restrictions: string[];
-  dietPreference: string;
-  monthlyBudget?: number;
-  mealNames: string[];
-}): Promise<AiMeal[] | null> {
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 20000 } });
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
-      contents: [{
-        role: "user",
-        parts: [{
-          text: [
-            "Monte uma dieta diária em português do Brasil usando SOMENTE os alimentos da lista.",
-            "Responda apenas JSON válido, sem markdown.",
-            "Formato: {\"meals\":[{\"name\":\"Café da manhã\",\"items\":[{\"foodName\":\"nome exato\",\"grams\":100}]}]}",
-            "Use nomes de alimentos exatamente como aparecem na lista.",
-            `Crie exatamente estas refeições, sem adicionar outras: ${input.mealNames.join(", ")}.`,
-            "Meta: ficar próximo das calorias e macros. Carboidrato deve ser o restante das calorias depois de proteína e gordura.",
-            `Calorias: ${input.targets.calories}`,
-            `Proteína: ${input.targets.proteinG}g`,
-            `Carboidrato: ${input.targets.carbsG}g`,
-            `Gordura: ${input.targets.fatG}g`,
-            "Também tente favorecer micronutrientes quando possível: cálcio, ferro, magnésio, potássio, zinco, vitamina C, vitamina D e B12.",
-            `Evitar alimentos não gostados: ${input.dislikedFoods.join(", ") || "nenhum"}`,
-            `Restrições: ${input.restrictions.join(", ") || "nenhuma"}`,
-            `Preferência alimentar: ${describeDietPreference(input.dietPreference)}`,
-            input.monthlyBudget ? `Orçamento mensal aproximado: R$ ${input.monthlyBudget}. Priorize alimentos baratos e repetíveis. Considere cerca de R$ ${(input.monthlyBudget / 30).toFixed(2)} por dia.` : "Sem orçamento informado.",
-            "Se houver pricePerKg nos alimentos, tente respeitar o orçamento. Se faltar preço, priorize alimentos tradicionalmente baratos no Brasil.",
-            `Alimentos disponíveis: ${JSON.stringify(input.foods)}`,
-          ].join("\n"),
-        }],
-      }],
-    });
-    const parsed = JSON.parse((response.text ?? "").replace(/^```json|```$/g, "").trim()) as { meals?: AiMeal[] };
-    return Array.isArray(parsed.meals) && parsed.meals.every((meal) => meal && typeof meal.name === "string" && Array.isArray(meal.items) && meal.items.every((item) => item && typeof item.foodName === "string" && typeof item.grams === "number")) ? parsed.meals : null;
-  } catch {
-    return null;
-  }
-}
-
-function describeDietPreference(value: string) {
-  const descriptions: Record<string, string> = {
-    balanced: "equilibrar saciedade, prazer e aderência",
-    satiety: "priorizar saciedade com alimentos volumosos, ricos em proteína, fibra, legumes e frutas; evitar calorias líquidas e alimentos muito densos",
-    pleasure: "incluir alimentos mais prazerosos em porções controladas sem ultrapassar macros; preservar aderência psicológica",
-    low_meal_volume: "preferir refeições menores e mais densas, sem volume excessivo; útil para quem não gosta de comer muito",
-    simple_repetitive: "usar poucos alimentos, preparo simples e repetição para facilitar rotina",
-  };
-  return descriptions[value] ?? descriptions.balanced;
-}
-
 async function saveDietPlan(input: {
   userId: string;
   profile: NonNullable<Awaited<ReturnType<typeof prisma.profile.findUnique>>>;
   metrics: ReturnType<typeof computeProfileMetrics>;
-  meals: AiMeal[];
+  meals: MealDraft[];
   byName: Map<string, { id: string }>;
   name: string;
 }) {

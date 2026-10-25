@@ -73,22 +73,10 @@ Retorna usuario, perfil e metricas calculadas para o app renderizar sem duplicar
 
 O backend faz `upsert` por usuario + data. Se o app reenviar o mesmo dia, atualiza.
 
-## Foto de refeicao
+## Foto de refeição (desativada)
 
-`POST /api/mobile/meal-photo`
+`POST /api/mobile/meal-photo` retorna `410 feature_removed` para uma sessão autenticada (401 sem sessão). Não analisa imagens nem cria receitas ou registros. O cliente deve encaminhar o usuário ao cadastro manual no diário. Estimativas antigas permanecem no banco.
 
-```json
-{
-  "imageBase64": "base64_sem_data_url_ou_com_data_url",
-  "mimeType": "image/jpeg",
-  "mealName": "Almoco",
-  "description": "prato com arroz, frango e salada",
-  "saveAsRecipe": true,
-  "saveToDiary": false
-}
-```
+## Coach por regras
 
-Resposta inclui totais estimados, itens encontrados no banco TACO/ShapeOS, alimentos nao resolvidos e `confidence`.
-
-Importante: foto e uma estimativa. A interface do app deve mostrar confirmacao antes de lancar no diario.
-
+`POST /api/coach/briefing` exige sessão e retorna `source: rules`, `briefing` e `insights`, calculados com os registros do próprio usuário. Não aceita contexto externo para substituir os registros e não chama provedores de IA.

@@ -1,0 +1,10 @@
+/* A section of a grouped page: a solid 22px panel with a heading row (title, note, one action). */
+.section { background: var(--bg-secondary); border-radius: 22px; box-shadow: var(--panel-shadow); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); animation: var(--enter); animation-delay: var(--enter-delay); padding: 24px; min-width: 0; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
+.heading p, .heading > span { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.empty { color: var(--text-muted); line-height: 1.6; padding: 16px 0; }
+@media (max-width: 480px) {
+  .section { padding: 20px; }
+  .heading { gap: 12px; margin-bottom: 16px; }
+  .heading :is(a, button) { padding: 8px 13px; font-size: 13px; }
+}

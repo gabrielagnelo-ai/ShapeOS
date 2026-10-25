@@ -1,4 +1,5 @@
 import { appDateInputValue, startOfDayInTimeZone } from "./date-time";
+import { clamp, round1 } from "./common";
 
 export type TrainingTrend = "improving" | "stable" | "declining" | "insufficient";
 export type TrainingConfidence = "high" | "medium" | "low";
@@ -231,28 +232,28 @@ function trainingAlerts(input: {
     alerts.push({
       type: "drop",
       priority: 90,
-      message: "Carga ou repeticoes cairam em exercicios suficientes para revisar recuperacao, sono, deficit e volume de treino.",
+      message: "Carga ou repetições caíram em exercícios suficientes para revisar recuperação, sono, déficit e volume de treino.",
     });
   }
   if (input.trend === "improving") {
     alerts.push({
       type: "progress",
       priority: 70,
-      message: "Seu treino mostra progressao real. Isso melhora a confianca na preservacao de massa magra.",
+      message: "Seu treino mostra progressão real. Isso melhora a confiança na preservação de massa magra.",
     });
   }
   if (input.highRpeLogs >= 3 || (input.averageRpe ?? 0) >= 9) {
     alerts.push({
       type: "fatigue",
       priority: 75,
-      message: "RPE alto apareceu varias vezes. Se isso vier junto com queda de carga, pode ser fadiga acumulada.",
+      message: "RPE alto apareceu várias vezes. Se isso vier junto com queda de carga, pode ser fadiga acumulada.",
     });
   }
   if (input.confidence === "low") {
     alerts.push({
       type: "data",
       priority: 45,
-      message: "Registre carga e repeticoes por mais treinos para o ShapeOS detectar tendencia com mais confianca.",
+      message: "Registre carga e repetições por mais treinos para o ShapeOS detectar tendência com mais confiança.",
     });
   }
   return alerts.sort((a, b) => b.priority - a.priority);
@@ -266,12 +267,12 @@ function primaryMessage(input: {
   improvedExercises: number;
   declinedExercises: number;
 }) {
-  if (input.trend === "improving") return `Performance subindo: ${input.improvedExercises} exercicio(s) melhoraram nos ultimos registros.`;
-  if (input.trend === "declining") return `Performance em queda: ${input.declinedExercises} exercicio(s) pioraram. Confira sono, deficit e recuperacao.`;
-  if (input.trend === "stable") return "Performance estavel. Bom sinal se a cintura/BF estao caindo sem perda grande de carga.";
-  if (input.trainedDays === 0) return "Nenhum treino registrado ainda. Lance carga e repeticoes para acompanhar progressao.";
-  if (input.trainedDays >= 3) return "Voce ja registrou varios treinos. A tendencia de carga comeca quando algum exercicio for repetido.";
-  return "Ainda falta repeticao de registros por exercicio para comparar progressao.";
+  if (input.trend === "improving") return `Performance subindo: ${input.improvedExercises} exercício(s) melhoraram nos últimos registros.`;
+  if (input.trend === "declining") return `Performance em queda: ${input.declinedExercises} exercício(s) pioraram. Confira sono, déficit e recuperação.`;
+  if (input.trend === "stable") return "Performance estável. Bom sinal se a cintura/BF estão caindo sem perda grande de carga.";
+  if (input.trainedDays === 0) return "Nenhum treino registrado ainda. Lance carga e repetições para acompanhar progressão.";
+  if (input.trainedDays >= 3) return "Você já registrou vários treinos. A tendência de carga começa quando algum exercício for repetido.";
+  return "Ainda falta repetição de registros por exercício para comparar progressão.";
 }
 
 function daysBetween(date: Date, now: Date) {
@@ -284,12 +285,4 @@ function dateKey(date: Date) {
 
 function normalizeNumber(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function round1(value: number) {
-  return Math.round(value * 10) / 10;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
 }

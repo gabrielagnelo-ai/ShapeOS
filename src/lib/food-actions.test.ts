@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => {
     foodLogItem: { findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
     $transaction: vi.fn(),
   };
-  return { database, generate: vi.fn(), fetch: vi.fn(), snapshot: vi.fn() };
+  return { database, fetch: vi.fn(), snapshot: vi.fn() };
 });
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.database }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn(async () => ({ id: "test-user", name: "Teste", email: "audit@example.test" })) }));
@@ -20,9 +20,8 @@ vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Erro
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/body-composition", () => ({ createBodyCompositionSnapshot: mocks.snapshot }));
 vi.mock("@/lib/profile", () => ({ startOfToday: () => new Date("2026-01-01T00:00:00Z"), computeCurrentProfileMetrics: vi.fn() }));
-vi.mock("@google/genai", () => ({ GoogleGenAI: class { models = { generateContent: mocks.generate }; } }));
 
-import { estimateEatenRecipeAction, generateAiRecipeSuggestionAction } from "../app/receitas/actions";
+import { createRecipeAction } from "../app/receitas/actions";
 import { setActiveDietPlanAction, syncShoppingBudgetToFluxaAction } from "../app/dieta/actions";
 import { updateFoodLogItemAction, deleteFoodLogItemAction, registerDietMealAction } from "../app/diario/actions";
 import { saveOnboardingAction } from "../app/onboarding/actions";
@@ -38,7 +37,6 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-02T15:00:00Z"));
   mocks.database.$transaction.mockImplementation(async (operation) => typeof operation === "function" ? operation(mocks.database) : Promise.all(operation));
-  vi.stubEnv("GEMINI_API_KEY", "test-key");
   vi.stubEnv("FLUXA_INTEGRATION_SECRET", "only-test-secret-with-more-than-thirty-two-characters");
   vi.stubEnv("FLUXA_API_URL", "https://example.test");
   vi.stubGlobal("fetch", mocks.fetch);
@@ -48,27 +46,15 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("server action reliability boundaries (all IO mocked)", () => {
-  it("does not save a fake meal when an estimation request fails", async () => {
-    mocks.generate.mockRejectedValue(new Error("network"));
-    await expect(estimateEatenRecipeAction(form({ description: "Duas fatias de pizza" }))).rejects.toThrow("recipeStatus=ai-unavailable");
+  it("rejects a manual recipe with an unknown or inaccessible ingredient", async () => {
+    mocks.database.food.findFirst.mockResolvedValue(null);
+    await expect(createRecipeAction(form({ name: "Minha receita", servings: "2", foodId: "unknown", grams: "100" }))).rejects.toThrow("recipeStatus=invalid-ingredients");
     expect(mocks.database.recipe.create).not.toHaveBeenCalled();
   });
-  it("does not fall back to a fixed recipe when API configuration is absent", async () => {
-    vi.stubEnv("GEMINI_API_KEY", "");
-    await expect(estimateEatenRecipeAction(form({ description: "Pizza" }))).rejects.toThrow("recipeStatus=ai-unavailable");
-    expect(mocks.generate).not.toHaveBeenCalled();
-    expect(mocks.database.recipe.create).not.toHaveBeenCalled();
-  });
-  it("rejects unknown ingredients instead of saving a partial result", async () => {
-    mocks.generate.mockResolvedValue({ text: JSON.stringify({ name: "Pizza", servings: 1, items: [{ foodName: "Arroz branco cozido", grams: 100 }, { foodName: "Pizza", grams: 100 }] }) });
-    await expect(estimateEatenRecipeAction(form({ description: "Pizza" }))).rejects.toThrow("recipeStatus=ai-unavailable");
-    expect(mocks.database.recipe.create).not.toHaveBeenCalled();
-  });
-  it("blocks suggestion generation before contacting AI when allergy metadata is unavailable", async () => {
-    mocks.database.profile.findUnique.mockResolvedValue({ allergies: ["amendoim"], restrictions: [], dislikedFoods: [] });
-    await expect(generateAiRecipeSuggestionAction(form({ query: "Lanche" }))).rejects.toThrow("recipeStatus=allergy-review");
-    expect(mocks.generate).not.toHaveBeenCalled();
-    expect(mocks.database.recipe.create).not.toHaveBeenCalled();
+  it("saves a manual recipe using the chosen food and exact quantity", async () => {
+    mocks.database.food.findFirst.mockResolvedValue({ id: "rice" });
+    await expect(createRecipeAction(form({ name: "Arroz", servings: "2", foodId: "rice", grams: "150" }))).rejects.toThrow("recipeStatus=recipe-created");
+    expect(mocks.database.recipe.create).toHaveBeenCalledWith({ data: { userId: "test-user", name: "Arroz", servings: 2, instructions: null, items: { create: [{ foodId: "rice", grams: 150 }] } } });
   });
   it("does not call Fluxa for a partial estimate without explicit acknowledgement", async () => {
     mocks.database.dietPlan.findFirst.mockResolvedValue({ id: "plan", name: "Plano", meals: [{ items: [

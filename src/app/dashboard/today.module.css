@@ -1,0 +1,11 @@
+/* Hoje's first screen, after the preferred reference: nutrition and food on the left, the body
+   model beside them on the right. On a phone the model comes right after the hero. */
+/* The tall model spans both rows; the first row keeps the hero's height and the second takes the rest. */
+.top { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "hero body" "food body"; gap: 40px 16px; align-items: start; min-width: 0; }
+.hero { grid-area: hero; min-width: 0; }
+.body { grid-area: body; min-width: 0; --enter-offset: 70ms; }
+.food { grid-area: food; min-width: 0; --enter-base: 120ms; }
+@media (max-width: 1099px) {
+  .top { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "hero" "body" "food"; gap: 16px; }
+  .food { margin-top: 24px; }
+}

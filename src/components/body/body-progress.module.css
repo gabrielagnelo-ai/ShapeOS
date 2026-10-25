@@ -1,0 +1,26 @@
+.stage {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 9 / 10;
+  margin: 16px auto 0;
+  touch-action: pan-y;
+  border-radius: 22px;
+}
+.canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; opacity: 0; transition: opacity 260ms ease-out; border-radius: 22px; }
+.canvas:active { cursor: grabbing; }
+.canvas:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.ready { opacity: 1; }
+.hint { position: absolute; inset: 8px 0 auto; pointer-events: none; text-align: center; font-size: 12px; color: var(--text-muted); }
+.measureLabel { padding-block: 5px; text-shadow: 0 1px 8px #111; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin: 4px auto 18px; }
+/* Segmented control on content: gray track, selected view on a lighter pill. */
+.segmented { display: inline-flex; border-radius: 999px; padding: 3px; background: var(--fill); }
+.segment { min-height: 34px; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--text-secondary); transition: background-color 200ms cubic-bezier(.25,1,.5,1), color 150ms ease-out; }
+.segment[aria-pressed="true"] { color: var(--text-primary); font-weight: 600; background: var(--glass-selected); box-shadow: 0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.15); }
+.rotateButton { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 16px; border-radius: 999px; background: var(--fill); color: var(--text-primary); font-size: 13px; font-weight: 600; }
+.rotateButton:hover { background: var(--fill-strong); }
+.rotateButton[aria-pressed="true"] { color: var(--primary); background: rgb(185 248 62 / .15); }
+.segment:disabled, .rotateButton:disabled { opacity: .5; }
+@media (max-width: 639px) { .stage { aspect-ratio: 4 / 5; } .segment { padding-inline: 12px; } }
+@media (prefers-reduced-motion: reduce) { .canvas, .segment { transition-duration: 0ms; } .rotateButton { display: none; } }

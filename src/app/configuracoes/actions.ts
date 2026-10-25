@@ -2,9 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { parseCircumferences } from "@/lib/body-measurements";
 import { parseAppDate } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
-import { advancedMacroTargets, calculateBmr, calculateTdee, guidedMacroTargets, MAX_CALORIE_DEFICIT_KCAL, type Goal, type Sex } from "@/lib/nutrition";
+import { MAX_CALORIE_DEFICIT_KCAL, type Goal, type Sex } from "@/lib/nutrition";
+import { dailyTargets } from "@/lib/profile-metrics";
 
 const goalMap = {
   FAT_LOSS: "fat_loss",
@@ -39,7 +41,8 @@ export async function updateGoalsAction(formData: FormData) {
   const currentWeightKg = latestBody?.weightKg ?? initialWeightKg;
   const neckCm = optionalDecimal(formData.get("neckCm"));
   const waistCm = optionalDecimal(formData.get("waistCm"));
-  const hipCm = profile.sex === "FEMALE" ? optionalDecimal(formData.get("hipCm")) : null;
+  const hipCm = optionalDecimal(formData.get("hipCm"));
+  const circumferences = parseCircumferences(formData);
   const dietPreference = String(formData.get("dietPreference") ?? profile.dietPreference ?? "balanced");
   const waterPreference = normalizeWaterPreference(String(formData.get("waterPreference") ?? profile.waterPreference ?? "medium"));
   const tdeeCalculationMode = normalizeTdeeMode(String(formData.get("tdeeCalculationMode") ?? profile.tdeeCalculationMode));
@@ -48,29 +51,21 @@ export async function updateGoalsAction(formData: FormData) {
   const targetBodyFatPct = optionalDecimal(formData.get("targetBodyFatPct"));
   const targetDate = optionalDate(String(formData.get("targetDate") ?? ""));
 
-  const bmr = calculateBmr({ sex, age: profile.age, heightCm: profile.heightCm, weightKg: currentWeightKg });
-  const tdee = calculateTdee(bmr, activityFactor) + profile.tdeeAdjustmentKcal;
-  const targets =
-    profile.mode === "ADVANCED"
-      ? advancedMacroTargets({
-          calories: goal === "fat_loss" ? tdee - calorieDeficitKcal : goal === "muscle_gain" ? tdee + 300 : tdee,
-          weightKg: currentWeightKg,
-          proteinPerKg,
-          fatPerKg,
-          useRemainingCarbs: true,
-          fiberG: profile.fiberTargetG ?? 30,
-          sodiumMg: profile.sodiumLimitMg ?? 2300,
-        })
-      : guidedMacroTargets({
-          weightKg: currentWeightKg,
-          tdee,
-          goal,
-          calorieAdjustment: goal === "fat_loss" ? -calorieDeficitKcal : undefined,
-          proteinPerKg,
-          fatPerKg,
-          fiberG: profile.fiberTargetG ?? 30,
-          sodiumMg: profile.sodiumLimitMg ?? 2300,
-        });
+  // Same rule as every screen; guided and advanced modes give the same targets.
+  const { targets } = dailyTargets({
+    sex,
+    goal,
+    age: profile.age,
+    heightCm: profile.heightCm,
+    weightKg: currentWeightKg,
+    activityFactor,
+    tdeeAdjustmentKcal: profile.tdeeAdjustmentKcal,
+    calorieDeficitKcal,
+    proteinPerKg,
+    fatPerKg,
+    fiberTargetG: profile.fiberTargetG,
+    sodiumLimitMg: profile.sodiumLimitMg,
+  });
 
   await prisma.profile.update({
     where: { userId: user.id },
@@ -84,6 +79,7 @@ export async function updateGoalsAction(formData: FormData) {
       neckCm,
       waistCm,
       hipCm,
+      ...circumferences,
       dietPreference,
       waterPreference,
       tdeeCalculationMode,

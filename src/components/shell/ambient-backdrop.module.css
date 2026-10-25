@@ -1,0 +1,50 @@
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+}
+
+/* One large mark and two smaller ones at the edges, settling in once. On a desktop they
+   then drift very slowly, so the glass above them stays alive; phones keep them still. */
+.mark {
+  position: absolute;
+  opacity: var(--mark-opacity, .62);
+  transform: rotate(var(--tilt, 0deg));
+  animation: settle 4s cubic-bezier(.22, 1, .36, 1) both;
+}
+@media (min-width: 1024px) and (pointer: fine) {
+  .mark { animation: settle 4s cubic-bezier(.22, 1, .36, 1) both, drift 48s ease-in-out 4s infinite alternate; }
+  .mark:nth-child(2) { animation-duration: 4s, 56s; }
+  .mark:nth-child(3) { animation-duration: 4s, 64s; }
+}
+@keyframes drift {
+  from { transform: translate(0, 0) rotate(var(--tilt)); }
+  to { transform: translate(3vmin, -2vmin) rotate(calc(var(--tilt) + 4deg)); }
+}
+.mark img { display: block; width: 100%; height: auto; }
+.mark:nth-child(1) { left: -14vmin; top: -16vmin; width: 78vmin; --tilt: -8deg; }
+.mark:nth-child(2) { right: -12vmin; top: 26vh; width: 44vmin; --tilt: 14deg; --mark-opacity: .52; }
+.mark:nth-child(3) { left: 30vw; bottom: -12vmin; width: 32vmin; --tilt: -12deg; --mark-opacity: .44; }
+
+.pane { position: absolute; inset: 0; }
+
+@keyframes settle {
+  from { transform: translateY(12px) rotate(calc(var(--tilt) - 3deg)); opacity: 0; }
+  to { transform: translateY(0) rotate(var(--tilt)); }
+}
+
+@media (max-width: 640px) {
+  .mark:nth-child(1) { left: -30vmin; top: -10vmin; width: 96vmin; }
+  .mark:nth-child(2) { right: -24vmin; top: 58vh; width: 60vmin; }
+  .mark:nth-child(3) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) { .mark { animation: none; } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .scene { display: none; }
+}
+@media print { .scene { display: none; } }

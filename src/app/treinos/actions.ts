@@ -1,6 +1,6 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { parseAppDate } from "@/lib/date-time";
@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 const MAX_TRAINING_PDF_BYTES = 8 * 1024 * 1024;
 
-type AiTrainingPlan = {
+type TrainingPlanDraft = {
   name: string;
   notes?: string;
   days: Array<{
@@ -37,10 +37,8 @@ export async function importTrainingPdfAction(formData: FormData) {
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const extractedText = await extractPdfText(bytes);
-  const parsed = process.env.GEMINI_API_KEY
-    ? await parseTrainingPdfWithGemini({ fileName: file.name, bytes, extractedText })
-    : parseTrainingFromText(file.name, extractedText) ?? fallbackTrainingPlan(file.name);
-
+  const parsed = parseTrainingFromText(file.name, extractedText);
+  if (!parsed) redirect("/treinos?importStatus=unreadable");
   await prisma.trainingPlan.updateMany({
     where: { userId: user.id, isActive: true },
     data: { isActive: false },
@@ -54,7 +52,7 @@ export async function importTrainingPdfAction(formData: FormData) {
       sourceMimeType: file.type,
       sourceData: bytes,
       rawResult: parsed,
-      notes: parsed.notes ?? "Treino importado por PDF. Confira exercicios, series e repeticoes antes de usar como referencia fixa.",
+      notes: parsed.notes ?? "Treino importado por PDF. Confira exercícios, séries e repetições antes de usar como referência fixa.",
       isActive: true,
       days: {
         create: parsed.days.map((day, dayIndex) => ({
@@ -64,7 +62,7 @@ export async function importTrainingPdfAction(formData: FormData) {
           order: dayIndex,
           exercises: {
             create: day.exercises.map((exercise, exerciseIndex) => ({
-              name: exercise.name || "Exercicio nao identificado",
+              name: exercise.name || "Exercício não identificado",
               muscleGroup: exercise.muscleGroup ?? null,
               sets: exercise.sets ?? null,
               reps: exercise.reps ?? null,
@@ -116,7 +114,7 @@ export async function createManualTrainingPlanAction(formData: FormData) {
           order: dayIndex,
           exercises: {
             create: day.exercises.map((exercise, exerciseIndex) => ({
-              name: exercise.name || "Exercicio",
+              name: exercise.name || "Exercício",
               muscleGroup: exercise.muscleGroup ?? null,
               sets: exercise.sets ?? null,
               reps: exercise.reps ?? null,
@@ -214,37 +212,6 @@ export async function deleteTrainingExerciseLogAction(formData: FormData) {
   revalidatePath("/relatorio-nutricionista");
 }
 
-async function parseTrainingPdfWithGemini(input: { fileName: string; bytes: Buffer; extractedText: string }): Promise<AiTrainingPlan> {
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
-      contents: [{
-        role: "user",
-        parts: [
-          {
-            text: [
-              "Voce e o parser de treinos do ShapeOS em portugues do Brasil.",
-              "Leia o PDF e converta em JSON valido, sem markdown.",
-              "Formato exato: {\"name\":\"nome do plano\",\"notes\":\"observacao curta\",\"days\":[{\"name\":\"Dia A\",\"focus\":\"Peito e triceps\",\"notes\":\"opcional\",\"exercises\":[{\"name\":\"Supino reto\",\"muscleGroup\":\"peito\",\"sets\":\"4\",\"reps\":\"8-10\",\"restSeconds\":90,\"loadInstruction\":\"RIR 1-2\",\"notes\":\"opcional\"}]}]}",
-              "Se alguma informacao nao existir, use null ou string vazia. Nao invente cargas.",
-              "Preserve nomes de exercicios, series, repeticoes, descanso, observacoes e cardio quando aparecerem.",
-              "Se o PDF estiver pouco legivel, extraia o melhor possivel e avise em notes.",
-              `Nome do arquivo: ${input.fileName}`,
-              `Texto extraido do PDF, use como fonte principal quando existir:\n${input.extractedText.slice(0, 14000) || "sem texto extraido"}`,
-            ].join("\n"),
-          },
-          { inlineData: { mimeType: "application/pdf", data: input.bytes.toString("base64") } },
-        ],
-      }],
-    });
-
-    return sanitizeTrainingPlan(parseTrainingPlan(response.text ?? "") ?? parseTrainingFromText(input.fileName, input.extractedText) ?? fallbackTrainingPlan(input.fileName));
-  } catch {
-    return parseTrainingFromText(input.fileName, input.extractedText) ?? fallbackTrainingPlan(input.fileName);
-  }
-}
-
 async function extractPdfText(bytes: Buffer) {
   try {
     const { PDFParse } = await import("pdf-parse");
@@ -257,7 +224,7 @@ async function extractPdfText(bytes: Buffer) {
   }
 }
 
-function parseTrainingFromText(fileName: string, text: string): AiTrainingPlan | null {
+function parseTrainingFromText(fileName: string, text: string): TrainingPlanDraft | null {
   const lines = text
     .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, "")
     .split("\n")
@@ -289,7 +256,7 @@ function parseTrainingFromText(fileName: string, text: string): AiTrainingPlan |
     name: lines[0] && !/^(segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo)\b/i.test(lines[0])
       ? lines[0]
       : fileName.replace(/\.pdf$/i, ""),
-    notes: "Plano extraido do texto do PDF. Revise series, repeticoes e RPE antes de usar como oficial.",
+    notes: "Plano extraído do texto do PDF. Revise séries, repetições e RPE antes de usar como oficial.",
     days,
   });
 }
@@ -303,7 +270,7 @@ function parseDayHeading(line: string) {
 }
 
 function parseExerciseBlock(lines: string[]) {
-  const exercises: AiTrainingPlan["days"][number]["exercises"] = [];
+  const exercises: TrainingPlanDraft["days"][number]["exercises"] = [];
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -340,14 +307,14 @@ function parseExerciseBlock(lines: string[]) {
 function inferMuscleGroup(name: string) {
   const value = name.toLowerCase();
   if (/pulley|remada|barra|puxada/.test(value)) return "costas";
-  if (/rosca|wrist/.test(value)) return "biceps/antebraco";
+  if (/rosca|wrist/.test(value)) return "bíceps/antebraço";
   if (/supino|crucifixo/.test(value)) return "peito";
-  if (/triceps|tríceps/.test(value)) return "triceps";
+  if (/triceps|tríceps/.test(value)) return "tríceps";
   if (/elevação|elevacao|ombro/.test(value)) return "ombro";
   if (/panturrilha/.test(value)) return "panturrilha";
-  if (/agachamento|hack|leg|extensora/.test(value)) return "quadriceps";
+  if (/agachamento|hack|leg|extensora/.test(value)) return "quadríceps";
   if (/stiff|flexora/.test(value)) return "posterior";
-  if (/crunch|abdominal/.test(value)) return "abdomen";
+  if (/crunch|abdominal/.test(value)) return "abdômen";
   return undefined;
 }
 
@@ -356,17 +323,7 @@ function capitalize(value: string) {
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
-function parseTrainingPlan(text: string): AiTrainingPlan | null {
-  try {
-    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim()) as AiTrainingPlan;
-    if (!parsed.name || !Array.isArray(parsed.days)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function sanitizeTrainingPlan(plan: AiTrainingPlan): AiTrainingPlan {
+function sanitizeTrainingPlan(plan: TrainingPlanDraft): TrainingPlanDraft {
   const days = plan.days
     .filter((day) => day && Array.isArray(day.exercises))
     .slice(0, 10)
@@ -375,7 +332,7 @@ function sanitizeTrainingPlan(plan: AiTrainingPlan): AiTrainingPlan {
       focus: day.focus ? String(day.focus).slice(0, 120) : undefined,
       notes: day.notes ? String(day.notes).slice(0, 500) : undefined,
       exercises: day.exercises.slice(0, 20).map((exercise) => ({
-        name: String(exercise.name || "Exercicio").slice(0, 120),
+        name: String(exercise.name || "Exercício").slice(0, 120),
         muscleGroup: exercise.muscleGroup ? String(exercise.muscleGroup).slice(0, 80) : undefined,
         sets: exercise.sets ? String(exercise.sets).slice(0, 40) : undefined,
         reps: exercise.reps ? String(exercise.reps).slice(0, 40) : undefined,
@@ -392,18 +349,18 @@ function sanitizeTrainingPlan(plan: AiTrainingPlan): AiTrainingPlan {
   };
 }
 
-function fallbackTrainingPlan(fileName: string): AiTrainingPlan {
+function fallbackTrainingPlan(fileName: string): TrainingPlanDraft {
   return {
     name: fileName.replace(/\.pdf$/i, "") || "Treino importado",
-    notes: "Nao foi possivel interpretar completamente o PDF. O arquivo foi salvo; revise o conteudo manualmente.",
+    notes: "Não foi possível interpretar completamente o PDF. O arquivo foi salvo; revise o conteúdo manualmente.",
     days: [
       {
         name: "Treino importado",
         focus: "Revisar PDF",
         exercises: [
           {
-            name: "PDF anexado para revisao",
-            notes: "Reimporte com um PDF mais legivel se a IA nao extrair exercicios.",
+            name: "PDF anexado para revisão",
+            notes: "Reimporte com um PDF mais legível se a leitura do texto não identificar os exercícios.",
           },
         ],
       },
@@ -411,7 +368,7 @@ function fallbackTrainingPlan(fileName: string): AiTrainingPlan {
   };
 }
 
-function manualTextFallback(name: string, text: string): AiTrainingPlan {
+function manualTextFallback(name: string, text: string): TrainingPlanDraft {
   const exercises = text
     .split("\n")
     .map((line) => line.trim())
@@ -424,10 +381,10 @@ function manualTextFallback(name: string, text: string): AiTrainingPlan {
 
   return sanitizeTrainingPlan({
     name,
-    notes: "Treino manual salvo a partir do texto informado pelo usuario.",
+    notes: "Treino manual salvo a partir do texto informado pelo usuário.",
     days: [{
       name: "Treino manual",
-      focus: "Revisar divisao",
+      focus: "Revisar divisão",
       exercises: exercises.length ? exercises : [{ name: "Revisar treino manual" }],
     }],
   });

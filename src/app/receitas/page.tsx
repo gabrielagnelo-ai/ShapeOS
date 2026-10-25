@@ -1,23 +1,26 @@
+import { WorkspaceTabs } from "@/components/ui/workspace-tabs";
+import { PageHeading } from "@/components/ui/page-heading";
+import { Stack } from "@/components/ui/screen";
 import { ReliabilityNotice, SafetyReview } from "@/components/diet/reliability-notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { dietaryReviewIssue } from "@/lib/food-reliability";
-import { BookOpen, Pencil, Plus, Save, Sparkles, Trash2, Utensils, Wand2 } from "lucide-react";
+import { BookOpen, ChevronDown, Pencil, Plus, Save, Trash2, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { RecipeIngredientFields } from "@/components/recipes/recipe-ingredient-fields";
 import { GlassCard } from "@/components/ui/glass-card";
 import { mealOrder } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
-import { nutrientsForGrams } from "@/lib/nutrition";
+import { nutrientsForGrams, toFoodNutrients } from "@/lib/nutrition";
 import {
   addRecipePortionToDiaryAction,
   addRecipePortionToPlanAction,
   createRecipeAction,
   deleteRecipeAction,
-  estimateEatenRecipeAction,
-  generateAiRecipeSuggestionAction,
   updateRecipeAction,
 } from "./actions";
+import styles from "./recipes.module.css";
+import { round1 } from "@/lib/common";
 
 export default async function ReceitasPage({ searchParams }: { searchParams: Promise<{ recipeStatus?: string }> }) {
   const { recipeStatus } = await searchParams;
@@ -38,124 +41,37 @@ export default async function ReceitasPage({ searchParams }: { searchParams: Pro
   });
   const activePlanMeals = activePlan ? [...activePlan.meals].sort((a, b) => mealOrder(a.name) - mealOrder(b.name)) : [];
 
-  return (
-    <AppShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm text-lime-300">Receitas</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Minhas receitas</h1>
-          <p className="mt-3 max-w-3xl text-zinc-400">
-            Gere ideias com IA, estime receitas que você comeu, calcule macros por porção e lance no diário ou no plano alimentar.
-          </p>
-        </div>
-        <div className="rounded-3xl bg-white/10 px-5 py-4 text-right">
-          <p className="text-2xl font-semibold">{recipes.length}</p>
-          <p className="text-xs text-zinc-500">receitas salvas</p>
-        </div>
-      </div>
-
-      <ReliabilityNotice status={recipeStatus ?? dietaryReviewIssue(profile)} />
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <GlassCard className="border-lime-300/20 bg-lime-300/[0.06]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300 text-black">
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Sugerir receita com IA</h2>
-              <p className="text-sm text-zinc-500">A IA cria uma receita e salva usando alimentos do banco para manter as calorias auditáveis.</p>
-            </div>
-          </div>
-          <form action={generateAiRecipeSuggestionAction} className="mt-6 grid gap-3">
-            <div className="grid gap-3 md:grid-cols-[190px_1fr]">
-              <select name="style" className={inputClass} defaultValue="satiety">
-                <option value="satiety">Saciedade</option>
-                <option value="pleasure">Prazer</option>
-                <option value="sweet">Doce saudável</option>
-                <option value="high_protein">Alta proteína</option>
-                <option value="low_calorie">Baixa caloria</option>
-                <option value="simple">Barata e simples</option>
-              </select>
-              <input name="query" className={inputClass} placeholder="Ex: café da manhã doce, jantar barato, lanche com whey" />
-            </div>
-            <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
-              <Wand2 size={18} />
-              Gerar e salvar receita
-            </SubmitButton>
-            <p className="text-xs leading-5 text-zinc-500">
-              A sugestão usa repertório geral da IA e sua base de alimentos. Confira marcas e quantidades antes de seguir.
-            </p>
-          </form>
-        </GlassCard>
-
-        <GlassCard>
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-lime-300">
-              <Wand2 size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Estimar algo que comi</h2>
-              <p className="text-sm text-zinc-500">Descreva a receita. A IA estima ingredientes prováveis, salva a receita e você lança no diário.</p>
-            </div>
-          </div>
-          <form action={estimateEatenRecipeAction} className="mt-6 grid gap-3">
-            <textarea
-              name="description"
-              className="min-h-28 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
-              placeholder="Ex: comi uma panqueca média com banana, aveia, 2 ovos e um pouco de mel"
-              required
-            />
-            <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white/10 px-5 font-semibold text-white transition hover:bg-white/15">
-              <Sparkles size={18} />
-              Estimar e salvar
-            </SubmitButton>
-            <p className="text-xs leading-5 text-zinc-500">
-              Isso é estimativa. Para mais precisão, cadastre os ingredientes e gramas manualmente.
-            </p>
-          </form>
-        </GlassCard>
-      </div>
-
-      <GlassCard className="mt-5">
+  const editor = (      <GlassCard className={styles.editor}>
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">
+          <div className="icon-tile [--tile:#ff9500]">
             <Utensils size={20} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Nova receita manual</h2>
-            <p className="text-sm text-zinc-500">Digite o alimento e escolha uma sugestão da base TACO ou dos seus alimentos.</p>
+            <h2 className="text-xl font-semibold">Nova receita</h2>
+            <p className="text-sm text-text-muted">Digite o alimento e escolha uma sugestão da base TACO ou dos seus alimentos.</p>
           </div>
         </div>
-        <form action={createRecipeAction} className="mt-6 grid gap-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_150px]">
-            <input name="name" className={inputClass} placeholder="Nome da receita" required />
-            <input name="servings" type="number" min="1" className={inputClass} placeholder="Porções" required />
+        <form action={createRecipeAction} className={styles.createForm}>
+          <div className={styles.metadataFields}>
+            <label className={styles.field}>Nome da receita<input name="name" className={inputClass} placeholder="Ex.: Panqueca de aveia" required /></label>
+            <label className={styles.field}>Porções<input name="servings" type="number" min="1" className={inputClass} placeholder="Ex.: 4" required /></label>
           </div>
           <RecipeIngredientFields foods={foods} />
-          <textarea
+          <label className={styles.field}><span>Modo de preparo <span className={styles.optional}>(opcional)</span></span><textarea
             name="instructions"
-            className="min-h-24 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
-            placeholder="Modo de preparo opcional"
-          />
-          <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+            className="min-h-24 rounded-[14px] bg-fill px-4 py-3 outline-none"
+            placeholder="Descreva como preparar a receita"
+          /></label>
+          <SubmitButton className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground hover:bg-primary-light px-5 font-semibold">
             <Plus size={18} />
-            Salvar receita manual
+            Salvar receita
           </SubmitButton>
         </form>
-      </GlassCard>
-
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      </GlassCard>);
+  const library = (      <div className={styles.library}>
         {recipes.map((recipe) => {
           const totals = recipe.items.reduce((acc, item) => {
-            const n = nutrientsForGrams({
-              name: item.food.name,
-              kcalPer100g: item.food.kcalPer100g,
-              proteinPer100g: item.food.proteinPer100g,
-              carbsPer100g: item.food.carbsPer100g,
-              fatPer100g: item.food.fatPer100g,
-              fiberPer100g: item.food.fiberPer100g ?? 0,
-              sodiumPer100g: item.food.sodiumPer100g ?? 0,
-            }, item.grams);
+            const n = nutrientsForGrams(toFoodNutrients(item.food), item.grams);
             return {
               kcal: acc.kcal + n.kcal,
               protein: acc.protein + n.proteinG,
@@ -173,58 +89,48 @@ export default async function ReceitasPage({ searchParams }: { searchParams: Pro
           };
 
           return (
-            <GlassCard key={recipe.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xl font-semibold">{recipe.name}</p>
-                  <p className="mt-1 text-sm text-zinc-500">{recipe.servings} porções - {Math.round(totals.kcal)} kcal na receita inteira</p>
+            <GlassCard key={recipe.id} className={styles.card}>
+              <header className={styles.header}>
+                <h2>{recipe.name}</h2>
+                <p>Rende {recipe.servings} {recipe.servings === 1 ? "porção" : "porções"} · {Math.round(totals.kcal).toLocaleString("pt-BR")} kcal no total</p>
+              </header>
+
+              <section className={styles.nutrition} aria-label={`Nutrientes por porção de ${recipe.name}`}>
+                <p>Por porção</p>
+                <dl className={styles.nutrients}>
+                  <Macro label="Calorias" value={`${Math.round(perServing.kcal).toLocaleString("pt-BR")} kcal`} />
+                  <Macro label="Proteína" value={`${round1(perServing.protein)} g`} />
+                  <Macro label="Carboidratos" value={`${round1(perServing.carbs)} g`} />
+                  <Macro label="Gordura" value={`${round1(perServing.fat)} g`} />
+                  <Macro label="Fibra" value={`${round1(perServing.fiber)} g`} />
+                </dl>
+              </section>
+
+              <details className={styles.disclosure}>
+                <summary>Ingredientes{recipe.instructions ? " e preparo" : ""}<ChevronDown size={17} aria-hidden="true" /></summary>
+                <div className={styles.detailsBody}>
+                  <p className={styles.optional}>Quantidades para a receita inteira.</p>
+                  <ul className={styles.ingredients}>
+                    {recipe.items.map((item) => <li key={item.id}><span>{item.food.name}</span><span>{round1(item.grams)} g</span></li>)}
+                  </ul>
+                  {recipe.instructions ? <div className={styles.instructions}><h3>Modo de preparo</h3><p>{recipe.instructions}</p></div> : null}
                 </div>
-                {recipe.userId === user.id ? (
-                  <form action={deleteRecipeAction}>
-                    <input type="hidden" name="recipeId" value={recipe.id} />
-                    <SubmitButton className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir receita">
-                      <Trash2 size={16} />
-                    </SubmitButton>
-                  </form>
-                ) : null}
-              </div>
-
-              <div className="mt-5 grid gap-2 sm:grid-cols-5">
-                <Macro label="kcal" value={Math.round(perServing.kcal)} />
-                <Macro label="prot" value={`${round(perServing.protein)}g`} />
-                <Macro label="carbo" value={`${round(perServing.carbs)}g`} />
-                <Macro label="gord" value={`${round(perServing.fat)}g`} />
-                <Macro label="fibra" value={`${round(perServing.fiber)}g`} />
-              </div>
-
-              <div className="mt-5 grid gap-2">
-                {recipe.items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-black/25 px-4 py-3 text-sm">
-                    <span className="text-zinc-200">{item.food.name}</span>
-                    <span className="text-zinc-500">{round(item.grams)}g</span>
-                  </div>
-                ))}
-              </div>
-
-              {recipe.instructions ? (
-                <p className="mt-4 rounded-2xl bg-white/[0.04] px-4 py-3 text-sm leading-6 text-zinc-400">{recipe.instructions}</p>
-              ) : null}
+              </details>
 
               {recipe.userId === user.id ? (
-                <details className="group mt-4 rounded-3xl border border-white/10 bg-black/20">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-zinc-200">
-                    <span className="inline-flex items-center gap-2">
-                      <Pencil size={15} className="text-lime-300" />
+                <details className={styles.disclosure}>
+                  <summary>
+                    <span className={styles.summaryLabel}>
+                      <Pencil size={15} aria-hidden="true" />
                       Editar receita
                     </span>
-                    <span className="text-xs text-zinc-500 group-open:hidden">Abrir</span>
-                    <span className="hidden text-xs text-zinc-500 group-open:inline">Fechar</span>
+                    <ChevronDown size={17} aria-hidden="true" />
                   </summary>
-                  <form action={updateRecipeAction} className="grid gap-4 border-t border-white/10 p-4">
+                  <form action={updateRecipeAction} className={styles.editForm}>
                     <input type="hidden" name="recipeId" value={recipe.id} />
                     <div className="grid gap-3 md:grid-cols-[1fr_150px]">
-                      <input name="name" className={inputClass} defaultValue={recipe.name} placeholder="Nome da receita" required />
-                      <input name="servings" type="number" min="1" className={inputClass} defaultValue={recipe.servings} placeholder="Porções" required />
+                      <label className={styles.field}>Nome da receita<input name="name" className={inputClass} defaultValue={recipe.name} required /></label>
+                      <label className={styles.field}>Porções<input name="servings" type="number" min="1" className={inputClass} defaultValue={recipe.servings} required /></label>
                     </div>
                     <RecipeIngredientFields
                       foods={foods}
@@ -235,50 +141,60 @@ export default async function ReceitasPage({ searchParams }: { searchParams: Pro
                         grams: item.grams,
                       }))}
                     />
-                    <textarea
+                    <label className={styles.field}><span>Modo de preparo <span className={styles.optional}>(opcional)</span></span><textarea
                       name="instructions"
-                      className="min-h-24 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none transition focus:border-lime-300/50"
+                      className="min-h-24 rounded-[14px] bg-fill px-4 py-3 outline-none"
                       defaultValue={recipe.instructions ?? ""}
-                      placeholder="Modo de preparo opcional"
-                    />
-                    <SubmitButton className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-lime-300 px-5 font-semibold text-black transition hover:bg-lime-200">
+                      placeholder="Descreva como preparar a receita"
+                    /></label>
+                    <SubmitButton className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-fill text-text-primary hover:bg-fill-strong px-5 font-semibold">
                       <Save size={17} />
                       Salvar alterações
                     </SubmitButton>
                   </form>
+                  <form action={deleteRecipeAction} className={styles.deleteForm}>
+                    <input type="hidden" name="recipeId" value={recipe.id} />
+                    <SubmitButton className={styles.deleteButton} aria-label={`Excluir receita ${recipe.name}`}><Trash2 size={16} />Excluir receita</SubmitButton>
+                  </form>
                 </details>
               ) : null}
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <form action={addRecipePortionToDiaryAction} className="rounded-3xl bg-black/25 p-3">
-                  <input type="hidden" name="recipeId" value={recipe.id} />
-                  <div className="grid gap-2 sm:grid-cols-[80px_1fr_auto]">
-                    <input name="portions" defaultValue="1" inputMode="decimal" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
-                    <select name="mealName" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
-                      {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
-                    </select>
-                    <SubmitButton className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
+              <div className={styles.actions}>
+                <details className={styles.primaryDisclosure}>
+                  <summary><span className={styles.summaryLabel}><Plus size={17} aria-hidden="true" />Registrar no diário</span><ChevronDown size={17} aria-hidden="true" /></summary>
+                  <form action={addRecipePortionToDiaryAction} className={styles.usageForm}>
+                    <input type="hidden" name="recipeId" value={recipe.id} />
+                    <div className={styles.usageFields}>
+                      <label className={styles.field}>Porções<input name="portions" defaultValue="1" inputMode="decimal" className={inputClass} /></label>
+                      <label className={styles.field}>Refeição<select name="mealName" className={inputClass}>
+                        {["Café da manhã", "Almoço", "Pré-treino", "Jantar", "Ceia"].map((meal) => <option key={meal}>{meal}</option>)}
+                      </select></label>
+                    </div>
+                    <SubmitButton className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary/15 text-primary hover:bg-primary/20 px-4 text-sm font-semibold">
                       <Plus size={15} />
-                      Diário
+                      Registrar porções
                     </SubmitButton>
-                  </div>
-                </form>
+                  </form>
+                </details>
 
                 {activePlan ? (
-                  <form action={addRecipePortionToPlanAction} className="rounded-3xl bg-black/25 p-3">
-                    <SafetyReview required={Boolean(dietaryReviewIssue(profile))} />
-                    <input type="hidden" name="recipeId" value={recipe.id} />
-                    <div className="grid gap-2 sm:grid-cols-[80px_1fr_auto]">
-                      <input name="portions" defaultValue="1" inputMode="decimal" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none" />
-                      <select name="mealId" className="h-10 rounded-2xl bg-white/10 px-3 text-sm outline-none">
-                        {activePlanMeals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
-                      </select>
-                      <SubmitButton className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white">
+                  <details className={styles.disclosure}>
+                    <summary><span className={styles.summaryLabel}><BookOpen size={16} aria-hidden="true" />Adicionar à dieta</span><ChevronDown size={17} aria-hidden="true" /></summary>
+                    <form action={addRecipePortionToPlanAction} className={styles.usageForm}>
+                      <SafetyReview required={Boolean(dietaryReviewIssue(profile))} />
+                      <input type="hidden" name="recipeId" value={recipe.id} />
+                      <div className={styles.usageFields}>
+                        <label className={styles.field}>Porções<input name="portions" defaultValue="1" inputMode="decimal" className={inputClass} /></label>
+                        <label className={styles.field}>Refeição<select name="mealId" className={inputClass}>
+                          {activePlanMeals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}
+                        </select></label>
+                      </div>
+                      <SubmitButton className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-fill text-text-primary hover:bg-fill-strong px-4 text-sm font-semibold">
                         <BookOpen size={15} />
-                        Plano
+                        Adicionar porções à dieta
                       </SubmitButton>
-                    </div>
-                  </form>
+                    </form>
+                  </details>
                 ) : null}
               </div>
             </GlassCard>
@@ -286,25 +202,29 @@ export default async function ReceitasPage({ searchParams }: { searchParams: Pro
         })}
         {!recipes.length ? (
           <GlassCard>
-            <p className="text-zinc-300">Salve sua primeira receita para usar no diário e no plano alimentar.</p>
+            <p className="text-text-secondary">Salve sua primeira receita para usar no diário e no plano alimentar.</p>
           </GlassCard>
         ) : null}
-      </div>
-    </AppShell>
-  );
+      </div>);
+  return <AppShell>
+    <PageHeading title="Receitas" description={recipes.length ? `${recipes.length} ${recipes.length === 1 ? "preparação salva" : "preparações salvas"}` : "Salve preparações para usar no diário e na dieta."} />
+    <Stack>
+    <ReliabilityNotice status={recipeStatus ?? dietaryReviewIssue(profile)} />
+    <WorkspaceTabs label="Organizar receitas" initial={recipes.length ? 0 : 1} items={[
+      {id:"minhas-receitas",label:"Minhas receitas",content:library},
+      {id:"nova-receita",label:"Criar receita",content:editor},
+    ]} />
+    </Stack>
+  </AppShell>;
 }
 
-const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50";
+const inputClass = "h-12 rounded-[14px] bg-fill px-4 outline-none";
 
 function Macro({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl bg-black/25 px-3 py-2">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-1 font-semibold text-zinc-100">{value}</p>
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
-}
-
-function round(value: number) {
-  return Math.round(value * 10) / 10;
 }

@@ -1,0 +1,45 @@
+/* Screen hierarchy after the iOS Fitness and Health summaries: one hero card with the
+   screen's answer and its action, then titled sections of cards. Each block enters a beat
+   after the previous one (--enter-base); the cards inside a section step again
+   (--enter-offset). Both feed --enter-delay in globals.css. */
+.stack { display: grid; gap: 40px; min-width: 0; }
+.stack > :nth-child(2) { --enter-base: 70ms; }
+.stack > :nth-child(3) { --enter-base: 140ms; }
+.stack > :nth-child(4) { --enter-base: 210ms; }
+.stack > :nth-child(5) { --enter-base: 280ms; }
+.stack > :nth-child(6) { --enter-base: 350ms; }
+.stack > :nth-child(n+7) { --enter-base: 420ms; }
+
+/* The hero: the largest and most opaque card of the screen, with a deeper corner. */
+.hero { position: relative; min-width: 0; padding: 28px; border-radius: 28px; background: var(--hero-material); }
+
+.section { display: grid; gap: 14px; min-width: 0; }
+.header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-inline: 4px; }
+.section .header h2 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.015em; }
+/* "Show more" of iOS: a plain link in the tint, never a button. */
+.action { flex-shrink: 0; color: var(--primary); font-size: 15px; font-weight: 600; }
+.action:hover { color: var(--primary-light); }
+.action:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+
+.grid { display: grid; gap: 16px; align-items: start; min-width: 0; }
+.grid > * { min-width: 0; }
+.grid[data-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid[data-columns="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* One large card beside a narrower column (the body model beside its numbers). */
+.grid[data-columns="wide"] { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.grid > :nth-child(2) { --enter-offset: 50ms; }
+.grid > :nth-child(3) { --enter-offset: 100ms; }
+.grid > :nth-child(n+4) { --enter-offset: 150ms; }
+/* A column of cards inside a grid cell. */
+.column { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+@media (max-width: 1100px) {
+  .grid[data-columns="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid[data-columns="wide"] { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .stack { gap: 32px; }
+  .hero { padding: 22px; border-radius: 26px; }
+  .grid[data-columns] { grid-template-columns: minmax(0, 1fr); }
+  .section .header h2 { font-size: 20px; line-height: 25px; }
+}

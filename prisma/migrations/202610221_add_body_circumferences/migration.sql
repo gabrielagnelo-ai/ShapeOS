@@ -1,0 +1,11 @@
+-- AlterTable
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "chest_cm" DOUBLE PRECISION;
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "arm_cm" DOUBLE PRECISION;
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "thigh_cm" DOUBLE PRECISION;
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "calf_cm" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "body_composition_snapshots" ADD COLUMN IF NOT EXISTS "chest_cm" DOUBLE PRECISION;
+ALTER TABLE "body_composition_snapshots" ADD COLUMN IF NOT EXISTS "arm_cm" DOUBLE PRECISION;
+ALTER TABLE "body_composition_snapshots" ADD COLUMN IF NOT EXISTS "thigh_cm" DOUBLE PRECISION;
+ALTER TABLE "body_composition_snapshots" ADD COLUMN IF NOT EXISTS "calf_cm" DOUBLE PRECISION;

@@ -1,0 +1,113 @@
+/* The dock: one glass capsule floating over the content (top on desktop, bottom on
+   phones), the selected destination on a lighter pill. Material comes from .glass. */
+.dock {
+  --nav-index: 0;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 4px;
+  border-radius: 999px;
+}
+.lens {
+  position: absolute;
+  z-index: -1;
+  inset: 4px auto 4px 4px;
+  width: calc((100% - 8px) / 5);
+  border-radius: 999px;
+  background: var(--glass-selected);
+  box-shadow: 0 1px 4px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12);
+  transform: translateX(calc(var(--nav-index) * 100%));
+  transition: transform 320ms cubic-bezier(.25,1,.5,1), opacity 120ms ease-out;
+}
+.dock[data-selected="false"] .lens { opacity: 0; }
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  min-width: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  touch-action: manipulation;
+  transition: color 160ms ease-out, transform 200ms cubic-bezier(.25,1,.5,1);
+}
+.item[aria-current="page"], .item[data-active="true"] { color: var(--primary); }
+.item:active { transform: scale(.94); transition-duration: 0ms; }
+.item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.desktop { width: 560px; }
+.mobile { display: none; }
+
+/* "Mais": a glass menu with the remaining destinations in titled sections. */
+.sheet {
+  position: fixed;
+  inset: 84px 24px auto auto;
+  margin: 0;
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+  border-radius: 28px;
+  color: var(--text-primary);
+  opacity: 0;
+  transform: translateY(-8px) scale(.97);
+  transform-origin: top right;
+  transition: opacity 150ms ease-out, transform 150ms cubic-bezier(.25,1,.5,1), display 150ms allow-discrete, overlay 150ms allow-discrete;
+}
+.sheet[open] { opacity: 1; transform: none; transition-duration: 260ms; }
+.sheet::backdrop { background: var(--scrim); opacity: 0; transition: opacity 150ms ease-out, display 150ms allow-discrete, overlay 150ms allow-discrete; }
+.sheet[open]::backdrop { opacity: 1; }
+@starting-style {
+  .sheet[open] { opacity: 0; transform: translateY(-8px) scale(.97); }
+  .sheet[open]::backdrop { opacity: 0; }
+}
+.sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; align-items: start; }
+.section { display: grid; gap: 2px; }
+.sectionTitle { padding: 0 10px 6px; color: var(--text-muted); font-size: 13px; font-weight: 600; }
+/* Rows inside the glass paint no surface of their own, only the selection pill. */
+.tool { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 10px 6px 6px; border-radius: 14px; color: var(--text-primary); font-size: 15px; font-weight: 500; }
+.tool[aria-current="page"] { background: var(--glass-selected); }
+.tool:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.signOut { color: var(--danger); }
+.signOutIcon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .item:hover { color: var(--text-primary); }
+  .item[aria-current="page"]:hover { color: var(--primary); }
+  .tool:hover { background: var(--fill); }
+  .tool[aria-current="page"]:hover { background: var(--glass-selected); }
+}
+@media (max-width: 1279px) {
+  .desktop { display: none; }
+  .mobile {
+    display: grid;
+    position: fixed;
+    z-index: 40;
+    left: max(12px, calc((100% - 560px) / 2));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: min(560px, calc(100% - 24px));
+    transition: width 320ms cubic-bezier(.25,1,.5,1);
+  }
+  /* Scrolling down: the bar shrinks toward its leading edge to the current tab only. */
+  .mobile[data-minimized="true"] { width: 60px; grid-template-columns: minmax(0, 1fr); }
+  .mobile[data-minimized="true"] .lens,
+  .mobile[data-minimized="true"] .item > span { display: none; }
+  .mobile[data-minimized="true"] .item:not([aria-current="page"]):not([data-active="true"]) { display: none; }
+  .item { flex-direction: column; gap: 2px; min-height: 52px; padding: 5px 3px; font-size: 10px; }
+  .sheet { inset: auto 12px calc(84px + env(safe-area-inset-bottom)); margin-inline: auto; max-height: calc(100dvh - 110px); transform: translateY(16px) scale(.97); transform-origin: bottom center; }
+  .sheet[open] { transform: none; }
+  @starting-style { .sheet[open] { transform: translateY(16px) scale(.97); } }
+}
+@media (max-width: 420px) {
+  .sections { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lens, .item, .sheet, .sheet::backdrop, .mobile { transition-duration: 0ms; }
+  .sheet, .sheet[open], .item:active { transform: none; }
+  @starting-style { .sheet[open] { transform: none; } }
+}
+@media print { .dock, .sheet { display: none; } }

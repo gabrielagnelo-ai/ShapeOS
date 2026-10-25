@@ -1,0 +1,13 @@
+/* Base type and form controls of the pages inside the shell (TBS Engine design). Each screen and
+   component keeps its own styles next to it, in its CSS module or Tailwind classes: page classes
+   don't go here. The button default sits in :where() so a component's class can set its size. */
+.workspace { --page-gap: 24px; }
+.workspace main { font-size: 15px; font-variant-numeric: tabular-nums; font-optical-sizing: auto; }
+.workspace main h1 { letter-spacing: -.02em; line-height: 41px !important; }
+.workspace main h2 { font-size: 20px; line-height: 26px; font-weight: 600; letter-spacing: -.015em; }
+.workspace main h3 { font-size: 16px; line-height: 22px; font-weight: 600; letter-spacing: -.01em; }
+:where(.workspace main) button { font-size: 14px; font-weight: 600; }
+.workspace main :is(button,a)[aria-current="date"] { background: var(--glass-selected); color: var(--text-primary); }
+.workspace main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+.workspace main select, .workspace main textarea { background-color: var(--fill); border-color: transparent; font-size: 16px; }
+.workspace main input[type="file"]::file-selector-button { margin-right: 12px; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--fill-strong); color: var(--text-primary); font-weight: 600; }

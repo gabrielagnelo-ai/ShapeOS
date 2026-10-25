@@ -1,0 +1,10 @@
+/* Metas e perfil: form sections with a heading column, beside a sticky summary. */
+.form { display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 32px; align-items: start; }
+.section { display: grid; grid-template-columns: minmax(170px, .65fr) minmax(0, 1fr); gap: 24px; padding-bottom: 28px; border-bottom: 1px solid var(--hairline); }
+.sectionHeading { display: flex; align-items: start; gap: 12px; padding-top: 16px; }
+.sectionFields { padding: 20px; background: var(--bg-secondary); border-radius: 22px; box-shadow: var(--panel-shadow); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); animation: var(--enter); animation-delay: var(--enter-delay); min-width: 0; }
+.safety { --panel-background: var(--bg-tertiary); }
+.summaryLine { padding: 14px 0; border: 0; border-bottom: 1px solid var(--hairline); background: none; border-radius: 0; }
+.summaryLine > div > p:last-child { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+@media (max-width: 1199px) { .form { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .section { grid-template-columns: 1fr; gap: 16px; } }

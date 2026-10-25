@@ -19,6 +19,15 @@ describe("onboarding input", () => {
     expect(parseOnboardingInput(form({ sex: "female" }), "Default").success).toBe(false);
     expect(parseOnboardingInput(form({ sex: "female", hipCm: "100" }), "Default").success).toBe(true);
   });
+  it("accepts optional body-model circumferences and an optional hip for men", () => {
+    const result = parseOnboardingInput(form({ hipCm: "98", chestCm: "102,5", armCm: "37", thighCm: "", calfCm: "38" }), "Default");
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toMatchObject({ hipCm: 98, chestCm: 102.5, armCm: 37, thighCm: undefined, calfCm: 38 });
+    expect(parseOnboardingInput(form(), "Default").success).toBe(true);
+  });
+  it.each([{ chestCm: "10" }, { armCm: "texto" }, { thighCm: "500" }])("rejects implausible circumferences: %j", (change) => {
+    expect(parseOnboardingInput(form(change), "Default").success).toBe(false);
+  });
   it("checks manual activity factor in advanced mode", () => {
     expect(parseOnboardingInput(form({ mode: "advanced", manualActivityFactor: "9" }), "Default").success).toBe(false);
     expect(parseOnboardingInput(form({ mode: "advanced", manualActivityFactor: "1,45" }), "Default").success).toBe(true);

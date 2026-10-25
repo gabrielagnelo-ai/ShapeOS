@@ -19,7 +19,7 @@ type InitialIngredient = {
 
 type IngredientRow = InitialIngredient & { key: number };
 
-const fieldClass = "h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 outline-none transition focus:border-lime-300/50";
+const fieldClass = "h-12 w-full rounded-[14px] bg-fill px-4 outline-none";
 
 export function RecipeIngredientFields({ foods, initialIngredients = [] }: { foods: FoodOption[]; initialIngredients?: InitialIngredient[] }) {
   const [rows, setRows] = useState<IngredientRow[]>(() =>
@@ -43,15 +43,15 @@ export function RecipeIngredientFields({ foods, initialIngredients = [] }: { foo
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-zinc-200">
+          <p className="text-sm font-medium text-text-secondary">
             {rows.length} {rows.length === 1 ? "ingrediente" : "ingredientes"}
           </p>
-          <p className="mt-1 text-xs text-zinc-500">Adicione todas as quantidades usadas na receita inteira.</p>
+          <p className="mt-1 text-xs text-text-muted">Adicione todas as quantidades usadas na receita inteira.</p>
         </div>
         <button
           type="button"
           onClick={addIngredient}
-          className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-zinc-100 transition hover:border-lime-300/30 hover:bg-lime-300/10"
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-fill text-text-primary hover:bg-fill-strong px-4 text-sm font-semibold"
         >
           <Plus size={16} />
           Adicionar ingrediente
@@ -60,7 +60,7 @@ export function RecipeIngredientFields({ foods, initialIngredients = [] }: { foo
 
       <div className="grid gap-2">
         {rows.map((row, index) => (
-          <div key={row.key} className="grid min-w-0 gap-2 rounded-3xl border border-white/[0.07] bg-black/20 p-3 md:grid-cols-[minmax(0,1fr)_140px_44px] md:items-start">
+          <div key={row.key} className="grid min-w-0 gap-2 rounded-[14px] bg-surface-tertiary p-3 md:grid-cols-[minmax(0,1fr)_140px_44px] md:items-start">
             <FoodSearchField
               foods={foods}
               className={fieldClass}
@@ -80,7 +80,7 @@ export function RecipeIngredientFields({ foods, initialIngredients = [] }: { foo
               type="button"
               onClick={() => removeIngredient(row.key)}
               disabled={rows.length === 1}
-              className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 text-zinc-400 transition hover:border-red-400/30 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-30 md:h-12 md:w-11"
+              className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-transparent bg-fill text-text-muted transition hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 md:h-12 md:w-11"
               aria-label={`Remover ingrediente ${index + 1}`}
               title="Remover ingrediente"
             >

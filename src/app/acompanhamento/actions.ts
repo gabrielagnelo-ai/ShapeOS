@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createBodyCompositionSnapshot } from "@/lib/body-composition";
-import { calculateBmr, calculateTdee, type Sex } from "@/lib/nutrition";
+import { parseCircumferences } from "@/lib/body-measurements";
+import { toFoodNutrients } from "@/lib/nutrition";
+import { computeProfileMetrics } from "@/lib/profile-metrics";
 import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
 import { prisma } from "@/lib/prisma";
 import { validateTdeeTrend } from "@/lib/tdee";
+import { clamp } from "@/lib/common";
 
 const MAX_BODY_PHOTOS_PER_CHECKIN = 8;
 const MAX_BODY_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -18,10 +21,10 @@ export type PhotoUploadState = {
 
 export async function saveWeeklyCheckinAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return;
+  if (!user) throw new Error("Sessão expirada. Entre novamente para salvar o check-in.");
 
   const profile = await prisma.profile.findUnique({ where: { userId: user.id } });
-  if (!profile) return;
+  if (!profile) throw new Error("Complete seu perfil antes de salvar o check-in.");
 
   const now = new Date();
   const weekStart = new Date(now);
@@ -31,10 +34,12 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
   const averageWeightKg = parseDecimal(String(formData.get("averageWeightKg") ?? "0"));
   const waistCm = optionalDecimal(formData.get("waistCm"));
   const neckCm = optionalDecimal(formData.get("neckCm"));
-  const hipCm = profile.sex === "FEMALE" ? optionalDecimal(formData.get("hipCm")) : null;
+  // quadril é obrigatório para o BF feminino; para homens é opcional e só alimenta o modelo corporal
+  const hipCm = optionalDecimal(formData.get("hipCm"));
   const resolvedWaistCm = waistCm ?? profile.waistCm;
   const resolvedNeckCm = neckCm ?? profile.neckCm;
-  const resolvedHipCm = profile.sex === "FEMALE" ? hipCm ?? profile.hipCm : null;
+  const resolvedHipCm = hipCm ?? profile.hipCm;
+  const circumferences = parseCircumferences(formData);
 
   const checkin = await prisma.weeklyCheckin.create({
     data: {
@@ -66,6 +71,7 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
     neckCm: resolvedNeckCm,
     waistCm: resolvedWaistCm,
     hipCm: resolvedHipCm,
+    ...circumferences,
     measuredAt: weekStart,
   });
 
@@ -83,24 +89,10 @@ export async function saveWeeklyCheckinAction(formData: FormData) {
     date: log.date,
     items: log.items.map((item) => ({
       grams: item.grams,
-      food: {
-        name: item.food.name,
-        kcalPer100g: item.food.kcalPer100g,
-        proteinPer100g: item.food.proteinPer100g,
-        carbsPer100g: item.food.carbsPer100g,
-        fatPer100g: item.food.fatPer100g,
-        fiberPer100g: item.food.fiberPer100g ?? 0,
-        sodiumPer100g: item.food.sodiumPer100g ?? 0,
-      },
+      food: toFoodNutrients(item.food),
     })),
   })), periods.month);
-  const bmr = calculateBmr({
-    sex: (profile.sex === "MALE" ? "male" : "female") as Sex,
-    age: profile.age,
-    heightCm: profile.heightCm,
-    weightKg: averageWeightKg,
-  });
-  const tdee = calculateTdee(bmr, profile.activityFactor) + profile.tdeeAdjustmentKcal;
+  const { tdee } = computeProfileMetrics(profile, { weightKg: averageWeightKg });
   const validation = validateTdeeTrend({
     tdee,
     averageIntakeKcal: Math.round(monthlyFood.average.kcal),
@@ -156,16 +148,16 @@ export async function deleteWeeklyCheckinAction(formData: FormData) {
 
 export async function uploadCheckinPhotosAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user) return { ok: false, message: "Sessao expirada. Entre novamente." };
+  if (!user) return { ok: false, message: "Sessão expirada. Entre novamente." };
 
   const checkinId = String(formData.get("checkinId") ?? "");
-  if (!checkinId) return { ok: false, message: "Check-in nao encontrado." };
+  if (!checkinId) return { ok: false, message: "Check-in não encontrado." };
 
   const checkin = await prisma.weeklyCheckin.findFirst({
     where: { id: checkinId, userId: user.id },
     select: { id: true },
   });
-  if (!checkin) return { ok: false, message: "Check-in nao encontrado." };
+  if (!checkin) return { ok: false, message: "Check-in não encontrado." };
 
   const result = await saveBodyPhotos({
     userId: user.id,
@@ -204,10 +196,6 @@ function optionalDecimal(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
 async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; checkinId: string; files: FormDataEntryValue[] }): Promise<PhotoUploadState> {
   const validFiles = files.filter((entry): entry is File => entry instanceof File && entry.size > 0);
   if (!validFiles.length) return { ok: false, message: "Nenhuma foto selecionada." };
@@ -216,7 +204,7 @@ async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; ch
     where: { userId, weeklyCheckinId: checkinId },
   });
   const remainingSlots = Math.max(0, MAX_BODY_PHOTOS_PER_CHECKIN - currentCount);
-  if (!remainingSlots) return { ok: false, message: "Este check-in ja tem 8 fotos." };
+  if (!remainingSlots) return { ok: false, message: "Este check-in já tem 8 fotos." };
 
   const photos = await Promise.all(validFiles.slice(0, remainingSlots).map(async (file, index) => {
     if (!file.type.startsWith("image/") || file.size > MAX_BODY_PHOTO_BYTES) return null;
@@ -233,7 +221,7 @@ async function saveBodyPhotos({ userId, checkinId, files }: { userId: string; ch
   }));
 
   const data = photos.filter((photo): photo is NonNullable<typeof photo> => photo !== null);
-  if (!data.length) return { ok: false, message: "As fotos precisam ser imagens com ate 5 MB cada." };
+  if (!data.length) return { ok: false, message: "As fotos precisam ser imagens com até 5 MB cada." };
 
   await prisma.bodyPhoto.createMany({ data });
   const ignored = Math.max(0, validFiles.length - data.length);

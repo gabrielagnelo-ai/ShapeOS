@@ -48,20 +48,20 @@ export function ShoppingListExport({ title, items }: { title: string; items: str
   if (!items.length) return null;
 
   return (
-    <div className="mt-4 border-t border-white/10 pt-4">
+    <div className="mt-4 border-t border-hairline pt-4">
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={share} className="inline-flex h-10 items-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black transition hover:bg-lime-200">
+        <button type="button" onClick={share} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-fill text-text-primary hover:bg-fill-strong px-4 text-sm font-semibold">
           <Share2 size={15} /> Compartilhar
         </button>
-        <button type="button" onClick={copy} className="inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/15">
+        <button type="button" onClick={copy} className="inline-flex h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-medium text-text-primary transition hover:bg-fill-strong">
           <Copy size={15} /> Copiar
         </button>
-        <button type="button" onClick={download} className="inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/15">
+        <button type="button" onClick={download} className="inline-flex h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-medium text-text-primary transition hover:bg-fill-strong">
           <Download size={15} /> TXT
         </button>
       </div>
-      <p className="mt-2 text-xs leading-5 text-zinc-500">No iPhone ou iPad, use Compartilhar e escolha Lembretes, Notas ou outro app. Preços não são incluídos.</p>
-      {feedback ? <p className="mt-2 inline-flex items-center gap-1 text-xs text-lime-200"><Check size={13} /> {feedback}</p> : null}
+      <p className="mt-2 text-xs leading-5 text-text-muted">No iPhone ou iPad, use Compartilhar e escolha Lembretes, Notas ou outro app. Preços não são incluídos.</p>
+      {feedback ? <p className="mt-2 inline-flex items-center gap-1 text-xs text-success"><Check size={13} /> {feedback}</p> : null}
     </div>
   );
 }

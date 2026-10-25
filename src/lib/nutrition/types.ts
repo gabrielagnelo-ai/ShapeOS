@@ -37,6 +37,25 @@ export type FoodNutrients = {
   vitaminB12Per100g?: number;
 };
 
+/** A food as the database returns it: nutrients the label did not report are null. */
+export type StoredFoodNutrients = {
+  name: string;
+  kcalPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+  fiberPer100g?: number | null;
+  sodiumPer100g?: number | null;
+  calciumPer100g?: number | null;
+  ironPer100g?: number | null;
+  magnesiumPer100g?: number | null;
+  potassiumPer100g?: number | null;
+  zincPer100g?: number | null;
+  vitaminCPer100g?: number | null;
+  vitaminDPer100g?: number | null;
+  vitaminB12Per100g?: number | null;
+};
+
 export type MicronutrientTargets = {
   calciumMg: number;
   ironMg: number;

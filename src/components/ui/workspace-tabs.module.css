@@ -1,0 +1,17 @@
+/* iOS segmented control on the content layer: a gray track with the selected view on a
+   lighter pill. Not glass: glass is only for controls floating over the content. */
+.root { min-width: 0; }
+.bar { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(var(--count),minmax(0,1fr)); width: fit-content; min-width: 360px; max-width: 100%; padding: 4px; margin-bottom: 24px; border-radius: 999px; background: var(--fill); }
+.bar button { position: relative; z-index: 1; min-height: 36px; padding: 7px 20px; border: 0; border-radius: 999px; background: none; color: var(--text-secondary); font-size: 14px; font-weight: 600; white-space: nowrap; touch-action: manipulation; transition: color 200ms cubic-bezier(.25,1,.5,1); }
+.bar button:hover { color: var(--text-primary); }
+.bar button[aria-selected="true"] { color: var(--text-primary); }
+.bar button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.selection { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--count)); transform: translateX(calc(var(--index) * 100%)); border-radius: 999px; background: var(--glass-selected); box-shadow: 0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.15); transition: transform 280ms cubic-bezier(.25,1,.5,1); }
+.panel { outline: none; min-width: 0; }
+.panel[hidden] { display: none; }
+.panel:not([hidden]) { animation: reveal 180ms ease-out; }
+@keyframes reveal { from { opacity: .4; } to { opacity: 1; } }
+@media(max-width:600px) { .bar { width: 100%; min-width: 0; margin-bottom: 20px; }.bar button { padding: 7px 8px; } }
+@media(pointer:coarse) { .bar button { min-height: 40px; } }
+@media(prefers-reduced-motion:reduce) { .selection { transition: none; }.panel:not([hidden]) { animation: none; } }
+@media(prefers-contrast:more) { .selection { box-shadow: inset 0 0 0 2px var(--primary); }.bar button { color:#fff; } }

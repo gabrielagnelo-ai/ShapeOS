@@ -36,13 +36,13 @@ export function calendarPeriods(referenceDate = new Date()) {
     },
     quarter: {
       key: "quarter",
-      label: `${quarterStartMonth + 1}o-${quarterStartMonth + 3}o mes de ${year}`,
+      label: `${quarterStartMonth + 1}º-${quarterStartMonth + 3}º mês de ${year}`,
       start: startOfAppDate(year, quarterStartMonth + 1, 1),
       end: startOfAppDate(year, quarterStartMonth + 4, 1),
     },
     semester: {
       key: "semester",
-      label: `${semesterStartMonth === 0 ? "1o" : "2o"} semestre de ${year}`,
+      label: `${semesterStartMonth === 0 ? "1º" : "2º"} semestre de ${year}`,
       start: startOfAppDate(year, semesterStartMonth + 1, 1),
       end: startOfAppDate(year, semesterStartMonth + 7, 1),
     },
@@ -64,6 +64,13 @@ export function foodPeriodSummary(logs: FoodLogForPeriod[], period: CalendarPeri
     dayTotals,
     average: averageNutrition(dayTotals.map((day) => day.totals)),
   };
+}
+
+/** Share of logged days that reached at least 90% of the protein target; null without data. */
+export function proteinHitRate(days: Array<{ totals: { proteinG: number } }>, targetProteinG: number) {
+  if (!days.length || !targetProteinG) return null;
+  const hitDays = days.filter((day) => day.totals.proteinG >= targetProteinG * 0.9).length;
+  return hitDays / days.length;
 }
 
 export function waterPeriodSummary(logs: WaterLogForPeriod[], period: CalendarPeriod) {

@@ -45,8 +45,8 @@ function readWeight() {
 
 function messageClass(level: "info" | "good" | "warning" | "danger") {
   const base = "mt-2 rounded-2xl border px-3 py-2 text-xs leading-5";
-  if (level === "good") return `${base} border-lime-300/20 bg-lime-300/10 text-lime-200`;
+  if (level === "good") return `${base} bg-success/10 text-success`;
   if (level === "warning") return `${base} border-yellow-300/20 bg-yellow-300/10 text-yellow-100`;
-  if (level === "danger") return `${base} border-red-400/25 bg-red-500/10 text-red-100`;
-  return `${base} border-white/10 bg-white/[0.04] text-zinc-400`;
+  if (level === "danger") return `${base} bg-danger/10 text-danger`;
+  return `${base} bg-surface-tertiary text-text-muted`;
 }

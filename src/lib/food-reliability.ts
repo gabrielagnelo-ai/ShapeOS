@@ -8,7 +8,7 @@ export const foodReliabilityMessages: Record<string, string> = {
   "food-conflict": "Este plano contém alimentos incompatíveis com suas preferências ou restrições. Revise os ingredientes antes de ativar.",
   "insufficient-foods": "Não há alimentos compatíveis suficientes para montar esse plano. Revise suas preferências ou monte um plano manual.",
   "invalid-target": "Não foi possível ajustar as porções à sua meta com segurança. Revise as metas ou monte o plano manualmente.",
-  "ai-unavailable": "A IA não conseguiu gerar uma resposta válida. Nada foi salvo. Tente novamente ou preencha os ingredientes manualmente.",
+  "ai-unavailable": "A geração por IA foi desativada. Cadastre os ingredientes e as porções manualmente.",
   "invalid-ingredients": "Um ou mais ingredientes não foram identificados com precisão. Selecione cada alimento da lista e confira as quantidades; nada foi salvo.",
   "plan-created": "Plano criado com calorias ajustadas à meta. Confira porções, distribuição de macros e adequação à sua rotina antes de seguir.",
   "recipe-created": "Receita salva. Revise ingredientes e porções antes de registrar no diário.",

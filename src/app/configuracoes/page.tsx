@@ -1,17 +1,23 @@
+import { PageHeading } from "@/components/ui/page-heading";
 import { redirect } from "next/navigation";
-import { CalendarDays, Gauge, HeartPulse, Ruler, Save, Sparkles, Target, Utensils } from "lucide-react";
+import { CalendarDays, Gauge, HeartPulse, Ruler, Save, SlidersHorizontal, Utensils } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DeficitAdvisor } from "@/components/onboarding/deficit-advisor";
 import { getCurrentUser } from "@/lib/auth";
 import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
+import { CIRCUMFERENCE_FIELDS } from "@/lib/body-measurements";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics } from "@/lib/profile";
 import { waterPreferenceLabel, waterTargetMl } from "@/lib/water";
 import { updateGoalsAction } from "./actions";
+import { confidenceLabel } from "@/lib/common";
+import styles from "./settings.module.css";
+import metricStrip from "@/components/ui/metric-strip.module.css";
+import { Stack } from "@/components/ui/screen";
 
-const inputClass = "mt-2 h-12 w-full rounded-2xl border border-white/10 bg-black/35 px-4 text-white shadow-inner shadow-black/20 outline-none transition placeholder:text-zinc-600 focus:border-lime-300/55 focus:bg-black/50 focus:ring-4 focus:ring-lime-300/10";
+const inputClass = "mt-2 h-12 w-full rounded-[14px] bg-fill px-4 outline-none transition";
 
 const goalLabels = {
   fat_loss: "Perda de peso",
@@ -50,48 +56,22 @@ export default async function ConfiguracoesPage() {
 
   return (
     <AppShell>
-      <div className="grid gap-5 lg:grid-cols-[1fr_420px] lg:items-end">
-        <div>
-          <p className="text-sm font-semibold text-lime-300">Metas e ajustes</p>
-          <h1 className="mt-3 max-w-4xl text-5xl font-semibold tracking-tight md:text-6xl">
-            Controle sua dieta sem mexer no plano inteiro.
-          </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-400">
-            Ajuste gasto, déficit, proteína, gordura e medidas corporais. O ShapeOS recalcula carboidratos e registra evolução de composição corporal.
-          </p>
-        </div>
+      <PageHeading title="Perfil e metas" description="Ajuste suas medidas, preferências e metas de alimentação."><span>{goalLabels[metrics.goal]}</span></PageHeading>
+      <Stack>
+      <div className={metricStrip.strip}><div><small>Meta diária</small><strong>{metrics.targets.calories} <span>kcal</span></strong></div><div><small>Proteína</small><strong>{metrics.targets.proteinG} <span>g</span></strong></div><div><small>Carboidrato</small><strong>{metrics.targets.carbsG} <span>g</span></strong></div><div><small>Gordura</small><strong>{metrics.targets.fatG} <span>g</span></strong></div></div>
 
-        <GlassCard className="border-lime-300/25 bg-lime-300/[0.08]">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-zinc-400">Meta atual</p>
-              <p className="mt-2 text-5xl font-semibold tracking-tight text-white">{metrics.targets.calories}</p>
-              <p className="mt-1 text-sm text-lime-200">kcal/dia para {goalLabels[metrics.goal]}</p>
-            </div>
-            <div className="grid size-16 place-items-center rounded-3xl bg-lime-300 text-black shadow-[0_0_45px_rgba(184,255,0,.22)]">
-              <Target size={28} />
-            </div>
-          </div>
-          <div className="mt-6 grid grid-cols-3 gap-2">
-            <MiniMetric label="P" value={`${metrics.targets.proteinG}g`} />
-            <MiniMetric label="C" value={`${metrics.targets.carbsG}g`} />
-            <MiniMetric label="G" value={`${metrics.targets.fatG}g`} />
-          </div>
-        </GlassCard>
-      </div>
-
-      <form action={updateGoalsAction} className="mt-8 grid items-start gap-5 xl:grid-cols-[1fr_380px]">
+      <form action={updateGoalsAction} className={styles.form}>
         <div className="grid gap-5">
           <SectionCard
             icon={<Gauge size={20} />}
             title="Gasto e déficit"
-            text="Aqui você controla o cálculo mais sensível. Para usuário avançado, o fator manual evita inflar o gasto estimado."
+            text="Escolha como estimar o gasto diário e o ajuste de calorias para sua meta."
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Modo de TDEE" help="Coeficiente inclui sua rotina normal. Aditivo usa fator baixo e soma atividades registradas.">
+            <div className="grid gap-4 grid-cols-1">
+              <Field label="Cálculo do gasto diário" help="TDEE é a estimativa do gasto total de energia. Escolha se as atividades já fazem parte da rotina ou serão somadas ao registrá-las.">
                 <select name="tdeeCalculationMode" defaultValue={profile.tdeeCalculationMode} className={inputClass}>
-                  <option value="COEFFICIENT">Coeficiente - rotina ja incluida</option>
-                  <option value="ADDITIVE">Aditivo - fator baixo + atividades</option>
+                  <option value="COEFFICIENT">Rotina incluída no fator de atividade</option>
+                  <option value="ADDITIVE">Somar as atividades registradas</option>
                 </select>
               </Field>
               <Field label="Fator de atividade" help="Use algo entre 1,1 e 2,2. Exemplo: 1,45 para rotina ativa, mas conservadora.">
@@ -105,10 +85,10 @@ export default async function ConfiguracoesPage() {
 
           <SectionCard
             icon={<Utensils size={20} />}
-            title="Macros"
-            text="Proteína e gordura entram por kg. Carboidrato fica automático com as calorias restantes do cutting."
+            title="Nutrientes da meta"
+            text="Proteína e gordura são calculadas por kg. Os carboidratos completam a meta diária de calorias."
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1">
               <Field label="Proteína por kg" help="Faixa aceita: 1,2 a 3,0 g/kg. Proteína usa 4 kcal por grama.">
                 <input name="proteinPerKg" defaultValue={formatInput(profile.proteinPerKg ?? 1.8)} inputMode="decimal" className={inputClass} />
               </Field>
@@ -121,9 +101,9 @@ export default async function ConfiguracoesPage() {
           <SectionCard
             icon={<Ruler size={20} />}
             title="Medidas corporais"
-            text="Essas medidas alimentam BF estimado pelo método da Marinha Americana e ficam registradas como snapshot ao salvar."
+            text="Pescoço, cintura e quadril são usados para estimar a gordura corporal pelo método da Marinha Americana. As demais medidas ajustam o modelo corporal."
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1">
               <Field label="Peso atual em kg" help="Atualize sempre que houver mudança relevante.">
                 <input name="weightKg" defaultValue={formatInput(profile.weightKg)} inputMode="decimal" className={inputClass} />
               </Field>
@@ -134,20 +114,29 @@ export default async function ConfiguracoesPage() {
                 <input name="waistCm" defaultValue={profile.waistCm ? formatInput(profile.waistCm) : ""} inputMode="decimal" className={inputClass} />
               </Field>
               {profile.sex === "FEMALE" ? (
-                <Field label="Quadril em cm" help="Obrigatório para calcular BF feminino pelo método da Marinha.">
+                <Field label="Quadril em cm" help="Obrigatório para estimar a gordura corporal feminina pelo método da Marinha.">
                   <input name="hipCm" defaultValue={profile.hipCm ? formatInput(profile.hipCm) : ""} inputMode="decimal" className={inputClass} required />
                 </Field>
-              ) : null}
+              ) : (
+                <Field label="Quadril em cm" help="Opcional para homens. Usado só no modelo corporal.">
+                  <input name="hipCm" defaultValue={profile.hipCm ? formatInput(profile.hipCm) : ""} inputMode="decimal" className={inputClass} />
+                </Field>
+              )}
+              {CIRCUMFERENCE_FIELDS.map((field) => (
+                <Field key={field.key} label={`${field.label[metrics.sex]} em cm`} help={`Opcional. ${field.help}`}>
+                  <input name={field.key} defaultValue={profile[field.key] ? formatInput(profile[field.key]!) : ""} inputMode="decimal" className={inputClass} placeholder={field.placeholder} />
+                </Field>
+              ))}
             </div>
           </SectionCard>
 
           <SectionCard
             icon={<CalendarDays size={20} />}
-            title="Composição corporal"
-            text="Defina BF alvo e cintura. O peso projetado sai da massa magra estimada, não de IMC ou de um número fixo na balança."
+            id="meta-corporal" title="Composição corporal"
+            text="Defina a gordura corporal e a cintura que deseja acompanhar como meta. O peso projetado é calculado a partir da massa magra estimada."
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="BF alvo %" help="Principal meta visual. Ex: 15 para projetar peso pela massa magra atual.">
+            <div className="grid gap-4 grid-cols-1">
+              <Field label="Gordura corporal alvo (%)" help="Ex.: 15 para calcular a projeção com 15% de gordura e a massa magra atual.">
                 <input name="targetBodyFatPct" defaultValue={profile.targetBodyFatPct ? formatInput(profile.targetBodyFatPct) : ""} inputMode="decimal" className={inputClass} />
               </Field>
               <Field label="Cintura alvo em cm" help="Métrica principal para validar recomposição e perda de gordura.">
@@ -160,11 +149,11 @@ export default async function ConfiguracoesPage() {
           </SectionCard>
 
           <SectionCard
-            icon={<Sparkles size={20} />}
-            title="Preferências inteligentes"
-            text="Isso muda como a IA escolhe alimentos e como o ShapeOS recomenda hidratação no dia."
+            icon={<SlidersHorizontal size={20} />}
+            title="Preferências de alimentação"
+            text="Essas preferências ficam no seu perfil. A hidratação ajusta a meta diária de água."
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1">
               <Field label="Estilo alimentar">
                 <select name="dietPreference" defaultValue={profile.dietPreference ?? "balanced"} className={inputClass}>
                   <option value="balanced">Equilibrado - saciedade e prazer</option>
@@ -186,84 +175,77 @@ export default async function ConfiguracoesPage() {
         </div>
 
         <aside className="grid gap-5 xl:sticky xl:top-28">
-          <GlassCard className="p-0">
-            <div className="border-b border-white/10 p-5">
-              <p className="text-sm font-semibold text-lime-300">Impacto atual</p>
+          <button className="group relative inline-flex min-h-12 items-center justify-center gap-2 overflow-hidden rounded-full bg-primary text-primary-foreground hover:bg-primary-light px-6 font-semibold">
+
+            <Save size={18} />
+            Salvar e recalcular
+          </button>
+          <GlassCard className="metabolic-summary">
+            <div className="border-b border-hairline pb-4">
+              <h3>Impacto atual</h3>
               <h2 className="mt-2 text-2xl font-semibold">Resumo metabólico</h2>
             </div>
-            <div className="grid gap-3 p-5">
+            <div className="grid">
               <SummaryLine label="Repouso" value={`${metrics.bmr} kcal`} detail="BMR estimado" />
               <SummaryLine label="Gasto diário" value={`${metrics.tdee} kcal`} detail={`${profile.tdeeCalculationMode === "ADDITIVE" ? "modo aditivo" : "modo coeficiente"} / fator ${formatInput(profile.activityFactor)}`} />
-              <SummaryLine label="Confiança do TDEE" value={confidenceLabel(profile.tdeeConfidence)} detail={profile.tdeeAdjustmentKcal ? `ajuste ${profile.tdeeAdjustmentKcal} kcal` : "sem ajuste adaptativo"} />
+              <SummaryLine label="Confiança do gasto diário" value={confidenceLabel(profile.tdeeConfidence)} detail={profile.tdeeAdjustmentKcal ? `ajuste ${profile.tdeeAdjustmentKcal} kcal` : "sem ajuste adaptativo"} />
               <SummaryLine label="Déficit" value={`${calorieDeficit} kcal`} detail={`${deficitPct}% do gasto`} tone={deficitPct >= 25 ? "danger" : deficitPct >= 18 ? "warning" : "good"} />
               <SummaryLine label="Macros" value={`${macroCalories} kcal`} detail="P 4 / C 4 / G 9 kcal por g" />
               <SummaryLine label="Água" value={formatLiters(waterTarget)} detail={`consumo ${waterPreferenceLabel(profile.waterPreference).toLowerCase()}`} />
-              <SummaryLine label="BF estimado" value={metrics.bodyFat.percentage == null ? "pendente" : `${metrics.bodyFat.percentage}%`} detail="método da Marinha" />
-              <SummaryLine label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatInput(bodyComposition.currentLeanMassKg)} kg` : "pendente"} detail={bodyComposition.muscleSignal.label} />
-              <SummaryLine label="Massa gorda atual" value={bodyComposition.currentFatMassKg ? `${formatInput(bodyComposition.currentFatMassKg)} kg` : "pendente"} detail={bodyComposition.fatMassToLoseKg ? `${formatInput(bodyComposition.fatMassToLoseKg)} kg a perder` : "defina BF alvo"} />
-              <SummaryLine label="Massa gorda alvo" value={bodyComposition.targetFatMassKg ? `${formatInput(bodyComposition.targetFatMassKg)} kg` : "pendente"} detail="calculada pelo BF alvo" />
-              <SummaryLine label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatInput(bodyComposition.probableWeightRangeKg.minKg)}-${formatInput(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "pendente"} detail="água, glicogênio e retenção" />
-              <SummaryLine label="Confiança corporal" value={bodyComposition.confidenceLabel} detail="passe o mouse para entender" tooltip="A confiança aumenta conforme mais check-ins corporais são registrados." />
+              <SummaryLine label="Gordura corporal estimada" value={metrics.bodyFat.percentage == null ? "—" : `${metrics.bodyFat.percentage}%`} detail="método da Marinha" />
+              <SummaryLine label="Massa magra" value={bodyComposition.currentLeanMassKg ? `${formatInput(bodyComposition.currentLeanMassKg)} kg` : "—"} detail={bodyComposition.muscleSignal.label} />
+              <SummaryLine label="Massa gorda atual" value={bodyComposition.currentFatMassKg ? `${formatInput(bodyComposition.currentFatMassKg)} kg` : "—"} detail={bodyComposition.fatMassToLoseKg ? `${formatInput(bodyComposition.fatMassToLoseKg)} kg a perder` : "defina a gordura corporal alvo"} />
+              <SummaryLine label="Massa gorda alvo" value={bodyComposition.targetFatMassKg ? `${formatInput(bodyComposition.targetFatMassKg)} kg` : "—"} detail="calculada pela gordura corporal alvo" />
+              <SummaryLine label="Faixa provável" value={bodyComposition.probableWeightRangeKg ? `${formatInput(bodyComposition.probableWeightRangeKg.minKg)}-${formatInput(bodyComposition.probableWeightRangeKg.maxKg)} kg` : "—"} detail="água, glicogênio e retenção" />
+              <SummaryLine label="Confiança corporal" value={confidenceLabel(bodyComposition.confidenceLabel)} detail="Baseada na quantidade de check-ins" tooltip="A confiança aumenta conforme mais check-ins corporais são registrados." />
               <SummaryLine label="Cenário realista" value={scenarioDate(bodyComposition)} detail={bodyComposition.primaryMessage} />
             </div>
           </GlassCard>
 
-          <GlassCard className="border-white/10 bg-black/35">
+          <GlassCard className={styles.safety}>
             <div className="flex items-start gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sky-300/15 text-sky-200">
+              <div className="icon-tile [--tile:#0a84ff]">
                 <HeartPulse size={20} />
               </div>
               <div>
                 <h2 className="font-semibold">Regra de segurança</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                <p className="mt-2 text-sm leading-6 text-text-muted">
                   Déficit alto pode funcionar por um tempo, mas aumenta risco de fome, piora no treino e perda de massa magra. Revise pelo Coach semanalmente.
                 </p>
               </div>
             </div>
           </GlassCard>
 
-          <button className="group relative inline-flex h-14 items-center justify-center gap-2 overflow-hidden rounded-full bg-lime-300 px-6 font-semibold text-black shadow-[0_18px_55px_rgba(184,255,0,.18)] transition hover:bg-lime-200">
-            <span className="absolute inset-y-0 left-0 w-1/3 -translate-x-full bg-gradient-to-r from-transparent via-white/45 to-transparent transition duration-700 group-hover:translate-x-[320%]" />
-            <Save size={18} />
-            Salvar e recalcular
-          </button>
+
         </aside>
       </form>
+      </Stack>
     </AppShell>
   );
 }
 
-function SectionCard({ icon, title, text, children }: { icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
+function SectionCard({ id, icon, title, text, children }: { id?: string; icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
   return (
-    <GlassCard>
-      <div className="mb-5 flex items-start gap-4">
-        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">{icon}</div>
+    <section id={id} className={`${styles.section} scroll-mt-28`}>
+      <div className={styles.sectionHeading}>
+        <div className="icon-tile [--tile:#8e8e93]">{icon}</div>
         <div>
           <h2 className="text-xl font-semibold">{title}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">{text}</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-text-muted">{text}</p>
         </div>
       </div>
-      {children}
-    </GlassCard>
+      <div className={styles.sectionFields}>{children}</div>
+    </section>
   );
 }
 
 function Field({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-zinc-300">{label}</span>
+      <span className="text-sm font-medium text-text-secondary">{label}</span>
       {children}
-      {help ? <p className="mt-2 text-xs leading-5 text-zinc-500">{help}</p> : null}
+      {help ? <p className="mt-2 text-xs leading-5 text-text-muted">{help}</p> : null}
     </label>
-  );
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-3 text-center">
-      <p className="text-xs font-semibold text-lime-300">{label}</p>
-      <p className="mt-1 font-semibold text-zinc-100">{value}</p>
-    </div>
   );
 }
 
@@ -282,20 +264,20 @@ function SummaryLine({
 }) {
   const toneClass =
     tone === "danger"
-      ? "border-red-400/20 bg-red-400/10 text-red-100"
+      ? "border-red-400/20 bg-danger/15 text-danger"
       : tone === "warning"
-        ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+        ? "bg-warning/10 text-warning"
         : tone === "good"
-          ? "border-lime-300/20 bg-lime-300/10 text-lime-100"
-          : "border-white/10 bg-white/[0.04] text-zinc-100";
+          ? "bg-success/10 text-success"
+          : "bg-surface-tertiary text-text-primary";
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`} title={tooltip}>
+    <div className={`${styles.summaryLine} ${toneClass}`} title={tooltip}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-zinc-400">{label}</p>
+        <p className="text-sm text-text-muted">{label}</p>
         <p className="font-semibold">{value}</p>
       </div>
-      <p className="mt-1 text-xs text-zinc-500">{detail}</p>
+      <p className="mt-1 text-xs text-text-muted">{detail}</p>
     </div>
   );
 }
@@ -314,15 +296,5 @@ function dateInputValue(date: Date) {
 
 function scenarioDate(composition: ReturnType<typeof buildBodyCompositionProjection>) {
   const realistic = composition.scenarios.find((scenario) => scenario.key === "realistic");
-  return realistic?.estimatedDate ? realistic.estimatedDate.toLocaleDateString("pt-BR") : "pendente";
-}
-
-function confidenceLabel(value: string) {
-  const labels: Record<string, string> = {
-    HIGH: "alta",
-    MEDIUM: "media",
-    LOW: "baixa",
-  };
-
-  return labels[value] ?? "media";
+  return realistic?.estimatedDate ? realistic.estimatedDate.toLocaleDateString("pt-BR") : "—";
 }

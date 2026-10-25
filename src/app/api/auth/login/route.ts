@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      if (wantsJson) return Response.json({ error: "Email ou senha invalidos." }, { status: 401 });
+      if (wantsJson) return Response.json({ error: "Email ou senha inválidos." }, { status: 401 });
       return redirectTo(request, "/login", "Email ou senha inválidos.");
     }
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("[auth] route login failed", error);
-    if (wantsJson) return Response.json({ error: "Nao foi possivel entrar agora." }, { status: 500 });
+    if (wantsJson) return Response.json({ error: "Não foi possível entrar agora." }, { status: 500 });
     return redirectTo(request, "/login", "Não foi possível entrar agora. Verifique a configuração do banco e tente novamente.");
   }
 }

@@ -3,8 +3,10 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createBodyCompositionSnapshot } from "@/lib/body-composition";
+import { CIRCUMFERENCE_FIELDS, type Circumferences } from "@/lib/body-measurements";
 import { prisma } from "@/lib/prisma";
-import { activityFactors, advancedMacroTargets, guidedMacroTargets, calculateBmr, calculateTdee } from "@/lib/nutrition";
+import { activityFactors, type MacroTargets } from "@/lib/nutrition";
+import { dailyTargets } from "@/lib/profile-metrics";
 import { parseOnboardingInput } from "@/lib/onboarding-input";
 import { planCompatibilityIssue, prepareCalorieMatchedPlan, starterMealDrafts, type DietaryProfile } from "@/lib/food-reliability";
 
@@ -42,19 +44,17 @@ export async function saveOnboardingAction(formData: FormData) {
   const { sex, goal, activityLevel, experience, mode, age, heightCm, weightKg, neckCm, waistCm,
     manualActivityFactor, deficitKcal, proteinPerKg, fatPerKg, dietPreference, name } = parsed.data;
   const hipCm = parsed.data.hipCm ?? null;
+  const circumferences = Object.fromEntries(
+    CIRCUMFERENCE_FIELDS.map(({ key }) => [key, parsed.data[key] ?? null]),
+  ) as Circumferences;
   const dietaryProfile = {
     restrictions: splitList(String(formData.get("restrictions") ?? "")),
     allergies: splitList(String(formData.get("allergies") ?? "")),
     dislikedFoods: splitList(String(formData.get("dislikedFoods") ?? "")),
   };
   const activityFactor = mode === "advanced" && manualActivityFactor !== undefined ? manualActivityFactor : activityFactors[activityLevel];
-  const bmr = calculateBmr({ sex, age, heightCm, weightKg });
-  const tdee = calculateTdee(bmr, activityFactor);
-  const calorieAdjustment = goal === "fat_loss" ? -deficitKcal : undefined;
-  const targets =
-    mode === "advanced"
-      ? advancedMacroTargets({ calories: goal === "fat_loss" ? tdee - deficitKcal : goal === "muscle_gain" ? tdee + 300 : tdee, weightKg, proteinPerKg, fatPerKg, useRemainingCarbs: true, fiberG: 30, sodiumMg: 2300 })
-      : guidedMacroTargets({ weightKg, tdee, goal, calorieAdjustment, proteinPerKg, fatPerKg, fiberG: 30, sodiumMg: 2300 });
+  // Same rule as every screen; guided and advanced modes give the same targets.
+  const { targets } = dailyTargets({ sex, goal, age, heightCm, weightKg, activityFactor, calorieDeficitKcal: deficitKcal, proteinPerKg, fatPerKg, fiberTargetG: 30, sodiumLimitMg: 2300 });
 
   if (targets.calories < 1000 || targets.calories > 6000 || targets.proteinG * 4 + targets.fatG * 9 > targets.calories) {
     redirect("/onboarding?onboardingError=invalid-target");
@@ -74,6 +74,7 @@ export async function saveOnboardingAction(formData: FormData) {
             neckCm,
             waistCm,
             hipCm,
+            ...circumferences,
             goal: goalMap[goal],
             activityFactor,
             experience: experienceMap[experience],
@@ -99,6 +100,7 @@ export async function saveOnboardingAction(formData: FormData) {
             neckCm,
             waistCm,
             hipCm,
+            ...circumferences,
             goal: goalMap[goal],
             activityFactor,
             experience: experienceMap[experience],
@@ -129,6 +131,7 @@ export async function saveOnboardingAction(formData: FormData) {
     neckCm,
     waistCm,
     hipCm,
+    ...circumferences,
   });
 
   const planIssue = await createStarterDietPlan({
@@ -144,7 +147,7 @@ export async function saveOnboardingAction(formData: FormData) {
 async function createStarterDietPlan(input: {
   userId: string;
   goal: (typeof goalMap)[keyof typeof goalMap];
-  targets: ReturnType<typeof guidedMacroTargets>;
+  targets: MacroTargets;
   dietaryProfile: DietaryProfile;
 }): Promise<string | null> {
   const existing = await prisma.dietPlan.findFirst({

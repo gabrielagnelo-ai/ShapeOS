@@ -1,20 +1,20 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Brain, Check, LineChart, LockKeyhole, Scale, ShieldCheck, Sparkles, Utensils, type LucideIcon } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ProgressRing } from "@/components/ui/progress-ring";
 
 const features: Array<[LucideIcon, string, string]> = [
-  [Brain, "Coach IA discreto", "Ele observa seus registros e avisa quando existe algo importante para ajustar."],
-  [Utensils, "Plano alimentar claro", "Monte sua dieta com IA ou registre o plano do nutricionista, sem planilhas confusas."],
+  [Brain, "Coach por regras", "Confira sugestões calculadas a partir dos registros de alimentação, treino e check-ins."],
+  [Utensils, "Plano alimentar claro", "Monte sua dieta, ajuste as porções e registre o plano do nutricionista."],
   [LineChart, "Evolução visível", "Peso, cintura e composição estimada viram uma leitura simples de progresso."],
-  [ShieldCheck, "Seguro por design", "Sem promessas milagrosas. O app orienta, mas respeita limites de saúde."],
+  [ShieldCheck, "Acompanhamento com contexto", "Consulte as estimativas junto do seu histórico e revise o plano com seu profissional."],
 ];
 
 const steps = [
   ["01", "Informe seu perfil", "Altura, peso, medidas, objetivo, atividade e preferências alimentares."],
-  ["02", "Receba uma meta clara", "O ShapeOS traduz seus dados em calorias, proteínas, gorduras e refeições."],
-  ["03", "Acompanhe sem adivinhar", "Registre sua rotina e veja quando manter o plano ou fazer um ajuste."],
+  ["02", "Ajuste sua meta", "Confira a estimativa de calorias e nutrientes e organize as refeições do plano."],
+  ["03", "Registre e compare", "Anote alimentação, treinos e medidas para acompanhar as mudanças ao longo das semanas."],
 ];
 
 export default function LandingPage() {
@@ -49,19 +49,15 @@ export default function LandingPage() {
         />
         <div className="relative z-10 grid gap-10 lg:grid-cols-[1fr_.92fr] lg:items-center">
           <div className="animate-rise">
-            <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-4 py-2 text-sm text-lime-200">
-              <Sparkles size={16} />
-              Inteligência para sua melhor versão
-            </div>
-            <h1 className="mt-8 max-w-4xl text-6xl font-semibold tracking-tight text-white md:text-7xl">
-              Alcance seu shape com uma dieta guiada por inteligência.
+            <h1 className="max-w-4xl text-6xl font-semibold tracking-tight text-white md:text-7xl">
+              Sua alimentação e seus treinos, no mesmo lugar.
             </h1>
             <p className="mt-6 max-w-2xl text-xl leading-9 text-zinc-300">
-              O ShapeOS transforma seus dados em metas simples, refeições práticas e alertas inteligentes para você evoluir sem depender de achismo.
+              Organize as refeições, registre o que você comeu e acompanhe peso e medidas. No ShapeOS, seu plano fica ao lado do que acontece na sua rotina.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-6 py-3 font-semibold text-black transition hover:bg-lime-200">
-                Começar minha transformação
+                Criar conta
                 <ArrowRight size={18} />
               </Link>
               <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
@@ -70,7 +66,7 @@ export default function LandingPage() {
             </div>
             <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
               <Proof value="597" label="alimentos brasileiros" />
-              <Proof value="IA" label="plano personalizado" />
+              <Proof value="Seu plano" label="editável por refeição" />
               <Proof value="Progresso" label="peso e medidas" />
             </div>
           </div>
@@ -97,10 +93,9 @@ export default function LandingPage() {
 
       <section className="mx-auto grid max-w-7xl gap-5 px-5 py-12 lg:grid-cols-[.85fr_1.15fr]">
         <div className="self-center">
-          <p className="text-sm text-lime-300">Sem achismo</p>
-          <h2 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">Menos termos técnicos. Mais próxima ação.</h2>
+          <h2 className="text-4xl font-semibold tracking-tight md:text-5xl">Veja o que mudou na sua semana.</h2>
           <p className="mt-5 text-lg leading-8 text-zinc-400">
-            Se o peso trava, a cintura cai, a proteína fica baixa ou o sono piora, o Coach traduz os sinais em uma recomendação fácil de entender.
+            Compare peso, cintura, alimentação e sono entre os check-ins. O Coach usa esses registros para sugerir o que revisar no seu plano.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -118,13 +113,12 @@ export default function LandingPage() {
         <div className="overflow-hidden rounded-[36px] border border-white/10 bg-white/[0.05]">
           <div className="grid gap-0 lg:grid-cols-2">
             <div className="p-6 md:p-10">
-              <p className="text-sm text-lime-300">Para usuário real</p>
-              <h2 className="mt-3 text-4xl font-semibold tracking-tight">Serve para quem já tem nutri e para quem está começando.</h2>
+              <h2 className="text-4xl font-semibold tracking-tight">Traga seu plano alimentar para a rotina.</h2>
               <p className="mt-5 text-lg leading-8 text-zinc-400">
-                O ShapeOS respeita dieta prescrita, permite montar refeições por alimento e ainda gera lista de compras quinzenal ou mensal.
+                Cadastre o plano do seu nutricionista, ajuste as porções e organize as receitas. A lista de compras reúne os alimentos para o período escolhido.
               </p>
               <div className="mt-7 grid gap-3">
-                {["Monte a dieta digitando o alimento", "Receitas com calorias por porção", "Lista de compras semanal, quinzenal ou mensal", "Favoritos e bloqueios para personalizar a IA"].map((item) => (
+                {["Monte a dieta digitando o alimento", "Receitas com calorias por porção", "Lista de compras semanal, quinzenal ou mensal", "Favoritos e alimentos que prefere evitar"].map((item) => (
                   <div key={item} className="flex items-center gap-3 text-zinc-200">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-lime-300 text-black"><Check size={14} /></span>
                     {item}
@@ -143,7 +137,7 @@ export default function LandingPage() {
         <div className="rounded-[36px] border border-lime-300/20 bg-lime-300/10 p-6 text-center md:p-12">
           <LockKeyhole className="mx-auto text-lime-300" size={28} />
           <h2 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
-            Comece com uma meta. Continue com acompanhamento.
+            Comece pelo seu perfil.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
             O ShapeOS não substitui médico ou nutricionista. Em diabetes, doença renal, gestação, transtornos alimentares, doença cardíaca ou uso de medicamentos, procure um profissional.
@@ -169,7 +163,7 @@ function DashboardPreview() {
             <Image src="/shapeos-icon.png" alt="" width={40} height={40} className="rounded-2xl" />
             <div>
               <p className="font-semibold">Hoje</p>
-              <p className="text-sm text-zinc-500">Gabriel, plano ativo</p>
+              <p className="text-sm text-zinc-500">Prévia com dados de exemplo</p>
             </div>
           </div>
           <span className="rounded-full bg-lime-300 px-3 py-1 text-sm font-semibold text-black">64%</span>

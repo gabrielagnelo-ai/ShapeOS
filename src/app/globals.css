@@ -1,15 +1,309 @@
 @import "tailwindcss";
 
+/*
+ * ShapeOS design system, after the TBS Engine redesign (iOS 26/27, Liquid Glass) and
+ * kept dark only: solid content panels on a dark ground, and a floating layer of
+ * glass for the controls (dock, menus, sheets). Lime is the single tint; nutrient
+ * colours appear only in data. Documented in the vault:
+ * "03 Design/2026-10-23 - Design do Solar Engine no ShapeOS".
+ */
 :root {
-  --background: #0a0a0a;
+  --background: #090b0a;
   --foreground: #f5f5f7;
+
+  /* Ground, cards, insets. Cards are Liquid Glass over the living backdrop (DS-21):
+     a translucent tint plus the blur in --material-blur; insets and hovers are
+     translucent fills, so they read the same on glass and on the ground. */
+  --bg-rgb: 9 11 10;
+  --bg-primary: #090b0a;
+  --bg-secondary: rgba(34, 42, 39, 0.42);
+  --bg-tertiary: rgba(255, 255, 255, 0.07);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --material-blur: blur(28px) saturate(180%) brightness(1.08);
+  --hero-material: rgba(42, 52, 47, 0.46);
+
+  /* Tint: one accent for actions, links and selection */
+  --primary: #b9f83e;
+  --primary-light: #c9ff63;
+  --primary-ink: #142000;
+
+  /* Labels */
+  --text-primary: #f5f5f7;
+  --text-secondary: #d7dcd9;
+  --text-muted: #9aa39e;
+
+  /* States, never decoration */
+  --success: #30d158;
+  --warning: #ffb340;
+  --danger: #ff6961;
+
+  /* Data colours: energy, protein, carbohydrate, fat, water */
+  --kcal: #eef0eb;
+  --protein: #77cce9;
+  --carbs: #b9f83e;
+  --fat: #f7c744;
+  --water: #64d2ff;
+
+  /* System fills for neutral controls: gray buttons, fields, segmented tracks */
+  --fill: rgba(120, 128, 124, 0.24);
+  --fill-strong: rgba(120, 128, 124, 0.34);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.16);
+
+  /* Glass cards: a hairline edge and a lit top rim, like the iOS 26 widgets. */
+  --panel-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 12px 32px rgba(0, 0, 0, 0.18);
+
+  /* Springs (iOS): smooth for entrances, snappy for presses. Generated with linear(). */
+  --spring-smooth: linear(0, 0.0037, 0.0142, 0.031, 0.0534, 0.0804, 0.1108, 0.1438, 0.1784, 0.2135, 0.2484, 0.3145, 0.3746, 0.4283, 0.4755, 0.5562, 0.6215, 0.6726, 0.7112, 0.7735, 0.8196, 0.854, 0.8793, 0.9185, 0.9458, 0.9647, 0.9779, 0.9921, 1);
+  --spring-snappy: linear(0, 0.012, 0.049, 0.107, 0.185, 0.278, 0.383, 0.493, 0.601, 0.702, 0.791, 0.865, 0.924, 0.967, 0.995, 1.013, 1.019, 1.016, 1.009, 1.003, 1);
+  /* Cards rise into place one after another: --enter-base comes from the section,
+     --enter-offset from the card's place in it. Only once the page is known to open in
+     view (data-motion, set in layout.tsx): a stalled animation clock must never leave
+     the cards invisible. */
+  --enter: none;
+  --enter-delay: calc(var(--enter-base, 0ms) + var(--enter-offset, 0ms));
+
+  /* Liquid Glass: colourless tint, polished rim, two-layer shadow */
+  --glass-tint: rgba(40, 46, 43, 0.62);
+  --glass-rim-top: rgba(255, 255, 255, 0.2);
+  --glass-rim-hairline: rgba(255, 255, 255, 0.07);
+  --glass-rim-bottom: rgba(255, 255, 255, 0.04);
+  --glass-edge: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.45);
+  --glass-menu: rgba(34, 39, 37, 0.8);
+  --glass-sheet: rgba(24, 28, 27, 0.92);
+  --glass-selected: rgba(255, 255, 255, 0.14);
+  /* The pane over the brand mark behind every app page: light enough that the glass
+     cards above pick up the mark's colour */
+  --brand-glass: rgba(9, 11, 10, 0.3);
+  --overlay-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 30px 80px rgba(0, 0, 0, 0.6);
+  --scrim: rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
+
+  --color-surface-primary: var(--bg-primary);
+  --color-surface-secondary: var(--bg-secondary);
+  --color-surface-tertiary: var(--bg-tertiary);
+  --color-surface-hover: var(--bg-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-foreground: var(--primary-ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-fill: var(--fill);
+  --color-fill-strong: var(--fill-strong);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+
+  --shadow-panel: var(--panel-shadow);
+  --shadow-glass: var(--glass-shadow);
+  --shadow-overlay: var(--overlay-shadow);
+
+  /* Concentric radii: fields 14, panels 22, sheets and floating chrome 28 */
+  --radius-field: 14px;
+  --radius-panel: 22px;
+  --radius-sheet: 28px;
+
+  /* Type styles, after the iOS text styles: large title 34, title 1 28 (display),
+     title 2 22 (h2), title 3 20, headline 17, footnote 13 (body-sm), caption 12. */
+  --text-large-title: 34px;
+  --text-large-title--line-height: 41px;
+  --text-large-title--font-weight: 700;
+  --text-large-title--letter-spacing: -0.02em;
+  --text-title3: 20px;
+  --text-title3--line-height: 25px;
+  --text-title3--font-weight: 600;
+  --text-title3--letter-spacing: -0.01em;
+  --text-headline: 17px;
+  --text-headline--line-height: 22px;
+  --text-headline--font-weight: 600;
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.028em;
+  --text-h2: 22px;
+  --text-h2--line-height: 28px;
+  --text-h2--font-weight: 700;
+  --text-h2--letter-spacing: -0.015em;
+  --text-h3: 18px;
+  --text-h3--line-height: 24px;
+  --text-h3--font-weight: 600;
+  --text-h3--letter-spacing: -0.01em;
+  --text-h4: 16px;
+  --text-h4--line-height: 22px;
+  --text-h4--font-weight: 600;
+  --text-h4--letter-spacing: -0.01em;
+  --text-body: 15px;
+  --text-body--line-height: 21px;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 500;
+}
+
+@layer components {
+  /*
+   * Liquid Glass, for the floating layer only (dock, toolbar capsules, menus).
+   * Never on content panels, and never glass on glass: children of a glass surface
+   * paint no background or border of their own.
+   */
+  .glass {
+    background: var(--glass-tint);
+    border: 1px solid var(--glass-edge);
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1px 0 var(--glass-rim-top),
+      inset 0 0 0 1px var(--glass-rim-hairline),
+      inset 0 -1px 0 var(--glass-rim-bottom);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    backdrop-filter: blur(28px) saturate(190%);
+  }
+  /* Menus, popovers and dialogs float over arbitrary content: heavier frost. */
+  .glass-menu {
+    background: var(--glass-menu);
+    border: 1px solid var(--glass-edge);
+    box-shadow: var(--overlay-shadow), inset 0 1px 0 var(--glass-rim-top);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    backdrop-filter: blur(32px) saturate(180%);
+  }
+  .glass-sheet {
+    background: var(--glass-sheet);
+    border: 1px solid var(--glass-edge);
+    box-shadow: var(--overlay-shadow), inset 0 1px 0 var(--glass-rim-top);
+    -webkit-backdrop-filter: blur(40px) saturate(160%);
+    backdrop-filter: blur(40px) saturate(160%);
+  }
+  /* One pane of frosted glass over the brand mark that grounds the app pages. */
+  .brand-glass {
+    background: var(--brand-glass);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    backdrop-filter: blur(28px) saturate(150%);
+  }
+  /*
+   * Scroll edge under the floating toolbar: content blurs and fades as it passes
+   * beneath it instead of meeting a hard divider.
+   */
+  .scroll-edge::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 -20px 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgb(var(--bg-rgb) / 0.8), rgb(var(--bg-rgb) / 0));
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    mask-image: linear-gradient(to bottom, #000 45%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  }
+  /* The iOS glyph tile for inline icons (IconTile is the component form). Colour: --tile. */
+  .icon-tile {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    color: #fff;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 62%), var(--tile, #8e8e93);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  }
+  .icon-tile > svg {
+    width: 17px;
+    height: 17px;
+  }
+  /* A content card: Liquid Glass over the living backdrop, rising into place. */
+  .panel,
+  .material {
+    border-radius: var(--radius-panel);
+    background: var(--bg-secondary);
+    box-shadow: var(--panel-shadow);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+    animation: var(--enter);
+    animation-delay: var(--enter-delay);
+  }
+  /* iOS switch on a native checkbox (keeps the checkbox role and keyboard). */
+  .switch {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    width: 46px;
+    height: 28px;
+    border-radius: 999px;
+    background: var(--fill-strong);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.16);
+    transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .switch:checked {
+    background: var(--primary);
+  }
+  .switch:checked::after {
+    transform: translateX(18px);
+  }
+  .switch:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+  .switch:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The cards wait behind the launch and rise as it opens onto the page. */
+:root { --enter-play: running; }
+:root[data-shapeos-intro="pending"], :root[data-shapeos-intro="playing"] { --enter-play: paused; }
+:root[data-motion="on"] { --enter: card-in 620ms var(--spring-smooth) both var(--enter-play); }
+
+@media (prefers-reduced-motion: reduce), print {
+  :root[data-motion="on"] { --enter: none; }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --bg-secondary: #1b201f;
+    --bg-tertiary: #262b2a;
+    --bg-hover: #242a28;
+    --hero-material: #1f2523;
+    --material-blur: none;
+  }
+  .glass,
+  .glass-menu,
+  .glass-sheet {
+    background: #222826;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .brand-glass {
+    background: var(--bg-primary);
+  }
 }
 
 body {
@@ -201,6 +495,27 @@ input:-webkit-autofill:focus {
 
 .animate-fade-scale {
   animation: fadeScale 500ms ease-out both;
+}
+
+/* Hoje: anéis de calorias e macros se preenchem ao abrir; água ondula na garrafa */
+@keyframes ringDraw {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
+
+.ring-arc {
+  animation: ringDraw 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: stroke-dashoffset 450ms cubic-bezier(.22,1,.36,1);
+}
+
+.macro-rings { filter: drop-shadow(0 4px 8px #0003); }
+.macro-fill { transition: transform 400ms cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion: reduce) {
+  .ring-arc {
+    animation: none;
+  }
+  .ring-arc, .macro-fill { transition: none; }
 }
 
 @media (max-width: 640px) {

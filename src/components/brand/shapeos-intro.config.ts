@@ -1,14 +1,19 @@
-/** The PNG is deliberately served unchanged: no optimizer, filters or redrawn text. */
+/**
+ * Launch (DS-26, "Anéis em órbita"): Hoje's four rings arrive spinning in depth and close
+ * around the mark, then the mark flies to its place in the toolbar while the page opens
+ * behind it. ?intro=replay plays it again in a session that has already seen it.
+ */
 export const SHAPEOS_INTRO = {
   enabled: process.env.NEXT_PUBLIC_SHAPEOS_INTRO !== "false",
-  asset: "/shapeos-logo.png",
-  width: 1105,
-  height: 285,
+  asset: "/shapeos-mark.png",
+  width: 1254,
+  height: 1254,
   sessionKey: "shapeos:intro:seen",
-  sequenceMs: 6000,
-  fadeMs: 650,
+  /** Time from first paint until the mark takes off. */
+  holdMs: 1320,
+  flyMs: 620,
   imageWaitMs: 1000,
-  safetyMs: 8000,
+  safetyMs: 4500,
 } as const;
 
 /** Runs before the page is painted; no browser-only values enter React's render. */

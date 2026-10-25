@@ -24,29 +24,29 @@ export const activityEfforts: Array<{
   {
     key: "moderate",
     label: "Moderada",
-    helper: "Respiracao mais forte, mas controlada",
+    helper: "Respiração mais forte, mas controlada",
     multiplier: 1,
   },
   {
     key: "hard",
     label: "Forte",
-    helper: "Dificil manter conversa",
+    helper: "Difícil manter conversa",
     multiplier: 1.18,
   },
 ];
 
 export const activityPresets: ActivityPreset[] = [
   { key: "walk_light", name: "Caminhada leve", met: 3.0, intensity: "leve", category: "walking" },
-  { key: "walk_fast", name: "Caminhada rapida", met: 4.3, intensity: "moderado", category: "walking" },
+  { key: "walk_fast", name: "Caminhada rápida", met: 4.3, intensity: "moderado", category: "walking" },
   { key: "active_commute", name: "Deslocamento ativo", met: 3.5, intensity: "moderado", category: "walking" },
   { key: "bike_moderate", name: "Bicicleta moderada", met: 6.8, intensity: "moderado", category: "cardio" },
   { key: "run_light", name: "Corrida leve", met: 8.3, intensity: "alto", category: "cardio" },
   { key: "run_fast", name: "Corrida forte", met: 11.5, intensity: "alto", category: "cardio" },
-  { key: "weight_training", name: "Musculacao", met: 5.0, intensity: "moderado", category: "strength" },
-  { key: "heavy_lifting", name: "Musculacao pesada", met: 6.0, intensity: "alto", category: "strength" },
+  { key: "weight_training", name: "Musculação", met: 5.0, intensity: "moderado", category: "strength" },
+  { key: "heavy_lifting", name: "Musculação pesada", met: 6.0, intensity: "alto", category: "strength" },
   { key: "hiit", name: "HIIT / funcional intenso", met: 8.0, intensity: "alto", category: "cardio" },
   { key: "soccer", name: "Futebol", met: 7.0, intensity: "alto", category: "sport" },
-  { key: "swimming", name: "Natacao moderada", met: 5.8, intensity: "moderado", category: "cardio" },
+  { key: "swimming", name: "Natação moderada", met: 5.8, intensity: "moderado", category: "cardio" },
   { key: "stairs", name: "Escada / subida", met: 8.8, intensity: "alto", category: "cardio" },
   { key: "custom", name: "Outra atividade", met: 5.0, intensity: "moderado", category: "custom" },
 ];
@@ -96,7 +96,7 @@ export function classifyWalkingBySpeed(speedKmh: number) {
     return { label: "Caminhada moderada", intensity: "Moderada", met: 3.5 };
   }
 
-  return { label: "Caminhada rapida", intensity: "Rapida", met: 4.3 };
+  return { label: "Caminhada rápida", intensity: "Rápida", met: 4.3 };
 }
 
 export function estimateWalkingFromDistanceTime(input: { distanceKm: number; durationMinutes: number; weightKg: number }) {

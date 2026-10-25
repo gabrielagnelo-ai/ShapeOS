@@ -1,16 +1,27 @@
-/* Palette: void #030403, graphite #10130d, halo #789c20,
-   lime #b8ff00, reflection #edffc4. Typography comes only from the PNG. */
+/* Launch (DS-26, "Anéis em órbita"): Hoje's four rings arrive spinning in depth around the mark,
+   settle face-on while each stroke closes and beat once; then the mark flies to the toolbar (a Web
+   Animation in shapeos-intro.tsx) while the rings recede and the ground opens. Everything starts
+   at first paint, before React hydrates. */
 .overlay {
+  --intro-spring: linear(0, 0.0018, 0.0069 1.15%, 0.026 2.3%, 0.0637, 0.1135 5.18%, 0.2229 7.78%, 0.5977 15.84%, 0.7014, 0.7904, 0.8641, 0.9228, 0.9676 28.8%, 1.0032 31.68%, 1.0225, 1.0352 36.29%, 1.0431 38.88%, 1.046 42.05%, 1.0448 44.35%, 1.0407 47.23%, 1.0118 61.63%, 1.0025 69.41%, 0.9981 80.35%, 0.9992 99.94%, 1);
+  --intro-stroke: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --intro-ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --intro-orbit: 220px;
+  --intro-mark: 52px;
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: none;
   place-items: center;
-  overflow: hidden;
-  isolation: isolate;
-  background: #030403;
   user-select: none;
   touch-action: none;
+}
+
+.overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
 }
 
 .content {
@@ -31,206 +42,136 @@
   pointer-events: none;
 }
 
-.halo {
-  position: absolute;
-  width: min(125vw, 1500px);
-  aspect-ratio: 1.6;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, #789c2014 0%, #b8ff0008 28%, #10130d0a 48%, transparent 68%);
-  opacity: 0;
-  transform: scale(0.92);
-  will-change: opacity, transform;
-}
-
+/* The rings turn in real depth: one perspective for the whole stage. */
 .stage {
   position: relative;
-  width: min(86vw, 1000px, 260vh);
-  aspect-ratio: 1105 / 285;
-  transform: scale(0.987);
+  display: grid;
+  place-items: center;
+  perspective: 800px;
 }
 
-.artwork {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
+.stage > * {
+  grid-area: 1 / 1;
 }
 
-.logo {
+.orbit {
+  position: relative;
+  width: var(--intro-orbit);
+  height: var(--intro-orbit);
+  transform-style: preserve-3d;
+}
+
+/* Each ring starts tilted on its own axes (--x, --y, --z) and arrives 60 ms after the one outside it. */
+.ring {
+  --ring-delay: calc(80ms + var(--i) * 60ms);
   position: absolute;
   inset: 0;
-  display: block;
   width: 100%;
   height: 100%;
+  overflow: visible;
+  opacity: 0;
+}
+
+.track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.07);
+}
+
+.arc {
+  fill: none;
+  stroke: var(--ring);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+.mark {
+  position: relative;
+  width: var(--intro-mark);
+  height: var(--intro-mark);
   object-fit: contain;
-}
-
-/* x=29% separates the symbol from the wordmark; y=77% separates
-   the wordmark from its tagline. Final regions cover 100% of the PNG. */
-.symbol {
-  clip-path: inset(0 100% 0 0);
-}
-
-.wordmark {
-  clip-path: inset(0 71% 23% 29%);
-}
-
-.tagline {
-  clip-path: inset(77% 0 0 29%);
   opacity: 0;
 }
 
-.edgeLight {
-  position: absolute;
-  inset: -18%;
-  background: radial-gradient(ellipse, transparent 40%, #b8ff0009 52%, transparent 70%);
-  opacity: 0;
-  pointer-events: none;
+:global(html[data-shapeos-intro]) .overlay::before {
+  will-change: opacity;
 }
 
-.scanner {
-  position: absolute;
-  inset: -42% 0;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-56%);
+:global(html[data-shapeos-intro]) .ring {
   will-change: transform, opacity;
+  animation:
+    settle 820ms var(--intro-spring) var(--ring-delay) both,
+    appear 160ms ease-out var(--ring-delay) both;
 }
 
-.scanner::before,
-.scanner::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
+:global(html[data-shapeos-intro]) .arc {
+  animation: close 820ms var(--intro-stroke) var(--ring-delay) both;
 }
 
-.scanner::before {
-  width: 13%;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse, #b8ff0026, #b8ff0009 40%, transparent 70%);
+/* Rings and mark beat together, with the same timing. */
+:global(html[data-shapeos-intro]) .orbit {
+  animation: beat 320ms ease-in-out 1040ms;
 }
 
-.scanner::after {
-  width: 1px;
-  background: linear-gradient(transparent 8%, #edffc412 28%, #edffc466 50%, #edffc412 72%, transparent 92%);
-}
-
-.reflection {
-  position: absolute;
-  inset: -30% 0;
-  opacity: 0;
-  background: linear-gradient(108deg, transparent 35%, #edffc412 48%, #ffffff16 50%, transparent 63%);
-  transform: translateX(-110%);
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-
-/* Every layer shares one six-second clock. Leaving keeps the final frame. */
-:global(html[data-shapeos-intro="playing"]) .halo,
-:global(html[data-shapeos-intro="leaving"]) .halo {
-  animation: atmosphere var(--intro-duration) ease-out both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .stage,
-:global(html[data-shapeos-intro="leaving"]) .stage {
-  animation: approach var(--intro-duration) ease-in-out both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .symbol,
-:global(html[data-shapeos-intro="leaving"]) .symbol {
-  animation: symbolReveal var(--intro-duration) linear both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .wordmark,
-:global(html[data-shapeos-intro="leaving"]) .wordmark {
-  animation: wordmarkReveal var(--intro-duration) linear both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .tagline,
-:global(html[data-shapeos-intro="leaving"]) .tagline {
-  animation: taglineReveal var(--intro-duration) ease-in-out both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .scanner,
-:global(html[data-shapeos-intro="leaving"]) .scanner {
-  animation: scan var(--intro-duration) linear both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .reflection,
-:global(html[data-shapeos-intro="leaving"]) .reflection {
-  animation: reflect var(--intro-duration) ease-in-out both;
-}
-
-:global(html[data-shapeos-intro="playing"]) .edgeLight,
-:global(html[data-shapeos-intro="leaving"]) .edgeLight {
-  animation: edgeGlow var(--intro-duration) ease-in-out both;
+:global(html[data-shapeos-intro]) .mark {
+  animation: materialize 520ms var(--intro-spring) 200ms both, beat 320ms ease-in-out 1040ms;
 }
 
 :global(html[data-shapeos-intro="leaving"]) .overlay {
   pointer-events: none;
-  animation: depart var(--intro-fade) cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-@keyframes atmosphere {
-  0% { opacity: 0; transform: scale(0.92); }
-  25% { opacity: 0.65; }
-  58.333% { opacity: 1; }
-  100% { opacity: 0.72; transform: scale(1); }
+:global(html[data-shapeos-intro="leaving"]) .overlay::before {
+  animation: open 420ms var(--intro-ease-out) both;
 }
 
-@keyframes approach {
-  0%, 58.333% { transform: scale(0.987); }
-  80%, 100% { transform: scale(1); }
+:global(html[data-shapeos-intro="leaving"]) .ring {
+  animation: recede 280ms var(--intro-ease-out) forwards;
 }
 
-@keyframes symbolReveal {
-  0%, 25% { clip-path: inset(0 100% 0 0); }
-  34.667%, 100% { clip-path: inset(0 71% 0 0); }
+@keyframes settle {
+  from { transform: rotateX(var(--x)) rotateY(var(--y)) rotateZ(var(--z)) scale(0.86); }
+  to { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
 }
 
-@keyframes wordmarkReveal {
-  0%, 34.667% { clip-path: inset(0 71% 23% 29%); }
-  58.333%, 100% { clip-path: inset(0 0 23% 29%); }
+@keyframes appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes taglineReveal {
-  0%, 80% { opacity: 0; }
-  92.5%, 100% { opacity: 1; }
+@keyframes close {
+  to { stroke-dashoffset: 0; }
 }
 
-@keyframes scan {
-  0%, 25% { opacity: 0; transform: translateX(-56%); }
-  28% { opacity: 0.7; }
-  54% { opacity: 0.55; }
-  58.333%, 100% { opacity: 0; transform: translateX(56%); }
+@keyframes beat {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.06); }
 }
 
-@keyframes reflect {
-  0%, 58.333% { opacity: 0; transform: translateX(-110%); }
-  64% { opacity: 0.5; }
-  72% { opacity: 0.35; }
-  78%, 100% { opacity: 0; transform: translateX(110%); }
+@keyframes materialize {
+  from { opacity: 0; transform: scale(0.6); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
 }
 
-@keyframes edgeGlow {
-  0%, 25% { opacity: 0; }
-  58.333% { opacity: 0.7; }
-  80%, 100% { opacity: 0.3; }
+@keyframes recede {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateZ(-260px) rotateX(48deg); }
 }
 
-@keyframes depart {
-  from { opacity: 1; }
-  to { opacity: 0; visibility: hidden; }
+@keyframes open {
+  to { opacity: 0; }
 }
 
 @media (max-width: 640px) {
-  .stage { width: 94vw; }
+  .overlay {
+    --intro-orbit: 184px;
+    --intro-mark: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   :global(html[data-shapeos-intro]) .overlay { display: none; }
-  .overlay, .overlay * { animation: none !important; will-change: auto; }
+  .overlay, .overlay * { animation: none !important; }
   :global(html[data-shapeos-intro]) { overflow: auto; }
   :global(html[data-shapeos-intro]) .content { pointer-events: auto; }
 }

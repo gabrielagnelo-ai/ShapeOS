@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseAppDate, startOfTodayInAppTimeZone } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { recommendedSupplementDose, supplementDisplayName, supplementNutrientDefinitions, type SupplementProtocol, type SupplementType } from "@/lib/supplements";
+import { clamp } from "@/lib/common";
 
 const supplementTypes = ["CREATINE", "BETA_ALANINE", "MULTIVITAMIN"];
 const protocols = ["LOADING", "STEADY"];
@@ -208,10 +209,6 @@ function parseDate(value: string) {
 
 function startOfToday() {
   return startOfTodayInAppTimeZone();
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function readMicronutrients(formData: FormData) {

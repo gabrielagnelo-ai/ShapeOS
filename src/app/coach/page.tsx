@@ -1,16 +1,20 @@
-﻿import Link from "next/link";
-import { Activity, ArrowRight, Bed, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Sparkles, Target, Utensils } from "lucide-react";
+import { PageHeading } from "@/components/ui/page-heading";
+import Link from "next/link";
+import { Activity, ArrowRight, Bed, Compass, Dumbbell, LineChart, Ruler, Scale, ShieldAlert, Target, Utensils, type LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
-import { GlassCard } from "@/components/ui/glass-card";
+import { IconTile, type TileColour } from "@/components/ui/group";
 import { bodyStateFromLatestSnapshot, recalculateBodyCompositionSnapshots } from "@/lib/body-composition";
 import { buildBodyCompositionProjection } from "@/lib/bodyCompositionEngine";
 import { generateCoachInsights } from "@/lib/coach";
 import { buildCoachContext, hasEnoughCoachData } from "@/lib/coach/context";
-import { calendarPeriods, foodPeriodSummary } from "@/lib/period-averages";
+import { calendarPeriods, foodPeriodSummary, proteinHitRate } from "@/lib/period-averages";
+import { toFoodNutrients } from "@/lib/nutrition";
 import { prisma } from "@/lib/prisma";
 import { computeProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { validateTdeeTrend } from "@/lib/tdee";
 import { analyzeTrainingPerformance, trainingLogsFromPlans } from "@/lib/training-performance";
+import styles from "./coach.module.css";
+import { confidenceLabel, formatNumber } from "@/lib/common";
 
 const goalMap = { FAT_LOSS: "fat_loss", MAINTENANCE: "maintenance", MUSCLE_GAIN: "muscle_gain" } as const;
 
@@ -46,23 +50,7 @@ export default async function CoachPage() {
     date: log.date,
     items: log.items.map((item) => ({
       grams: item.grams,
-      food: {
-        name: item.food.name,
-        kcalPer100g: item.food.kcalPer100g,
-        proteinPer100g: item.food.proteinPer100g,
-        carbsPer100g: item.food.carbsPer100g,
-        fatPer100g: item.food.fatPer100g,
-        fiberPer100g: item.food.fiberPer100g ?? 0,
-        sodiumPer100g: item.food.sodiumPer100g ?? 0,
-        calciumPer100g: item.food.calciumPer100g ?? 0,
-        ironPer100g: item.food.ironPer100g ?? 0,
-        magnesiumPer100g: item.food.magnesiumPer100g ?? 0,
-        potassiumPer100g: item.food.potassiumPer100g ?? 0,
-        zincPer100g: item.food.zincPer100g ?? 0,
-        vitaminCPer100g: item.food.vitaminCPer100g ?? 0,
-        vitaminDPer100g: item.food.vitaminDPer100g ?? 0,
-        vitaminB12Per100g: item.food.vitaminB12Per100g ?? 0,
-      },
+      food: toFoodNutrients(item.food),
     })),
   })), periods.month);
   const context = buildCoachContext({
@@ -97,151 +85,115 @@ export default async function CoachPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm text-lime-300">Coach IA</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">ShapeOS Coach</h1>
-          <p className="mt-3 max-w-3xl text-zinc-400">
-            Um painel silencioso de sinais. Ele cruza diário, check-ins, déficit e metas para sugerir o próximo ajuste.
-          </p>
-        </div>
-        <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-right">
-          <p className="text-2xl font-semibold text-lime-200">{insights.length}</p>
-          <p className="text-xs text-zinc-400">sinais ativos</p>
-        </div>
-      </div>
+      <div className={styles.page}>
+        <PageHeading title="Coach" description="Sugestões calculadas a partir da alimentação, dos treinos e dos seus check-ins."><strong>{insights.length}</strong> sinais ativos</PageHeading>
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-        <GlassCard className="border-lime-300/30">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">
-              <Sparkles size={22} />
+        <section className={`${styles.panel} ${styles.recommendation}`} aria-labelledby="coach-recommendation">
+          <div className={styles.recommendationContent}>
+            <div className={styles.sectionHeading}>
+              <IconTile icon={Compass} colour="brand" size="lg" />
+              <div>
+                <h2 id="coach-recommendation">{topInsight ? insightTitle(topInsight.trigger) : hasEnoughCoachData(context) ? "Nenhum ajuste indicado" : "Histórico em formação"}</h2>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-zinc-500">Recomendação principal</p>
-              <h2 className="text-xl font-semibold">{topInsight ? insightTitle(topInsight.trigger) : "Sem ajuste urgente"}</h2>
-            </div>
+            <p className={styles.recommendationMessage}>
+              {topInsight?.message ?? "Continue registrando refeições e check-ins. O Coach precisa de dados reais antes de sugerir ajustes."}
+            </p>
+            <p className={styles.explanation}>
+              {topInsight ? insightExplanation(topInsight.trigger, context) : "Registre a alimentação por alguns dias e faça dois check-ins semanais para começar a comparar sua evolução."}
+            </p>
           </div>
-          <p className="mt-6 text-2xl font-semibold leading-9">
-            {topInsight?.message ?? "Continue registrando refeições e check-ins. O Coach precisa de dados reais antes de sugerir ajustes."}
-          </p>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
-            {topInsight ? insightExplanation(topInsight.trigger, context) : "Com pelo menos alguns dias de diário e dois check-ins semanais, os alertas passam a refletir tendência, não chute."}
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {(topInsight ? insightActions(topInsight.trigger) : defaultActions()).map((action) => (
-              <Link key={action.href} href={action.href} className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
+          <div className={styles.primaryActions}>
+            {(topInsight ? insightActions(topInsight.trigger) : defaultActions()).map((action, index) => (
+              <Link key={action.href} href={action.href} className={index === 0 ? styles.primaryButton : styles.secondaryButton}>
                 {action.label}
-                <ArrowRight size={15} />
+                <ArrowRight size={16} aria-hidden="true" />
               </Link>
             ))}
           </div>
-        </GlassCard>
+        </section>
 
-        <GlassCard>
-          <h2 className="text-xl font-semibold">Leitura atual</h2>
-          <div className="mt-5 grid gap-3">
-            <Signal icon={<Activity size={18} />} label="Redução de calorias" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal gasto estimado`} />
-            <Signal icon={<ShieldAlert size={18} />} label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} detail={tdeeValidation.message} />
-            <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
-            <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
-            <Signal icon={<LineChart size={18} />} label="Composição" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}% BF` : "pendente"} detail={`confiança ${bodyComposition.confidenceLabel}`} />
-            <Signal icon={<Dumbbell size={18} />} label="Performance" value={`${trainingPerformance.score}`} detail={trainingCoachDetail(trainingPerformance)} />
-            <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "sem dado"} detail={context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
+        <section className={styles.panel} aria-labelledby="coach-readings">
+          <h2 id="coach-readings">Leitura atual</h2>
+          <div className={styles.signalGroups}>
+            <div className={styles.signalGroup}>
+              <h3>Alimentação</h3>
+              <Signal icon={<Activity size={18} />} label="Redução de calorias" value={`${context.currentDeficitPct}%`} detail={`${metrics.targets.calories} kcal alvo / ${metrics.tdee} kcal gasto estimado`} />
+              <Signal icon={<Utensils size={18} />} label="Proteína alvo" value={`${metrics.targets.proteinG}g`} detail={proteinDetail(context.proteinLast3DaysPct)} />
+            </div>
+            <div className={styles.signalGroup}>
+              <h3>Corpo</h3>
+              <Signal icon={<Scale size={18} />} label="Peso" value={latestCheckin ? `${latestCheckin.averageWeightKg} kg` : "sem check-in"} detail={context.weightStableDays ? "estável nas últimas 2 semanas" : "sem platô detectado"} />
+              <Signal icon={<LineChart size={18} />} label="Composição" value={bodyComposition.targetBodyFatPct ? `${formatNumber(bodyComposition.targetBodyFatPct)}% BF` : "pendente"} detail={`confiança ${bodyComposition.confidenceLabel}`} />
+              <Signal icon={<ShieldAlert size={18} />} label="Confiança TDEE" value={confidenceLabel(tdeeValidation.confidence)} detail={tdeeValidation.message} />
+            </div>
+            <div className={styles.signalGroup}>
+              <h3>Rotina</h3>
+              <Signal icon={<Dumbbell size={18} />} label="Performance" value={trainingPerformance.trend === "insufficient" ? "—" : `${trainingPerformance.score}`} detail={trainingCoachDetail(trainingPerformance)} />
+              <Signal icon={<Bed size={18} />} label="Sono" value={latestCheckin ? `${latestCheckin.sleep}/10` : "—"} detail={!latestCheckin ? "Registre no check-in" : context.sleepTrend === "down" ? "queda recente" : "sem queda detectada"} />
+            </div>
           </div>
-        </GlassCard>
-      </div>
+        </section>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      {trainingPerformance.alerts.length || insights.length > 1 ? <section className={`${styles.panel} ${styles.insights}`} aria-label="Outras recomendações">
         {trainingPerformance.alerts.slice(0, 1).map((alert) => (
-          <GlassCard key={`training-${alert.type}`} className={alert.type === "drop" || alert.type === "fatigue" ? "border-amber-300/30 bg-amber-300/[0.06]" : "border-lime-300/30 bg-lime-300/[0.06]"}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-lime-300">
-                  <Dumbbell size={18} />
-                </div>
-                <div>
-                  <p className="text-sm text-lime-300">treino</p>
-                  <h3 className="text-lg font-semibold">Performance de carga</h3>
-                </div>
+          <article key={`training-${alert.type}`} className={styles.insight} data-tone={alert.type === "drop" || alert.type === "fatigue" ? "warning" : "good"}>
+            <div className="flex items-center gap-3">
+              <IconTile icon={Dumbbell} colour="red" />
+              <div>
+                <h3>Performance de carga</h3>
+                <p className="text-sm text-text-muted">Treino · pontuação {trainingPerformance.score}</p>
               </div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400">score {trainingPerformance.score}</span>
             </div>
-            <p className="mt-5 text-lg leading-8">{alert.message}</p>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">{trainingPerformance.primaryMessage}</p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Link href="/treinos" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
-                Ver treinos
-              </Link>
-              <Link href="/acompanhamento" className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
-                Atualizar check-in
-              </Link>
+            <p>{alert.message}</p>
+            <p className="text-sm leading-6 text-text-muted">{trainingPerformance.primaryMessage}</p>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/treinos" className={styles.secondaryButton}>Ver treinos</Link>
+              <Link href="/acompanhamento" className={styles.secondaryButton}>Atualizar check-in</Link>
             </div>
-          </GlassCard>
+          </article>
         ))}
-        {insights.length ? insights.map((insight) => (
-          <GlassCard key={insight.trigger}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-lime-300">
-                  {categoryIcon(insight.category)}
-                </div>
-                <div>
-                  <p className="text-sm capitalize text-lime-300">{categoryLabel(insight.category)}</p>
-                  <h3 className="text-lg font-semibold">{insightTitle(insight.trigger)}</h3>
-                </div>
+        {insights.slice(1).map((insight) => (
+          <article key={insight.trigger} className={styles.insight}>
+            <div className="flex items-center gap-3">
+              <IconTile {...categoryTile(insight.category)} />
+              <div>
+                <h3>{insightTitle(insight.trigger)}</h3>
+                <p className="text-sm text-text-muted"><span className="capitalize">{categoryLabel(insight.category)}</span> · prioridade {insight.priority}</p>
               </div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400">prioridade {insight.priority}</span>
             </div>
-            <p className="mt-5 text-lg leading-8">{insight.message}</p>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">{insightExplanation(insight.trigger, context)}</p>
-            <div className="mt-5 flex flex-wrap gap-2">
+            <p>{insight.message}</p>
+            <p className="text-sm leading-6 text-text-muted">{insightExplanation(insight.trigger, context)}</p>
+            <div className="flex flex-wrap gap-2">
               {insightActions(insight.trigger).map((action) => (
-                <Link key={action.href} href={action.href} className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">
-                  {action.label}
-                </Link>
+                <Link key={action.href} href={action.href} className={styles.secondaryButton}>{action.label}</Link>
               ))}
             </div>
-          </GlassCard>
-        )) : (
-          <GlassCard>
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="text-lime-300" />
-              <h2 className="text-xl font-semibold">Sem alertas agora</h2>
-            </div>
-            <p className="mt-4 text-sm leading-6 text-zinc-400">
-              Registre alimentos por alguns dias e faça check-ins semanais para o Coach avaliar proteína, déficit, sono, peso e aderência.
-            </p>
-          </GlassCard>
-        )}
-      </div>
+          </article>
+        ))}
+      </section> : null}
 
-      <GlassCard className="mt-5">
+      <section className={`${styles.panel} ${styles.projections}`} aria-labelledby="coach-projections">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300/15 text-lime-300">
-                <LineChart size={20} />
-              </div>
-              <div>
-                <p className="text-sm text-lime-300">Projeções</p>
-                <h2 className="text-xl font-semibold">Tendência corporal</h2>
-              </div>
+              <IconTile icon={LineChart} colour="blue" />
+              <h2 id="coach-projections">Projeção da tendência corporal</h2>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-text-muted">
               Projeções usam BF alvo, cintura, massa magra estimada e tendência real. Peso é consequência da composição, não a meta principal.
             </p>
           </div>
-          <Link href="/acompanhamento" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15">
+          <Link href="/acompanhamento" className={styles.secondaryButton}>
             Atualizar check-in
-            <ArrowRight size={15} />
+            <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
 
         {bodyComposition.scenarios.length ? (
           <>
           <BodyFatRangeBar projection={bodyComposition} />
-          <div className="mt-6 grid gap-3 lg:grid-cols-3">
+          <div className={styles.projectionGrid}>
             <ProjectionCard
               icon={<Dumbbell size={18} />}
               label="Massa magra estimada"
@@ -259,7 +211,7 @@ export default async function CoachPage() {
             <ProjectionCard
               icon={<ShieldAlert size={18} />}
               label="Confiança corporal"
-              value={bodyComposition.confidenceLabel}
+              value={confidenceLabel(bodyComposition.confidenceLabel)}
               detail="baseada em check-ins, cintura, BF e frequência de dados"
               tone={bodyComposition.confidenceLabel === "alta" ? "good" : bodyComposition.confidenceLabel === "media" ? "warning" : "danger"}
             />
@@ -297,52 +249,52 @@ export default async function CoachPage() {
           </div>
           </>
         ) : (
-          <div className="mt-6 rounded-3xl bg-black/25 p-5">
+          <div className={styles.emptyProjection}>
             <p className="font-semibold">Ainda falta histórico.</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
+            <p className="mt-2 text-sm leading-6 text-text-muted">
               Defina um BF alvo em Metas e registre cintura semanalmente. O ShapeOS vai projetar o físico por massa magra, BF e cintura.
             </p>
-            <Link href="/acompanhamento" className="mt-4 inline-flex rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">
+            <Link href="/acompanhamento" className={`${styles.tintedButton} mt-4`}>
               Registrar peso e medidas
             </Link>
           </div>
         )}
 
         {bodySnapshots.length ? (
-          <div className="mt-6">
-            <p className="text-sm font-medium text-zinc-300">Histórico recente de BF</p>
-            <div className="mt-3 grid gap-2 md:grid-cols-3">
+          <div className={styles.history}>
+            <h3>Histórico recente de BF</h3>
+            <div className={styles.historyGrid}>
               {bodySnapshots.slice(0, 6).map((snapshot) => (
-                <div key={snapshot.id} className="rounded-2xl bg-black/25 px-4 py-3 text-sm">
+                <div key={snapshot.id} className={styles.historyEntry}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-zinc-400">{snapshot.measuredAt.toLocaleDateString("pt-BR")}</span>
-                    <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-zinc-400">{snapshotSource(snapshot.source)}</span>
+                    <span className="text-text-muted">{snapshot.measuredAt.toLocaleDateString("pt-BR")}</span>
+                    <span className="text-xs text-text-muted">{snapshotSource(snapshot.source)}</span>
                   </div>
-                  <p className="mt-2 font-semibold text-zinc-100">{snapshot.bodyFatPct == null ? "BF pendente" : `${formatNumber(snapshot.bodyFatPct)}% BF`}</p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 font-semibold">{snapshot.bodyFatPct == null ? "BF pendente" : `${formatNumber(snapshot.bodyFatPct)}% BF`}</p>
+                  <p className="mt-1 text-xs text-text-muted">
                     {formatNumber(snapshot.weightKg)} kg
-                    {snapshot.waistCm ? ` - cintura ${formatNumber(snapshot.waistCm)} cm` : ""}
-                    {snapshot.leanMassKg ? ` - MM ${formatNumber(snapshot.leanMassKg)} kg` : ""}
+                    {snapshot.waistCm ? ` · cintura ${formatNumber(snapshot.waistCm)} cm` : ""}
+                    {snapshot.leanMassKg ? ` · MM ${formatNumber(snapshot.leanMassKg)} kg` : ""}
                   </p>
                 </div>
               ))}
             </div>
           </div>
         ) : null}
-      </GlassCard>
+      </section>
+      </div>
     </AppShell>
   );
 }
 
 function Signal({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string; detail: string }) {
   return (
-    <div className="flex flex-col gap-3 rounded-3xl bg-black/25 p-4 sm:flex-row sm:items-center">
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-lime-300">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-zinc-500">{label}</p>
-        <p className="mt-1 font-semibold">{value}</p>
+    <div className={styles.signal}>
+      <span className={styles.signalIcon} aria-hidden="true">{icon}</span>
+      <div className={styles.signalContent}>
+        <div className={styles.signalTitle}><p>{label}</p><strong>{value}</strong></div>
+        <p className={styles.signalDetail}>{detail}</p>
       </div>
-      <p className="text-xs leading-5 text-zinc-500 sm:max-w-36 sm:text-right">{detail}</p>
     </div>
   );
 }
@@ -401,23 +353,17 @@ function categoryLabel(category: string) {
   return labels[category] ?? category;
 }
 
-function categoryIcon(category: string) {
-  if (category === "weight") return <Scale size={18} />;
-  if (category === "sleep") return <Bed size={18} />;
-  if (category === "training") return <Dumbbell size={18} />;
-  if (category === "adherence") return <Activity size={18} />;
-  return <Utensils size={18} />;
+function categoryTile(category: string): { icon: LucideIcon; colour: TileColour } {
+  if (category === "weight") return { icon: Scale, colour: "blue" };
+  if (category === "sleep") return { icon: Bed, colour: "teal" };
+  if (category === "training") return { icon: Dumbbell, colour: "red" };
+  if (category === "adherence") return { icon: Activity, colour: "green" };
+  return { icon: Utensils, colour: "orange" };
 }
 
 function proteinDetail(values: number[]) {
   if (!values.length) return "registre 3 dias para avaliar";
   return `${values.join("%, ")}% nos últimos dias`;
-}
-
-function proteinHitRate(days: Array<{ totals: { proteinG: number } }>, targetProteinG: number) {
-  if (!days.length || !targetProteinG) return null;
-  const hitDays = days.filter((day) => day.totals.proteinG >= targetProteinG * 0.9).length;
-  return hitDays / days.length;
 }
 
 function ProjectionCard({
@@ -433,23 +379,14 @@ function ProjectionCard({
   detail: string;
   tone: "good" | "warning" | "danger" | "neutral";
 }) {
-  const color =
-    tone === "danger"
-      ? "border-red-400/30 bg-red-400/10 text-red-100"
-      : tone === "warning"
-        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-        : tone === "good"
-          ? "border-lime-300/30 bg-lime-300/10 text-lime-100"
-          : "border-white/10 bg-black/25 text-zinc-100";
-
   return (
-    <div className={`rounded-3xl border p-4 ${color}`}>
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">{icon}</div>
-        <p className="text-sm text-zinc-400">{label}</p>
+    <div className={styles.projectionStat} data-tone={tone}>
+      <div className={styles.projectionLabel}>
+        <span aria-hidden="true">{icon}</span>
+        <p>{label}</p>
       </div>
-      <p className="mt-4 text-2xl font-semibold">{value}</p>
-      <p className="mt-2 text-sm leading-5 text-zinc-400">{detail}</p>
+      <p className={styles.projectionValue}>{value}</p>
+      <p className={styles.projectionDetail}>{detail}</p>
     </div>
   );
 }
@@ -459,23 +396,23 @@ function BodyFatRangeBar({ projection }: { projection: ReturnType<typeof buildBo
   if (currentBodyFatPct == null || targetBodyFatPct == null) return null;
 
   return (
-    <div className="mt-6 rounded-3xl border border-lime-300/20 bg-lime-300/[0.05] p-4">
+    <div className="mt-6 rounded-[14px] bg-surface-tertiary p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-lime-200">Linha de BF</p>
-          <p className="mt-1 text-xs text-zinc-500">Recalcula automaticamente conforme novos check-ins corporais entram.</p>
+          <p className="text-sm font-semibold">Linha de BF</p>
+          <p className="mt-1 text-xs text-text-muted">Recalcula automaticamente conforme novos check-ins corporais entram.</p>
         </div>
-        <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400" title="A confiança aumenta conforme mais check-ins corporais são registrados.">
-          confiança {projection.confidenceLabel}
+        <span className="text-xs text-text-muted" title="A confiança aumenta conforme mais check-ins corporais são registrados.">
+          confiança {confidenceLabel(projection.confidenceLabel)}
         </span>
       </div>
       <div className="mt-4 flex items-center gap-3">
-        <span className="w-12 text-sm font-semibold">{formatNumber(currentBodyFatPct)}%</span>
-        <div className="relative h-2 flex-1 rounded-full bg-white/10">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-lime-300/70" style={{ width: `${progressPct}%` }} />
-          <div className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-lime-300 shadow-[0_0_22px_rgba(184,255,0,.45)]" style={{ left: `${progressPct}%` }} />
+        <span className="w-12 text-sm font-semibold tabular-nums">{formatNumber(currentBodyFatPct)}%</span>
+        <div className="relative h-1.5 flex-1 rounded-full bg-fill">
+          <div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${progressPct}%` }} />
+          <div className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--bg-tertiary)] bg-primary" style={{ left: `${progressPct}%` }} />
         </div>
-        <span className="w-12 text-right text-sm font-semibold text-lime-200">{formatNumber(targetBodyFatPct)}%</span>
+        <span className="w-12 text-right text-sm font-semibold tabular-nums">{formatNumber(targetBodyFatPct)}%</span>
       </div>
     </div>
   );
@@ -493,20 +430,6 @@ function snapshotSource(value: string) {
 function formatSigned(value: number) {
   const rounded = formatNumber(value);
   return value > 0 ? `+${rounded}` : rounded;
-}
-
-function formatNumber(value: number) {
-  return (Math.round(value * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-}
-
-function confidenceLabel(value: string) {
-  const labels: Record<string, string> = {
-    HIGH: "alta",
-    MEDIUM: "media",
-    LOW: "baixa",
-  };
-
-  return labels[value] ?? "media";
 }
 
 function trainingCoachDetail(performance: ReturnType<typeof analyzeTrainingPerformance>) {

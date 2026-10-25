@@ -1,0 +1,118 @@
+/* Coach (heuristics only, DS-06) on the app's materials: solid 22px panels, one filled
+   action (the main recommendation), signals and projections split by hairlines. */
+.page { display: grid; gap: 24px; }
+
+.page > header:first-child { margin: 8px 0 8px; }
+
+.panel {
+  min-width: 0;
+  padding: 24px 28px;
+  border-radius: 22px;
+  background: var(--bg-secondary);
+  box-shadow: var(--panel-shadow); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); animation: var(--enter); animation-delay: var(--enter-delay);
+}
+
+.recommendation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 40px;
+}
+
+.recommendationContent { max-width: 860px; }
+.sectionHeading { display: flex; align-items: center; gap: 14px; }
+.page .recommendation h2 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.015em; }
+.recommendationMessage { margin-top: 18px; max-width: 68ch; font-size: 17px; line-height: 1.6; color: var(--text-primary); }
+.explanation { margin-top: 8px; max-width: 78ch; font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+.primaryActions { display: flex; flex-direction: column; align-items: stretch; gap: 10px; min-width: 190px; }
+.primaryButton, .secondaryButton, .tintedButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 18px; border-radius: 999px; font-size: 14px; line-height: 1.45; font-weight: 600; text-align: center; transition: background-color 160ms ease-out; }
+.primaryButton { min-height: 44px; font-size: 15px; background: var(--primary); color: var(--primary-ink); }
+.primaryButton:hover { background: var(--primary-light); }
+.secondaryButton { color: var(--text-primary); background: var(--fill); }
+.secondaryButton:hover { background: var(--fill-strong); }
+.tintedButton { color: var(--primary); background: rgb(185 248 62 / .15); }
+.tintedButton:hover { background: rgb(185 248 62 / .22); }
+.page a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+.signalGroups { display: grid; grid-template-columns: 1fr 1.1fr 1fr; margin-top: 20px; }
+.signalGroup { min-width: 0; padding-inline: 28px; }
+.signalGroup:first-child { padding-left: 0; }
+.signalGroup:last-child { padding-right: 0; }
+.signalGroup + .signalGroup { border-left: 1px solid var(--hairline); }
+.page .signalGroup h3 { color: var(--text-muted); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.signal { display: flex; gap: 12px; padding-block: 16px; }
+.signal + .signal { border-top: 1px solid var(--hairline); }
+.signal:last-child { padding-bottom: 0; }
+.signalIcon { color: var(--text-muted); flex: 0 0 18px; padding-top: 2px; }
+.signalContent { min-width: 0; flex: 1; }
+.signalTitle { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; column-gap: 12px; row-gap: 4px; font-size: 15px; line-height: 1.45; }
+.signalTitle p { color: var(--text-secondary); }
+.signalTitle strong { font-size: 17px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.signalDetail { color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-top: 4px; max-width: 42ch; }
+
+.insights { display: grid; gap: 0; padding-block: 4px; }
+.insight { display: grid; gap: 10px; min-width: 0; padding-block: 20px; }
+.insight + .insight { border-top: 1px solid var(--hairline); }
+.insight > p { max-width: 85ch; }
+.insight > p:first-of-type { font-size: 16px; line-height: 1.6; margin-top: 6px; }
+.insight > div:last-child { margin-top: 6px; }
+
+.projections > div:first-child { gap: 24px; }
+.projections > div:first-child > div > p { max-width: 78ch; }
+.projections > div:first-child > a { flex-shrink: 0; }
+.projectionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 24px; border-top: 1px solid var(--hairline); }
+.projectionStat { min-width: 0; padding: 20px 24px 20px 0; border-bottom: 1px solid var(--hairline); }
+.projectionLabel { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 13px; }
+.projectionLabel > span { flex-shrink: 0; }
+.projectionValue { color: var(--text-primary); margin-top: 10px; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+/* Colour only for states. */
+.projectionStat[data-tone="warning"] .projectionValue { color: var(--warning); }
+.projectionStat[data-tone="danger"] .projectionValue { color: var(--danger); }
+.projectionDetail { color: var(--text-muted); margin-top: 6px; font-size: 13px; line-height: 1.5; max-width: 42ch; }
+.emptyProjection { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--hairline); }
+.emptyProjection > p { max-width: 78ch; }
+.history { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--hairline); }
+.historyGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 28px; row-gap: 16px; margin-top: 14px; }
+.historyEntry { font-size: 14px; padding-block: 6px; }
+
+@media (max-width: 1100px) {
+  .recommendation { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .primaryActions { flex-direction: row; flex-wrap: wrap; }
+  .signalGroups { grid-template-columns: 1fr 1.15fr 1fr; }
+  .signalGroup { padding-inline: 20px; }
+  .signalTitle { flex-direction: column; }
+}
+
+@media (max-width: 760px) {
+  .signalGroups { grid-template-columns: 1fr; margin-top: 16px; }
+  .signalGroup, .signalGroup:first-child, .signalGroup:last-child { padding: 0; }
+  .signalGroup + .signalGroup { border-left: 0; border-top: 1px solid var(--hairline); margin-top: 20px; padding-top: 20px; }
+  .signalTitle { flex-direction: row; }
+  .signalDetail { max-width: none; }
+  .signalGroup .signal { padding-block: 12px; }
+  .signalGroup .signal:last-child { padding-bottom: 0; }
+  .projectionGrid, .historyGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .page { gap: 20px; }
+  .panel { padding: 20px; }
+  .recommendation { gap: 18px; }
+  .recommendationMessage { font-size: 16px; }
+  .primaryActions { display: grid; grid-template-columns: 1fr; }
+  .sectionHeading { gap: 12px; }
+  .insights { padding-block: 0; }
+  .projectionGrid { grid-template-columns: 1fr; }
+  .projectionStat { padding-right: 0; }
+  .historyGrid { grid-template-columns: 1fr; gap: 12px; }
+  .historyEntry + .historyEntry { border-top: 1px solid var(--hairline); padding-top: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton, .secondaryButton, .tintedButton { transition: none; }
+}
+
+/* The recommendation is the hero of Coach; the readings and projections enter a beat later. */
+.recommendation { background: var(--hero-material); border-radius: 28px; }
+.page > :nth-child(3) { --enter-base: 70ms; }
+.page > :nth-child(n+4) { --enter-base: 140ms; }

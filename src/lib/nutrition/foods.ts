@@ -1,4 +1,29 @@
-import type { FoodNutrients, MacroTargets } from "./types";
+import type { FoodNutrients, MacroTargets, StoredFoodNutrients } from "./types";
+
+/**
+ * The one place that turns a stored food (Prisma row, extra columns allowed) into the
+ * nutrients the calculators read. Missing nutrients count as zero. Add a nutrient here
+ * and in FoodNutrients, not at each call site.
+ */
+export function toFoodNutrients(food: StoredFoodNutrients): FoodNutrients {
+  return {
+    name: food.name,
+    kcalPer100g: food.kcalPer100g,
+    proteinPer100g: food.proteinPer100g,
+    carbsPer100g: food.carbsPer100g,
+    fatPer100g: food.fatPer100g,
+    fiberPer100g: food.fiberPer100g ?? 0,
+    sodiumPer100g: food.sodiumPer100g ?? 0,
+    calciumPer100g: food.calciumPer100g ?? 0,
+    ironPer100g: food.ironPer100g ?? 0,
+    magnesiumPer100g: food.magnesiumPer100g ?? 0,
+    potassiumPer100g: food.potassiumPer100g ?? 0,
+    zincPer100g: food.zincPer100g ?? 0,
+    vitaminCPer100g: food.vitaminCPer100g ?? 0,
+    vitaminDPer100g: food.vitaminDPer100g ?? 0,
+    vitaminB12Per100g: food.vitaminB12Per100g ?? 0,
+  };
+}
 
 export function nutrientsForGrams(food: FoodNutrients, grams: number) {
   const ratio = grams / 100;
@@ -61,6 +86,7 @@ function percent(value: number, target: number) {
   return Math.round((value / target) * 100);
 }
 
+// Not round1 from @/lib/common: toFixed rounds ties like 0.35 down, and switching would shift the nutrient totals.
 function round(value: number) {
   return Number(value.toFixed(1));
 }

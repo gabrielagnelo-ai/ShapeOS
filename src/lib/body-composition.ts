@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { latestCircumferences, type Circumferences } from "@/lib/body-measurements";
 import { estimateBodyFat, type Sex } from "@/lib/nutrition";
+import { round1 } from "@/lib/common";
 
-type SnapshotInput = {
+type SnapshotInput = Partial<Circumferences> & {
   userId: string;
   source: "onboarding" | "profile_update" | "weekly_checkin";
   sex: Sex;
@@ -23,18 +25,22 @@ export async function createBodyCompositionSnapshot(input: SnapshotInput) {
     waistCm: input.waistCm,
     hipCm: input.hipCm,
   });
-  const leanMassKg = bodyFat.percentage == null ? null : round(input.weightKg * (1 - bodyFat.percentage / 100));
-  const fatMassKg = bodyFat.percentage == null ? null : round(input.weightKg * (bodyFat.percentage / 100));
+  const leanMassKg = bodyFat.percentage == null ? null : round1(input.weightKg * (1 - bodyFat.percentage / 100));
+  const fatMassKg = bodyFat.percentage == null ? null : round1(input.weightKg * (bodyFat.percentage / 100));
 
   await prisma.bodyCompositionSnapshot.create({
     data: {
       userId: input.userId,
       source: input.source,
       measuredAt: input.measuredAt ?? new Date(),
-      weightKg: round(input.weightKg),
+      weightKg: round1(input.weightKg),
       neckCm: input.neckCm ?? null,
       waistCm: input.waistCm ?? null,
       hipCm: input.hipCm ?? null,
+      chestCm: input.chestCm ?? null,
+      armCm: input.armCm ?? null,
+      thighCm: input.thighCm ?? null,
+      calfCm: input.calfCm ?? null,
       bodyFatPct: bodyFat.percentage,
       leanMassKg,
       fatMassKg,
@@ -54,7 +60,7 @@ type SnapshotBodyComposition = {
   limitation?: string | null;
 };
 
-export type BodyMeasurementState = {
+export type BodyMeasurementState = Partial<Circumferences> & {
   weightKg: number;
   neckCm?: number | null;
   waistCm?: number | null;
@@ -81,8 +87,8 @@ export function recalculateBodyCompositionSnapshot<T extends SnapshotBodyComposi
   return {
     ...snapshot,
     bodyFatPct: bodyFat.percentage,
-    leanMassKg: round(snapshot.weightKg * (1 - bodyFat.percentage / 100)),
-    fatMassKg: round(snapshot.weightKg * (bodyFat.percentage / 100)),
+    leanMassKg: round1(snapshot.weightKg * (1 - bodyFat.percentage / 100)),
+    fatMassKg: round1(snapshot.weightKg * (bodyFat.percentage / 100)),
     limitation: bodyFat.limitation,
   };
 }
@@ -99,19 +105,16 @@ export function bodyStateFromLatestSnapshot(
   snapshots: BodyMeasurementState[],
 ): BodyMeasurementState {
   const latest = snapshots[0];
-  if (!latest) return profile;
+  if (!latest) return { ...profile, ...latestCircumferences(profile, []) };
 
   return {
     weightKg: latest.weightKg,
     neckCm: latest.neckCm ?? profile.neckCm,
     waistCm: latest.waistCm ?? profile.waistCm,
     hipCm: latest.hipCm ?? profile.hipCm,
+    ...latestCircumferences(profile, snapshots),
     bodyFatPct: latest.bodyFatPct,
     leanMassKg: latest.leanMassKg,
     fatMassKg: latest.fatMassKg,
   };
-}
-
-function round(value: number) {
-  return Math.round(value * 10) / 10;
 }

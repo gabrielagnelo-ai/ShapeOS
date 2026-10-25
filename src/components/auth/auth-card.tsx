@@ -1,4 +1,4 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
@@ -25,7 +25,7 @@ export function AuthCard({
           </Link>
           <h2 className="mt-10 max-w-xl text-5xl font-semibold tracking-tight">Sua dieta e evolução em um sistema inteligente.</h2>
           <p className="mt-5 max-w-lg text-lg leading-8 text-zinc-400">
-            Metas claras, dieta editável, evolução semanal e um Coach IA que sugere ajustes sem virar um chatbot invasivo.
+            Metas claras, dieta editável, evolução semanal e um Coach que sugere ajustes a partir dos seus registros.
           </p>
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
             {[

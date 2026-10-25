@@ -26,7 +26,7 @@ describe("activity estimates", () => {
     expect(averageWalkingSpeed({ distanceKm: 4, durationMinutes: 60 })).toBe(4);
     expect(classifyWalkingBySpeed(3.9)).toMatchObject({ intensity: "Leve", met: 2.8 });
     expect(classifyWalkingBySpeed(5)).toMatchObject({ intensity: "Moderada", met: 3.5 });
-    expect(classifyWalkingBySpeed(5.6)).toMatchObject({ intensity: "Rapida", met: 4.3 });
+    expect(classifyWalkingBySpeed(5.6)).toMatchObject({ intensity: "Rápida", met: 4.3 });
 
     const estimate = estimateWalkingFromDistanceTime({ distanceKm: 5, durationMinutes: 60, weightKg: 100 });
     expect(estimate.speedKmh).toBe(5);

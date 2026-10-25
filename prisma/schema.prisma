@@ -116,6 +116,10 @@ model Profile {
   neckCm              Float?              @map("neck_cm")
   waistCm             Float?              @map("waist_cm")
   hipCm               Float?              @map("hip_cm")
+  chestCm             Float?              @map("chest_cm")
+  armCm               Float?              @map("arm_cm")
+  thighCm             Float?              @map("thigh_cm")
+  calfCm              Float?              @map("calf_cm")
   goal                Goal
   activityFactor      Float               @map("activity_factor")
   experience          Experience
@@ -551,6 +555,10 @@ model BodyCompositionSnapshot {
   neckCm     Float?   @map("neck_cm")
   waistCm    Float?   @map("waist_cm")
   hipCm      Float?   @map("hip_cm")
+  chestCm    Float?   @map("chest_cm")
+  armCm      Float?   @map("arm_cm")
+  thighCm    Float?   @map("thigh_cm")
+  calfCm     Float?   @map("calf_cm")
   bodyFatPct Float?   @map("body_fat_pct")
   leanMassKg Float?   @map("lean_mass_kg")
   fatMassKg  Float?   @map("fat_mass_kg")

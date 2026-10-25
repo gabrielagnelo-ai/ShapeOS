@@ -1,26 +1,28 @@
+import { WorkspaceTabs } from "@/components/ui/workspace-tabs";
+import { PageHeading } from "@/components/ui/page-heading";
 import { ReliabilityNotice, SafetyReview } from "@/components/diet/reliability-notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { dietaryReviewIssue } from "@/lib/food-reliability";
 import { buildFluxaShoppingBudget } from "@/lib/fluxa-integration";
-﻿import { Plus, Send, ShoppingBag, Trash2 } from "lucide-react";
+import { Check, Plus, Send, ShoppingBag, Trash2, Sunrise, Sun, Moon, Dumbbell, ChevronDown } from "lucide-react";
+import { IconTile } from "@/components/ui/group";
 import Link from "next/link";
 import { ChefHat } from "lucide-react";
 import { ShoppingListExport } from "@/components/diet/shopping-list-export";
 import { FoodSearchField } from "@/components/food/food-search-field";
 import { AppShell } from "@/components/shell/app-shell";
-import { GlassCard } from "@/components/ui/glass-card";
+import { MacroRings } from "@/components/today/today-cards";
 import { formatRecipePortions, groupDietMealItems } from "@/lib/diet-meal-display";
 import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile";
-import { nutrientsForGrams } from "@/lib/nutrition";
+import { nutrientsForGrams, toFoodNutrients } from "@/lib/nutrition";
 import { shoppingListConversion, wholeEggUnitCount, wholeEggUnitPrice } from "@/lib/shopping-list";
 import {
   addManualDietItemAction,
   createProteinSwapDietPlanAction,
   createManualDietPlanAction,
   deleteDietPlanAction,
-  generateAiDietPlanAction,
   generateDietPlanAction,
   removeDietItemAction,
   removeRecipeFromDietMealAction,
@@ -29,6 +31,10 @@ import {
   updateDietMealsAction,
   updateDietItemGramsAction,
 } from "./actions";
+import styles from "./diet.module.css";
+import { Stack } from "@/components/ui/screen";
+import buttons from "@/components/ui/buttons.module.css";
+import sections from "@/components/ui/sections.module.css";
 
 type SearchParams = Promise<{ periodo?: string; fluxa?: string; dietStatus?: string }>;
 
@@ -95,13 +101,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   const monthlyBudget = buildFluxaShoppingBudget(planMeals.flatMap((meal) => meal.items), 30);
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
-      const n = nutrientsForGrams({
-        name: item.food.name,
-        kcalPer100g: item.food.kcalPer100g,
-        proteinPer100g: item.food.proteinPer100g,
-        carbsPer100g: item.food.carbsPer100g,
-        fatPer100g: item.food.fatPer100g,
-      }, item.grams);
+      const n = nutrientsForGrams(toFoodNutrients(item.food), item.grams);
       return {
         kcal: acc.kcal + n.kcal,
         protein: acc.protein + n.proteinG,
@@ -113,67 +113,124 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   );
   const planStatus = totals ? dietStatus(Math.round(totals.kcal), metrics.targets.calories) : null;
 
-  return (
-    <AppShell>
-      <h1 className="text-4xl font-semibold tracking-tight">Montador de dieta</h1>
-      <p className="mt-3 max-w-2xl text-zinc-400">Gere um plano inicial, edite gramas ou registre a dieta do nutricionista. O foco aqui é bater sua meta real do dia.</p>
-      <ReliabilityNotice status={actionStatus ?? reviewIssue} />
-      <div className="mt-8 grid items-start gap-4 lg:grid-cols-[1.2fr_.8fr]">
-        <GlassCard>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">{plan?.name ?? "Nenhum plano ativo"}</h2>
-            <div className="flex flex-wrap gap-2">
-              <form action={generateAiDietPlanAction} className="flex flex-wrap gap-2">
-                <input name="monthlyBudget" inputMode="decimal" className="h-9 w-36 rounded-full bg-white/10 px-4 text-sm outline-none" placeholder="R$/mês" />
-                <SubmitButton className="rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-black">Gerar com IA</SubmitButton>
-              </form>
-              <form action={generateDietPlanAction}><SubmitButton className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">Gerar básico</SubmitButton></form>
-            </div>
+  const mealView = <div className={styles.mealWorkspace}>
+    <div className={sections.heading}><div><h2>Suas refeições</h2><p>Abra uma refeição para conferir ou ajustar as porções.</p></div><a href="/receitas" className={buttons.secondary}>Minhas receitas <span aria-hidden="true">↗</span></a></div>
+          <div className={styles.meals}>
+            {plan ? planMeals.map((meal, index) => {
+              const mealTotals = planSummary([meal]);
+              const MealIcon = /treino/i.test(meal.name) ? Dumbbell : index === 0 ? Sunrise : /jantar|ceia/i.test(meal.name) ? Moon : Sun;
+              return (
+              <details key={meal.id} className={styles.meal}>
+                <summary><span className={styles.mealSymbol}><MealIcon size={22} /></span><div className={styles.mealTitle}><h3>{normalizeMealName(meal.name)}</h3><p>{groupDietMealItems(meal.items).map((group) => group.kind === "recipe" ? group.name : group.items[0].food.name).join(" · ") || "Adicione os alimentos desta refeição"}</p></div><div className={styles.mealEnergy}><strong>{Math.round(mealTotals.kcal).toLocaleString("pt-BR")}</strong><span>kcal</span></div><ChevronDown size={18} className={styles.mealChevron} /></summary>
+                <div className={styles.mealNutrients}><span>Proteína <b>{Math.round(mealTotals.protein)} g</b></span><span>Carboidrato <b>{Math.round(mealTotals.carbs)} g</b></span><span>Gordura <b>{Math.round(mealTotals.fat)} g</b></span></div>
+                <div className={styles.mealEditor}>
+                  {groupDietMealItems(meal.items).map((group) => {
+                    if (group.kind === "recipe") {
+                      const recipeKcal = group.items.reduce((total, item) => total + nutrientsForGrams(toFoodNutrients(item.food), item.grams).kcal, 0);
+                      return (
+                        <div key={group.key} className={styles.foodRow}>
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <IconTile icon={ChefHat} colour="orange" size="sm" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{group.name}</p>
+                              <p className="mt-0.5 text-xs text-text-muted">{formatRecipePortions(group.portions)} · {Math.round(recipeKcal)} kcal</p>
+                            </div>
+                          </div>
+                          <form action={removeRecipeFromDietMealAction}>
+                            <input type="hidden" name="recipeBatchId" value={group.recipeBatchId ?? ""} />
+                            <SubmitButton className="inline-flex size-10 items-center justify-center rounded-full bg-fill text-text-secondary hover:bg-danger/15 hover:text-danger" aria-label={`Remover receita ${group.name}`}>
+                              <Trash2 size={15} />
+                            </SubmitButton>
+                          </form>
+                        </div>
+                      );
+                    }
+
+                    const item = group.items[0];
+                    const nutrients = nutrientsForGrams(toFoodNutrients(item.food), item.grams);
+                    return (
+                      <div key={group.key} className={styles.foodRow}>
+                        <span className="min-w-0 flex-1 text-sm">{item.food.name} <span className="text-text-muted">· {nutrients.kcal.toLocaleString("pt-BR")} kcal</span></span>
+                        <form action={updateDietItemGramsAction} className="flex items-center gap-2">
+                          <input type="hidden" name="itemId" value={item.id} />
+                          <input aria-label={`Gramas de ${item.food.name}`} name="grams" defaultValue={item.grams} className="h-10 w-24 rounded-[14px] px-3 text-sm outline-none" />
+                          <SubmitButton className="min-h-10 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong">Salvar</SubmitButton>
+                        </form>
+                        <form action={removeDietItemAction}>
+                          <input type="hidden" name="itemId" value={item.id} />
+                          <SubmitButton className="inline-flex size-10 items-center justify-center rounded-full bg-fill text-text-secondary hover:bg-danger/15 hover:text-danger" aria-label="Remover alimento">
+                            <Trash2 size={15} />
+                          </SubmitButton>
+                        </form>
+                      </div>
+                    );
+                  })}
+                  <form action={addManualDietItemAction} className="grid gap-2 rounded-[14px] bg-surface-tertiary p-3 md:grid-cols-[minmax(0,1fr)_110px_auto]">
+                    <input type="hidden" name="mealId" value={meal.id} />
+                    <SafetyReview required={Boolean(reviewIssue)} />
+                    <FoodSearchField
+                      foods={foods}
+                      className="h-11 w-full rounded-[14px] px-3 text-sm outline-none"
+                      placeholder="Digite para buscar alimento"
+                    />
+                    <input aria-label="Quantidade em gramas" name="grams" inputMode="decimal" className="h-11 rounded-[14px] px-3 text-sm outline-none" placeholder="gramas" required />
+                    <SubmitButton className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary/15 px-4 text-sm font-semibold text-primary hover:bg-primary/20">
+                      <Plus size={15} />
+                      Adicionar
+                    </SubmitButton>
+                  </form>
+                </div>
+              </details>
+              );
+            }) : <p className="text-sm text-text-muted">Gere um plano, monte uma dieta manual ou escolha Usar em uma das opções salvas.</p>}
           </div>
-          <form id="plano-manual" action={createManualDietPlanAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+  </div>;
+  const management = <section className={`${sections.section} ${styles.planWorkspace}`}><div className={sections.heading}><h2>Meus planos</h2><form action={generateDietPlanAction}><SubmitButton className={buttons.secondary}>Gerar básico</SubmitButton></form></div>
+
+          <form id="plano-manual" action={createManualDietPlanAction} className="mt-5 rounded-[14px] bg-surface-tertiary p-4">
             <SafetyReview required={Boolean(reviewIssue)} />
             <div className="flex flex-wrap items-end gap-3">
               <label className="min-w-0 flex-1">
-                <span className="text-sm text-zinc-400">Plano manual do nutricionista</span>
+                <span className="text-sm text-text-secondary">Plano manual do nutricionista</span>
                 <input
                   name="name"
-                  className="mt-2 h-11 w-full rounded-2xl bg-white/10 px-4 text-sm outline-none"
+                  className="mt-2 h-11 w-full rounded-[14px] px-4 text-sm outline-none"
                   placeholder="Ex: Dieta prescrita - fase 1"
                 />
               </label>
-              <SubmitButton className="inline-flex h-11 items-center gap-2 rounded-full border border-white/15 px-4 text-sm font-semibold text-white transition hover:bg-white/10">
+              <SubmitButton className="inline-flex min-h-11 items-center gap-2 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong">
                 <Plus size={16} />
                 Criar manual
               </SubmitButton>
             </div>
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Use quando o cliente já tem dieta do nutricionista. Depois adicione alimento e gramas em cada refeição.
+            <p className="mt-2 text-xs leading-5 text-text-muted">
+              Dê um nome ao plano e adicione os alimentos com suas quantidades.
             </p>
           </form>
-          <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+          <div className="mt-5 rounded-[14px] bg-surface-tertiary p-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="font-semibold">Opções de dieta</p>
-                <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-500">
-                  Crie variações do mesmo plano mudando a fonte principal de proteína. Ex: Dieta 1 com frango, Dieta 2 com tilápia ou patinho.
+                <p className="mt-1 max-w-xl text-sm leading-6 text-text-muted">
+                  Duplique o plano com outra fonte de proteína ou escolha uma dieta salva.
                 </p>
               </div>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400">{dietPlans.length} salvas</span>
+              <span className="text-xs text-text-muted">{dietPlans.length} salvas</span>
             </div>
 
             {dietPlans.length ? (
-              <div className="mt-4 grid gap-2 lg:grid-cols-2">
+              <div className="mt-3 grid lg:grid-cols-2 lg:gap-x-6">
                 {dietPlans.map((dietPlan, index) => {
                   const summary = planSummary(dietPlan.meals);
                   return (
-                    <div key={dietPlan.id} className={`rounded-2xl border p-3 ${dietPlan.isActive ? "border-lime-300/35 bg-lime-300/10" : "border-white/10 bg-white/[0.04]"}`}>
+                    <div key={dietPlan.id} className="border-b border-hairline py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold">{dietPlan.name || `Dieta ${index + 1}`}</p>
-                            {dietPlan.isActive ? <span className="rounded-full bg-lime-300 px-2 py-0.5 text-[11px] font-semibold text-black">ativa</span> : null}
+                            {dietPlan.isActive ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><Check size={13} aria-hidden="true" />Ativa</span> : null}
                           </div>
-                          <p className="mt-1 text-xs text-zinc-500">
+                          <p className="mt-1 text-xs text-text-muted">
                             {Math.round(summary.kcal)} kcal · P {Math.round(summary.protein)}g C {Math.round(summary.carbs)}g G {Math.round(summary.fat)}g
                           </p>
                         </div>
@@ -182,13 +239,13 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                             <form action={setActiveDietPlanAction} className="max-w-60">
                               <SafetyReview required={Boolean(reviewIssue)} />
                               <input type="hidden" name="planId" value={dietPlan.id} />
-                              <SubmitButton className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-100 transition hover:bg-white/15">Usar</SubmitButton>
+                              <SubmitButton className="min-h-9 rounded-full bg-primary/15 px-3.5 text-xs font-semibold text-primary hover:bg-primary/20">Usar</SubmitButton>
                             </form>
                           ) : null}
                           {dietPlans.length > 1 ? (
                             <form action={deleteDietPlanAction}>
                               <input type="hidden" name="planId" value={dietPlan.id} />
-                              <SubmitButton className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-zinc-400 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Excluir dieta">
+                              <SubmitButton className="inline-flex size-9 items-center justify-center rounded-full bg-fill text-text-secondary hover:bg-danger/15 hover:text-danger" aria-label="Excluir dieta">
                                 <Trash2 size={14} />
                               </SubmitButton>
                             </form>
@@ -200,247 +257,182 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 })}
               </div>
             ) : (
-              <p className="mt-4 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-zinc-500">Crie ou gere uma dieta para salvar a primeira opção.</p>
+              <p className="mt-4 text-sm text-text-muted">Crie ou gere uma dieta para salvar a primeira opção.</p>
             )}
 
-            <form action={createProteinSwapDietPlanAction} className="mt-4 grid gap-2 border-t border-white/10 pt-4 lg:grid-cols-[1fr_1.2fr_auto]">
-              <input name="variantName" className="h-11 rounded-2xl bg-white/10 px-4 text-sm outline-none" placeholder="Nome. Ex: Dieta 2 - tilápia" />
+            <form action={createProteinSwapDietPlanAction} className="mt-4 grid gap-2 pt-1 lg:grid-cols-[1fr_1.2fr_auto]">
+              <input name="variantName" className="h-11 rounded-[14px] px-4 text-sm outline-none" placeholder="Nome. Ex: Dieta 2 - tilápia" />
               <FoodSearchField
                 foods={foods}
-                className="h-11 w-full rounded-2xl bg-white/10 px-4 text-sm outline-none transition focus:ring-1 focus:ring-lime-300/50"
+                className="h-11 w-full rounded-[14px] px-4 text-sm outline-none"
                 placeholder="Nova proteína. Ex: tilápia, patinho, whey"
               />
-              <SubmitButton disabled={!plan} className="inline-flex h-11 items-center justify-center rounded-full bg-lime-300 px-5 text-sm font-semibold text-black transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40">
+              <SubmitButton disabled={!plan} className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-40">
                 Criar variação
               </SubmitButton>
             </form>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">
+            <p className="mt-3 text-xs leading-5 text-text-muted">
               A troca preserva aproximadamente a proteína da refeição. Calorias e gordura podem mudar conforme o alimento escolhido.
             </p>
           </div>
-          <form action={updateDietMealsAction} className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+          <form action={updateDietMealsAction} className="mt-5 rounded-[14px] bg-surface-tertiary p-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="font-semibold">Refeições do plano</p>
-                <p className="mt-1 max-w-xl text-sm leading-6 text-zinc-500">
+                <p className="mt-1 max-w-xl text-sm leading-6 text-text-muted">
                   Marque só as refeições que você realmente faz. Se você treina 6h e não usa pré-treino, desmarque essa opção.
                 </p>
               </div>
-              <SubmitButton disabled={!plan} className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40">
+              <SubmitButton disabled={!plan} className="min-h-10 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong disabled:cursor-not-allowed disabled:opacity-40">
                 Salvar refeições
               </SubmitButton>
             </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-3 grid sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-3">
               {mealChoices.map((mealName) => (
-                <label key={mealName} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-zinc-200">
+                <label key={mealName} className="flex min-h-12 items-center justify-between gap-3 border-b border-hairline text-sm">
+                  {mealName}
                   <input
                     type="checkbox"
                     name="mealNames"
                     value={mealName}
                     defaultChecked={!plan || activeMealNames.has(mealName)}
-                    className="h-4 w-4 accent-lime-300"
+                    className="switch"
                     disabled={!plan}
                   />
-                  {mealName}
                 </label>
               ))}
             </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">
-              Ao remover uma refeição, os alimentos dela saem do plano ativo. Depois gere com IA novamente para redistribuir as calorias nas refeições escolhidas.
+            <p className="mt-3 text-xs leading-5 text-text-muted">
+              Ao remover uma refeição, os alimentos dela saem do plano ativo. Revise as porções das refeições restantes para manter sua meta diária.
             </p>
           </form>
-          {plan && totals && planStatus ? (
-            <div className={`mt-5 rounded-3xl border p-4 ${planStatus.className}`}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-lime-200">Planejado vs meta</p>
-                  <p className="mt-1 text-xs leading-5 text-zinc-400">Use isso para saber se a dieta montada está perto do alvo que você escolheu.</p>
-                </div>
-                <span className="rounded-full bg-black/30 px-3 py-1 text-xs font-semibold text-zinc-100">{planStatus.label}</span>
-              </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-4">
-                <DietTarget label="Calorias planejadas" value={`${Math.round(totals.kcal)} kcal`} detail={`meta ${metrics.targets.calories} kcal`} />
-                <DietTarget label="Proteína" value={`${Math.round(totals.protein)} g`} detail={`meta ${metrics.targets.proteinG} g`} />
-                <DietTarget label="Carboidrato" value={`${Math.round(totals.carbs)} g`} detail={`meta ${metrics.targets.carbsG} g`} />
-                <DietTarget label="Gordura" value={`${Math.round(totals.fat)} g`} detail={`meta ${metrics.targets.fatG} g`} />
-              </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-400">
-                Diferença: {planStatus.diffLabel}. Confira marcas, modo de preparo e gramas antes de seguir.
-              </p>
-            </div>
-          ) : null}
-          <div className="mt-5 space-y-3">
-            {plan ? planMeals.map((meal) => (
-              <div key={meal.id} className="rounded-3xl bg-white/[0.04] p-4">
-                <p className="font-medium">{normalizeMealName(meal.name)}</p>
-                <div className="mt-3 grid gap-2">
-                  {groupDietMealItems(meal.items).map((group) => {
-                    if (group.kind === "recipe") {
-                      const recipeKcal = group.items.reduce((total, item) => total + nutrientsForGrams({
-                        name: item.food.name,
-                        kcalPer100g: item.food.kcalPer100g,
-                        proteinPer100g: item.food.proteinPer100g,
-                        carbsPer100g: item.food.carbsPer100g,
-                        fatPer100g: item.food.fatPer100g,
-                      }, item.grams).kcal, 0);
-                      return (
-                        <div key={group.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-lime-300/15 bg-lime-300/[0.05] px-3 py-3">
-                          <div className="flex min-w-0 flex-1 items-center gap-3">
-                            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-lime-300/12 text-lime-300"><ChefHat size={16} /></span>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-zinc-100">{group.name}</p>
-                              <p className="mt-0.5 text-xs text-zinc-500">{formatRecipePortions(group.portions)} · {Math.round(recipeKcal)} kcal</p>
-                            </div>
-                          </div>
-                          <form action={removeRecipeFromDietMealAction}>
-                            <input type="hidden" name="recipeBatchId" value={group.recipeBatchId ?? ""} />
-                            <SubmitButton className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label={`Remover receita ${group.name}`}>
-                              <Trash2 size={15} />
-                            </SubmitButton>
-                          </form>
-                        </div>
-                      );
-                    }
 
-                    const item = group.items[0];
-                    const nutrients = nutrientsForGrams({
-                      name: item.food.name,
-                      kcalPer100g: item.food.kcalPer100g,
-                      proteinPer100g: item.food.proteinPer100g,
-                      carbsPer100g: item.food.carbsPer100g,
-                      fatPer100g: item.food.fatPer100g,
-                      fiberPer100g: item.food.fiberPer100g ?? 0,
-                      sodiumPer100g: item.food.sodiumPer100g ?? 0,
-                    }, item.grams);
-                    return (
-                      <div key={group.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-black/25 px-3 py-2">
-                        <span className="min-w-0 flex-1 text-sm text-zinc-200">{item.food.name} - {nutrients.kcal} kcal</span>
-                        <form action={updateDietItemGramsAction} className="flex items-center gap-2">
-                          <input type="hidden" name="itemId" value={item.id} />
-                          <input name="grams" defaultValue={item.grams} className="h-9 w-24 rounded-xl bg-white/10 px-3 text-sm outline-none" />
-                          <SubmitButton className="rounded-full bg-white/10 px-3 py-2 text-xs">Salvar</SubmitButton>
-                        </form>
-                        <form action={removeDietItemAction}>
-                          <input type="hidden" name="itemId" value={item.id} />
-                          <SubmitButton className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-zinc-300 transition hover:bg-red-500/20 hover:text-red-200" aria-label="Remover alimento">
-                            <Trash2 size={15} />
-                          </SubmitButton>
-                        </form>
-                      </div>
-                    );
-                  })}
-                  <form action={addManualDietItemAction} className="grid gap-2 rounded-2xl border border-dashed border-white/10 bg-black/20 p-3 md:grid-cols-[minmax(0,1fr)_110px_auto]">
-                    <input type="hidden" name="mealId" value={meal.id} />
-                    <SafetyReview required={Boolean(reviewIssue)} />
-                    <FoodSearchField
-                      foods={foods}
-                      className="h-10 w-full rounded-xl bg-white/10 px-3 text-sm outline-none transition focus:ring-1 focus:ring-lime-300/50"
-                      placeholder="Digite para buscar alimento"
-                    />
-                    <input name="grams" inputMode="decimal" className="h-10 rounded-xl bg-white/10 px-3 text-sm outline-none" placeholder="gramas" required />
-                    <SubmitButton className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-lime-300 px-4 text-sm font-semibold text-black">
-                      <Plus size={15} />
-                      Adicionar
-                    </SubmitButton>
-                  </form>
-                </div>
+  </section>;
+  const shoppingView = (        <section className={`${sections.section} ${styles.shoppingWorkspace}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <IconTile icon={ShoppingBag} colour="green" />
+              <div>
+                <h2>Lista de compras</h2>
+                <p className="text-sm text-text-muted">{periodLabel} · {days} dias</p>
               </div>
-            )) : <p className="text-sm text-zinc-500">Gere um plano, monte uma dieta manual ou escolha Usar em uma das opções salvas.</p>}
-          </div>
-        </GlassCard>
-        <GlassCard className="lg:sticky lg:top-24">
-          <ShoppingBag className="text-lime-300" />
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Lista de compras</h2>
-              <p className="mt-1 text-sm text-zinc-500">{periodLabel} - {days} dias</p>
             </div>
-            <div className="flex rounded-full bg-white/10 p-1 text-sm">
-              <Link href="/dieta?periodo=semanal" className={`rounded-full px-3 py-2 ${days === 7 ? "bg-lime-300 text-black" : "text-zinc-300"}`}>7 dias</Link>
-              <Link href="/dieta?periodo=quinzenal" className={`rounded-full px-3 py-2 ${days === 15 ? "bg-lime-300 text-black" : "text-zinc-300"}`}>15 dias</Link>
-              <Link href="/dieta?periodo=mensal" className={`rounded-full px-3 py-2 ${days === 30 ? "bg-lime-300 text-black" : "text-zinc-300"}`}>30 dias</Link>
+            <div role="group" aria-label="Período da lista" className="inline-flex rounded-full bg-fill p-[3px] text-sm">
+              {([[7, "semanal"], [15, "quinzenal"], [30, "mensal"]] as const).map(([count, slug]) => (
+                <Link key={slug} href={`/dieta?periodo=${slug}#compras`} aria-current={days === count ? "true" : undefined} className={`inline-flex min-h-[34px] items-center rounded-full px-3.5 ${days === count ? "bg-[var(--glass-selected)] font-semibold text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-text-secondary hover:text-text-primary"}`}>{count} dias</Link>
+              ))}
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+          <details className={styles.planManagement}><summary>Enviar estimativa ao Fluxa</summary><div className="grid gap-3 py-3">
             <div>
-              <p className="text-sm font-medium text-zinc-200">Meta de mercado no Fluxa</p>
-              <p className="mt-1 text-xs text-zinc-500">Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga.</p>
+              <p className="text-sm font-medium">Meta de mercado no Fluxa</p>
+              <p className="mt-1 text-xs text-text-muted">Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga.</p>
             </div>
             <form action={syncShoppingBudgetToFluxaAction} className="grid w-full gap-3">
-              <p className="text-sm text-zinc-200">Valor para 30 dias: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {monthlyBudget.items.length} itens com preço.</p>
-              <p className="text-xs leading-5 text-zinc-400">Ao confirmar, a meta mensal de Mercado será substituída por este valor. Uma meta ajustada manualmente no Fluxa também será substituída.</p>
-              {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-amber-100"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1 accent-lime-300" />Estou ciente de que {monthlyBudget.summary.missingPriceCount} itens estão sem preço e quero enviar apenas a estimativa parcial.</label> : null}
+              <p className="text-sm">Valor para 30 dias: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {monthlyBudget.items.length} itens com preço.</p>
+              <p className="text-xs leading-5 text-text-muted">Ao confirmar, a meta mensal de Mercado será substituída por este valor. Uma meta ajustada manualmente no Fluxa também será substituída.</p>
+              {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-warning"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1" />Estou ciente de que {monthlyBudget.summary.missingPriceCount} itens estão sem preço e quero enviar apenas a estimativa parcial.</label> : null}
               <input type="hidden" name="periodo" value={periodo ?? "quinzenal"} />
-              <SubmitButton disabled={!plan?.isActive || monthlyBudget.summary.estimatedTotal <= 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-40">
+              <SubmitButton disabled={!plan?.isActive || monthlyBudget.summary.estimatedTotal <= 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong disabled:opacity-40">
                 <Send size={15} />
                 Confirmar atualização da meta
               </SubmitButton>
             </form>
           </div>
+          </details>
           {fluxa ? <FluxaSyncStatus status={fluxa} /> : null}
           <ShoppingListExport title={`Lista de compras ShapeOS - ${days} dias`} items={shoppingExportItems} />
-          <div className="mt-5 grid gap-3 text-sm text-zinc-300">
+          <div className={styles.shoppingItems}>
             {[...shopping.entries()].map(([name, item]) => (
-              <div key={name} className="rounded-2xl bg-black/25 px-4 py-3">
+              <div key={name} className="rounded-2xl bg-surface-tertiary px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span>{name}</span>
-                  <span className="font-medium text-zinc-100">
+                  <span className="font-medium tabular-nums">
                     {item.isWholeChickenEgg
                       ? formatEggUnits(item.buyGrams)
                       : <>{item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}{formatShoppingWeight(item.buyGrams)}</>}
                   </span>
                 </div>
                 {item.isLeanCookedPorkLeg ? (
-                  <div className="mt-1 space-y-1 text-xs text-zinc-500">
+                  <div className="mt-1 space-y-1 text-xs text-text-muted">
                     <p>Necessário pronto: {formatShoppingWeight(item.plannedReadyGrams)}</p>
                     <p>Quantidade ajustada considerando osso, gordura removida e perda no cozimento.</p>
                   </div>
                 ) : item.unitLabel === "cru" ? (
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     Comprar cru. O plano mostra {formatShoppingWeight(item.plannedReadyGrams)} já pronto para comer.
                   </p>
                 ) : null}
                 {item.isWholeChickenEgg ? (
-                  <p className="mt-1 text-xs text-zinc-500">Conversão: 1 ovo = aproximadamente 53 g.</p>
+                  <p className="mt-1 text-xs text-text-muted">Conversão: 1 ovo = aproximadamente 53 g.</p>
                 ) : null}
                 {item.pricePerKg != null ? (
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     {item.isWholeChickenEgg ? `R$ ${wholeEggUnitPrice(item.pricePerKg).toFixed(2).replace(".", ",")}/unidade - ` : ""}
                     Estimado: R$ {shoppingItemCost(item).toFixed(2).replace(".", ",")}
                   </p>
-                ) : <p className="mt-1 text-xs text-amber-200">Sem preço · fora da estimativa</p>}
+                ) : <p className="mt-1 text-xs text-warning">Sem preço · fora da estimativa</p>}
               </div>
             ))}
-            {!shopping.size ? <p className="text-zinc-500">Gere um plano para ver a lista.</p> : null}
+            {!shopping.size ? <p className="text-text-muted">Gere um plano para ver a lista.</p> : null}
             {estimatedCost > 0 ? (
-              <div className="rounded-2xl border border-lime-300/20 bg-lime-300/10 px-4 py-3 text-lime-100">
+              <div className="font-semibold">
                 {missingPriceCount > 0 ? "Estimativa parcial" : "Custo estimado do período"}: {estimatedCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                <p className="mt-1 text-xs">{shopping.size - missingPriceCount} de {shopping.size} itens com preço.{missingPriceCount > 0 ? " O total da compra será maior ao incluir os itens faltantes." : " Valores podem variar por marca e mercado."}</p>
+                <p className="mt-1 text-xs font-normal text-text-muted">{shopping.size - missingPriceCount} de {shopping.size} itens com preço.{missingPriceCount > 0 ? " O total da compra será maior ao incluir os itens faltantes." : " Valores podem variar por marca e mercado."}</p>
               </div>
             ) : (
-              shopping.size ? <p className="text-xs leading-5 text-zinc-500">Preencha os preços dos alimentos para estimar o custo da lista.</p> : null
+              shopping.size ? <p className="text-xs leading-5 text-text-muted">Preencha os preços dos alimentos para estimar o custo da lista.</p> : null
             )}
           </div>
-        </GlassCard>
+        </section>);
+  const plannedMacros = [
+    { label: "Calorias", value: totals.kcal, target: metrics.targets.calories, unit: "kcal", color: "#eef0eb" },
+    { label: "Proteínas", value: totals.protein, target: metrics.targets.proteinG, unit: "g", color: "#77cce9" },
+    { label: "Carboidratos", value: totals.carbs, target: metrics.targets.carbsG, unit: "g", color: "#b9f83e" },
+    { label: "Gorduras", value: totals.fat, target: metrics.targets.fatG, unit: "g", color: "#f7c744" },
+  ];
+
+  return <AppShell>
+    <PageHeading title="Dieta" description={plan?.name ?? "Organize suas refeições."}><a href="/diario">Abrir diário</a></PageHeading>
+    <Stack>
+    <ReliabilityNotice status={actionStatus ?? reviewIssue} />
+    {plan && planStatus && <section className={`panel ${styles.overview}`} aria-label="Resumo do plano alimentar">
+      <header><h2>Planejado no dia</h2></header>
+      <div className={styles.calories}>
+        <MacroRings
+          className={styles.rings}
+          rings={plannedMacros.map((macro) => ({ pct: macro.value / Math.max(1, macro.target) * 100, color: macro.color }))}
+          value={Math.round(totals.kcal).toLocaleString("pt-BR")}
+          caption="kcal planejadas"
+          label={plannedMacros.map((macro) => `${macro.label}: ${Math.round(macro.value)} de ${macro.target} ${macro.unit} planejados`).join("; ")}
+        />
       </div>
-    </AppShell>
-  );
+      <div className={styles.macros}>{plannedMacros.map((macro) => <div key={macro.label}><div><span>{macro.label}</span><strong>{Math.round(macro.value).toLocaleString("pt-BR")} <small>/ {macro.target.toLocaleString("pt-BR")} {macro.unit}</small></strong></div><progress max={Math.max(1,macro.target)} value={macro.value} aria-label={`${macro.label}: ${Math.round(macro.value)} de ${macro.target} ${macro.unit} planejados`} /></div>)}</div>
+      <footer><span>{planStatus.label}</span><p>{planStatus.diffLabel}. Ajuste as porções nas refeições abaixo.</p></footer>
+    </section>}
+    <WorkspaceTabs label="Organizar dieta" initial={!plan ? 2 : 0} items={[
+      { id:"refeicoes", label:"Refeições", content:mealView },
+      { id:"compras", label:"Compras", content:shoppingView },
+      { id:"planos", label:"Meus planos", content:management },
+    ]} />
+    </Stack>
+  </AppShell>;
 }
 
 function FluxaSyncStatus({ status }: { status: string }) {
   const messages: Record<string, { text: string; tone: string }> = {
-    ok: { text: "Meta mensal de Mercado atualizada no Fluxa.", tone: "border-lime-300/25 bg-lime-300/10 text-lime-100" },
-    config: { text: "A conexão com o Fluxa ainda não está disponível. Tente novamente mais tarde.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
-    "no-plan": { text: "Ative uma dieta antes de enviar ao Fluxa.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
-    "no-prices": { text: "Cadastre preços nos alimentos antes de enviar o orçamento.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
-    "partial-prices": { text: "Há itens sem preço. Confira o valor mensal e confirme o envio da estimativa parcial.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
-    account: { text: "Não encontrei no Fluxa uma conta com o mesmo e-mail.", tone: "border-amber-300/25 bg-amber-300/10 text-amber-100" },
-    offline: { text: "O Fluxa não respondeu. Tente novamente em alguns instantes.", tone: "border-red-300/25 bg-red-300/10 text-red-100" },
-    error: { text: "O Fluxa recusou a sincronização. Confira a configuração.", tone: "border-red-300/25 bg-red-300/10 text-red-100" },
+    ok: { text: "Meta mensal de Mercado atualizada no Fluxa.", tone: "bg-success/10 text-success" },
+    config: { text: "A conexão com o Fluxa ainda não está disponível. Tente novamente mais tarde.", tone: "bg-warning/10 text-warning" },
+    "no-plan": { text: "Ative uma dieta antes de enviar ao Fluxa.", tone: "bg-warning/10 text-warning" },
+    "no-prices": { text: "Cadastre preços nos alimentos antes de enviar o orçamento.", tone: "bg-warning/10 text-warning" },
+    "partial-prices": { text: "Há itens sem preço. Confira o valor mensal e confirme o envio da estimativa parcial.", tone: "bg-warning/10 text-warning" },
+    account: { text: "Não encontrei no Fluxa uma conta com o mesmo e-mail.", tone: "bg-warning/10 text-warning" },
+    offline: { text: "O Fluxa não respondeu. Tente novamente em alguns instantes.", tone: "bg-danger/10 text-danger" },
+    error: { text: "O Fluxa recusou a sincronização. Confira a configuração.", tone: "bg-danger/10 text-danger" },
   };
   const message = messages[status];
   if (!message) return null;
-  return <p className={`mt-3 rounded-2xl border px-4 py-3 text-sm ${message.tone}`}>{message.text}</p>;
+  return <p className={`mt-3 rounded-[14px] px-4 py-3 text-sm ${message.tone}`}>{message.text}</p>;
 }
 
 function formatShoppingWeight(grams: number) {
@@ -485,16 +477,6 @@ function dietStatus(planned: number, target: number) {
   };
 }
 
-function DietTarget({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="rounded-2xl bg-black/25 px-4 py-3">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-zinc-100">{value}</p>
-      <p className="mt-1 text-xs text-zinc-500">{detail}</p>
-    </div>
-  );
-}
-
 function planSummary(meals: Array<{
   items: Array<{
     grams: number;
@@ -511,15 +493,7 @@ function planSummary(meals: Array<{
 }>) {
   return meals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
-      const nutrients = nutrientsForGrams({
-        name: item.food.name,
-        kcalPer100g: item.food.kcalPer100g,
-        proteinPer100g: item.food.proteinPer100g,
-        carbsPer100g: item.food.carbsPer100g,
-        fatPer100g: item.food.fatPer100g,
-        fiberPer100g: item.food.fiberPer100g ?? 0,
-        sodiumPer100g: item.food.sodiumPer100g ?? 0,
-      }, item.grams);
+      const nutrients = nutrientsForGrams(toFoodNutrients(item.food), item.grams);
 
       return {
         kcal: acc.kcal + nutrients.kcal,

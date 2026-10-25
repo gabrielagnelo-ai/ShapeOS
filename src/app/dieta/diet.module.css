@@ -1,0 +1,82 @@
+/* Dieta: the planned day, the meals as disclosures, the plans and the shopping list. */
+/* The hero of Dieta: the planned day against the goals. */
+.overview { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; gap: 24px 36px; background: var(--hero-material); border-radius: 28px; box-shadow: var(--panel-shadow); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); animation: var(--enter); animation-delay: var(--enter-delay); padding: 28px; }
+.overview > header { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.calories { display: grid; place-items: center; }
+.rings { width: 220px; }
+.macros { display: grid; gap: 16px; }
+.macros > div > div { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.macros strong { font-weight: 600; color: var(--text-primary); }
+.macros small { color: var(--text-muted); font-size: 13px; font-weight: 400; white-space: nowrap; }
+.macros progress { display: block; width: 100%; height: 6px; appearance: none; border: 0; border-radius: 99px; overflow: hidden; background: var(--fill); margin-top: 8px; }
+.macros progress::-webkit-progress-bar { background: var(--fill); }
+.overview > footer { grid-column: 1/-1; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--hairline); padding-top: 16px; font-size: 13px; }
+.overview > footer > span { color: var(--text-primary); font-weight: 600; white-space: nowrap; }
+.overview > footer > p { color: var(--text-muted); }
+/* The same nutrient colours as Hoje: energy, protein, carbohydrate, fat. */
+.macros > div:nth-child(1) { --nutrient-color: var(--kcal); }
+.macros > div:nth-child(2) { --nutrient-color: var(--protein); }
+.macros > div:nth-child(3) { --nutrient-color: var(--carbs); }
+.macros > div:nth-child(4) { --nutrient-color: var(--fat); }
+.macros > div > div > span { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+.macros > div > div > span::before { content: ""; width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--nutrient-color); }
+.macros progress::-webkit-progress-value { background: var(--nutrient-color); border-radius: 99px; }
+.macros progress::-moz-progress-bar { background: var(--nutrient-color); border-radius: 99px; }
+
+.mealWorkspace { max-width: 1100px; }
+.meals { margin-top: 24px; }
+.mealWorkspace .meals { display: grid; gap: 12px; margin-top: 0; }
+.meal { background: var(--bg-secondary); border-radius: 22px; box-shadow: var(--panel-shadow); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); animation: var(--enter); animation-delay: var(--enter-delay); overflow: hidden; }
+.meal > summary { display: flex; align-items: center; gap: 16px; list-style: none; padding: 18px 20px; cursor: pointer; }
+.meal > summary:hover { background: rgb(36 42 40 / .6); }
+.meal > summary::-webkit-details-marker { display: none; }
+/* The rounded-square glyph tile of iOS rows. */
+.mealSymbol { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; flex-shrink: 0; background: linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,0) 62%), #ff9500; color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.08); }
+.mealSymbol svg { width: 20px; height: 20px; }
+.mealTitle { flex: 1; min-width: 0; }
+.mealTitle h3 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.mealTitle p { color: var(--text-muted); font-size: 13px; line-height: 18px; margin-top: 2px; max-width: 70ch; }
+.mealEnergy { text-align: right; display: flex; flex-direction: column; min-width: 60px; }
+.mealEnergy strong { font-size: 20px; line-height: 24px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.mealEnergy span { font-size: 12px; color: var(--text-muted); }
+.mealChevron { color: var(--text-muted); transition: transform 200ms cubic-bezier(.25,1,.5,1); }
+.meal[open] .mealChevron { transform: rotate(180deg); }
+.mealNutrients { display: flex; gap: 24px; padding: 12px 20px 12px 72px; border-top: 1px solid var(--hairline); color: var(--text-muted); font-size: 13px; }
+.mealNutrients b { font-weight: 600; color: var(--text-secondary); margin-left: 6px; }
+.mealEditor { padding: 0 20px 20px 72px; }
+.foodRow { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--hairline); }
+.foodRow input { text-align: right; font-variant-numeric: tabular-nums; }
+.mealEditor .foodRow { padding: 12px 0; }
+.mealEditor > form { margin-top: 16px; }
+
+.planWorkspace { max-width: 1000px; }
+.planManagement { margin-top: 20px; padding-block: 8px; border-block: 1px solid var(--hairline); }
+.planManagement > summary { display: flex; justify-content: space-between; gap: 16px; align-items: center; min-height: 44px; cursor: pointer; font-weight: 600; list-style: none; }
+.planManagement > summary::-webkit-details-marker { display: none; }
+.planManagement > summary span { color: var(--text-muted); font-size: 13px; font-weight: 400; }
+.planManagement > summary::after { content: "+"; font-size: 20px; color: var(--text-muted); }
+.planManagement[open] > summary::after { content: "−"; }
+.shoppingWorkspace { max-width: 1000px; }
+.shoppingItems { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; margin-top: 24px; }
+.shoppingItems > div { border-radius: 0; background: transparent; padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+.shoppingItems > div:last-child { grid-column: 1/-1; }
+.shoppingWorkspace .planManagement { margin-bottom: 20px; }
+
+@media (max-width: 1000px) { .overview { gap: 24px; padding: 24px; } }
+@media (max-width: 760px) { .overview > footer { align-items: flex-start; } .shoppingItems { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .overview { grid-template-columns: 1fr; gap: 24px; } .overview > header { align-items: flex-start; flex-wrap: wrap; gap: 10px; } .rings { width: 196px; } }
+@media (max-width: 480px) {
+  .meal > summary { padding: 14px 16px; gap: 12px; }
+  .mealSymbol { width: 32px; height: 32px; border-radius: 9px; }
+  .mealSymbol svg { width: 17px; height: 17px; }
+  .mealTitle p { font-size: 12px; }
+  .mealEnergy strong { font-size: 18px; }
+  .mealChevron { width: 14px; }
+  .mealNutrients { padding: 12px 16px; gap: 14px; flex-wrap: wrap; }
+  .mealEditor { padding: 0 16px 16px; }
+  .overview { padding: 20px; }
+  .overview > footer { flex-direction: column; gap: 4px; }
+  .mealEditor .foodRow > span { flex-basis: 100%; }
+  .mealEditor .foodRow > form:nth-of-type(1) { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .mealChevron { transition: none; } }

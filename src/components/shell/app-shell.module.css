@@ -1,0 +1,140 @@
+/* App pages after the TBS Engine design (iOS 26/27): a dark ground with the brand mark
+   under frosted glass, solid content panels (22px), and glass only on the floating
+   controls. */
+.workspace {
+  --motion-ease: cubic-bezier(.25, 1, .5, 1);
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-optical-sizing: auto;
+  letter-spacing: -.005em;
+  line-height: 1.5;
+}
+
+/* No bar: the logo and the dock float, and content blurs as it passes beneath. */
+.toolbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+}
+.brandMark { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
+/* During the launch the flying mark stands in for this one and lands on its place. */
+:global(html[data-shapeos-intro]) .brandMark { opacity: 0; }
+
+.content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+  padding: 104px 32px 64px;
+  outline: none;
+  scroll-margin-top: 90px;
+}
+
+.skipLink {
+  position: fixed;
+  top: 12px;
+  left: 16px;
+  z-index: 60;
+  padding: 12px 18px;
+  border-radius: 999px;
+  color: var(--primary-ink);
+  background: var(--primary);
+  font-weight: 600;
+  transform: translateY(-180%);
+}
+.skipLink:focus { transform: none; }
+
+/* Large title (iOS): 34px, one per page, on the page ground rather than in a panel. */
+.workspace h1 {
+  font-size: 34px !important;
+  line-height: 41px !important;
+  letter-spacing: -.02em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+.workspace h2 { line-height: 1.27; letter-spacing: -.015em; }
+.workspace :global(.text-zinc-400), .workspace :global(.text-zinc-500), .workspace :global(.text-zinc-600) { color: var(--text-muted); }
+.workspace :global(.text-zinc-300) { color: var(--text-secondary); }
+
+/* Content card: Liquid Glass over the living backdrop, no border, no hover lift. A component
+   can change its own card with --panel-background and --panel-padding instead of
+   out-ranking this rule. */
+.workspace :global(.shapeos-panel) {
+  background: var(--panel-background, var(--bg-secondary));
+  border: 0;
+  border-radius: 22px;
+  box-shadow: var(--panel-shadow);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
+  transition: none;
+  padding: var(--panel-padding, 24px);
+}
+.workspace :global(.shapeos-panel)::before { display: none; }
+/* Never a card inside a card, nor glass on glass: nested panels become plain inset areas. */
+.workspace :global(.shapeos-panel .shapeos-panel) { background: var(--bg-tertiary); box-shadow: none; border-radius: 14px; padding: 18px; -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
+
+/* Buttons: the filled lime capsule is the one main action of a view. */
+.workspace :global(.bg-lime-300):is(button, a) { background: var(--primary); color: var(--primary-ink); box-shadow: none; }
+.workspace :global(.bg-lime-300):is(button, a):hover { background: var(--primary-light); }
+
+/* Fields: filled, borderless, 14px. */
+.workspace input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="file"]),
+.workspace select,
+.workspace textarea {
+  min-height: 44px;
+  border-radius: 14px;
+  background-color: var(--fill);
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px;
+  box-shadow: none;
+}
+.workspace :is(input, select, textarea):focus { border-color: var(--hairline-strong); }
+.workspace textarea { min-height: 104px; }
+.workspace input::placeholder, .workspace textarea::placeholder { color: var(--text-muted); }
+.workspace input[type="checkbox"], .workspace input[type="radio"], .workspace input[type="range"] { accent-color: var(--primary); }
+/* Touch target; a smaller control sets --button-min-height on itself. */
+.workspace button { min-height: var(--button-min-height, 44px); }
+.workspace :is(button, a[class*="rounded"]) {
+  transition: transform 200ms var(--motion-ease), background-color 160ms ease-out, color 160ms ease-out, opacity 160ms ease-out;
+}
+/* Press: shrink to 96%, as on iOS. */
+.workspace :is(button, a[class*="rounded"]):active:not(:disabled) { transform: scale(.96); transition-duration: 0ms; }
+.workspace button:disabled { cursor: not-allowed; }
+.workspace :is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.workspace th { text-align: start; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.workspace :is(td, th) { padding-block: 14px; }
+.workspace td { font-variant-numeric: tabular-nums; }
+/* No page-wide entrance: an animated wrapper would cut the glass inside it off from the
+   backdrop. Each card rises on its own (--enter in globals.css). */
+.arrival { min-width: 0; }
+
+@media (max-width: 1279px) {
+  .content { padding: 92px 24px calc(112px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 640px) {
+  .content { padding: 80px 16px calc(112px + env(safe-area-inset-bottom)); }
+  .workspace :global(.shapeos-panel) { padding: var(--panel-padding, 20px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace *, .workspace *::before, .workspace *::after {
+    animation: none !important;
+    transition-property: color, background-color, opacity !important;
+    transition-duration: 100ms !important;
+    scroll-behavior: auto !important;
+  }
+  .workspace :is(button, a[class*="rounded"]):active { transform: none; }
+}
+@media print {
+  .toolbar, .skipLink { display: none; }
+  .content { padding: 0; max-width: none; }
+}

@@ -1,0 +1,19 @@
+/* Progresso: the body model beside the week's summary, then the check-in history. */
+.overview { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: 24px; align-items: start; }
+.model { --panel-padding: 24px; }
+.summary { display: grid; gap: 24px; }
+.summaryAction { width: 100%; }
+.wellbeing { margin-bottom: 24px; }
+.wellbeing > div { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+.wellbeing > div:last-child { border-bottom: 0; }
+.wellbeing dt { font-size: 15px; color: var(--text-secondary); }
+.wellbeing dd { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.insight > p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-top: 8px; }
+.insight > strong { display: block; font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -.03em; color: var(--text-primary); margin: 16px 0; }
+.insight > strong span { font-size: 15px; color: var(--text-muted); font-weight: 400; letter-spacing: 0; }
+.insight > a { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin-top: 16px; border-top: 1px solid var(--hairline); padding-top: 12px; font-size: 15px; font-weight: 500; color: var(--primary); }
+.history { max-width: 960px; }
+.historyList { display: grid; gap: 12px; }
+@media (max-width: 1000px) { .overview { grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr); gap: 20px; } }
+@media (max-width: 760px) { .overview { grid-template-columns: 1fr; } .summary { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .summary { grid-template-columns: 1fr; } }

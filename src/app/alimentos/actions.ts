@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { endOfToday, startOfToday } from "@/lib/profile";
 import { isWholeChickenEgg, wholeEggPricePerKg } from "@/lib/shopping-list";
+import { round1 } from "@/lib/common";
 
 export async function createCustomFoodAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -32,12 +33,12 @@ export async function createCustomFoodAction(formData: FormData) {
     data: {
       name,
       category,
-      kcalPer100g: round(kcal),
-      proteinPer100g: round(protein),
-      carbsPer100g: round(carbs),
-      fatPer100g: round(fat),
-      fiberPer100g: fiber == null ? null : round(fiber * multiplier),
-      sodiumPer100g: sodium == null ? null : round(sodium * multiplier),
+      kcalPer100g: round1(kcal),
+      proteinPer100g: round1(protein),
+      carbsPer100g: round1(carbs),
+      fatPer100g: round1(fat),
+      fiberPer100g: fiber == null ? null : round1(fiber * multiplier),
+      sodiumPer100g: sodium == null ? null : round1(sodium * multiplier),
       pricePerKg,
       source: "Usuário",
       createdByUserId: user.id,
@@ -184,8 +185,4 @@ function parseNumber(value: FormDataEntryValue | null) {
 function parseOptionalNumber(value: FormDataEntryValue | null) {
   const parsed = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function round(value: number) {
-  return Math.round(value * 10) / 10;
 }

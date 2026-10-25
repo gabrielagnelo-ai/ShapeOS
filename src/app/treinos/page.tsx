@@ -1,13 +1,18 @@
-import { Activity, Dumbbell, FileUp, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
+import { PageHeading } from "@/components/ui/page-heading";
+import { Hero, Section, Stack } from "@/components/ui/screen";
+import { Activity, Check, Dumbbell, FileUp, ShieldAlert, Trash2, TrendingUp } from "lucide-react";
 import { AppShell } from "@/components/shell/app-shell";
 import { GlassCard } from "@/components/ui/glass-card";
+import { IconTile } from "@/components/ui/group";
 import { appDateInputValue } from "@/lib/date-time";
 import { prisma } from "@/lib/prisma";
 import { requireUserProfile } from "@/lib/profile";
 import { analyzeTrainingPerformance, trainingLogsFromPlans, trainingPerformanceTone } from "@/lib/training-performance";
 import { createManualTrainingPlanAction, deleteTrainingExerciseLogAction, deleteTrainingPlanAction, importTrainingPdfAction, logTrainingExerciseAction, setActiveTrainingPlanAction } from "./actions";
+import { confidenceLabel, formatNumber } from "@/lib/common";
 
-export default async function TrainingPage() {
+export default async function TrainingPage({ searchParams }: { searchParams: Promise<{ importStatus?: string }> }) {
+  const { importStatus } = await searchParams;
   const { user } = await requireUserProfile();
   const plans = await prisma.trainingPlan.findMany({
     where: { userId: user.id },
@@ -26,171 +31,68 @@ export default async function TrainingPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-lime-300">Treinos</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Plano de treino por PDF</h1>
-          <p className="mt-3 max-w-3xl text-zinc-400">
-            Importe o PDF do seu treino. O ShapeOS transforma em dias, exercicios, series e repeticoes para usar como contexto no Coach e no relatorio.
-          </p>
-        </div>
-        <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-right">
-          <p className="text-2xl font-semibold text-lime-200">{activePlan ? activePlan.days.length : 0}</p>
-          <p className="text-xs text-zinc-400">dias no plano ativo</p>
-        </div>
-      </div>
+      <PageHeading title="Treinos" description="Organize os exercícios e registre carga, repetições e esforço." />
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
-        <GlassCard className="border-lime-300/25">
-          <div className="flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-2xl bg-lime-300/15 text-lime-300">
-              <FileUp size={22} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Importar PDF</h2>
-              <p className="mt-1 text-sm text-zinc-500">PDF ate 8 MB. Depois confira se a IA leu tudo corretamente.</p>
-            </div>
-          </div>
-          <form action={importTrainingPdfAction} className="mt-6 grid gap-4">
-            <input
-              name="trainingPdf"
-              type="file"
-              accept="application/pdf"
-              required
-              className="w-full rounded-3xl border border-dashed border-white/10 bg-black/25 px-4 py-5 text-sm text-zinc-300 file:mr-4 file:rounded-full file:border-0 file:bg-lime-300 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-black"
-            />
-            <button className="rounded-full bg-lime-300 px-5 py-3 font-semibold text-black transition hover:bg-lime-200">
-              Importar e interpretar com IA
-            </button>
-          </form>
-          <p className="mt-4 text-xs leading-5 text-zinc-500">
-            A IA pode errar em PDFs com foto, tabela quebrada ou baixa qualidade. Use como pre-preenchimento e revise antes de considerar oficial.
-          </p>
-        </GlassCard>
-
-        <GlassCard>
-          <div className="flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-2xl bg-white/10 text-lime-300">
-              <Dumbbell size={22} />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Resumo ativo</h2>
-              <p className="mt-1 text-sm text-zinc-500">{activePlan ? activePlan.name : "Nenhum treino importado ainda."}</p>
-            </div>
-          </div>
-
-          {activePlan ? (
-            <div className="mt-5 grid gap-2 sm:grid-cols-3">
-              <Summary label="Dias" value={String(activePlan.days.length)} />
-              <Summary label="Exercicios" value={String(activePlan.days.reduce((sum, day) => sum + day.exercises.length, 0))} />
-              <Summary label="Origem" value={activePlan.sourceFileName ?? "manual"} />
-            </div>
-          ) : (
-            <p className="mt-5 rounded-3xl bg-black/25 p-4 text-sm leading-6 text-zinc-400">
-              Suba o PDF do treino para o ShapeOS usar volume, divisao muscular e frequencia como contexto para dieta, recuperacao e tendencia corporal.
-            </p>
-          )}
-        </GlassCard>
-      </div>
-
-      <GlassCard className={`mt-5 ${performanceTone === "danger" ? "border-red-400/30 bg-red-400/[0.06]" : performanceTone === "good" ? "border-lime-300/30 bg-lime-300/[0.06]" : "border-white/10"}`}>
-        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex items-start gap-4">
-            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/10 text-lime-300">
-              <TrendingUp size={22} />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold">Performance do treino</h2>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-zinc-300">confiança {confidenceLabel(performance.confidence)}</span>
+      {importStatus === "unreadable" ? <p role="status" className="mt-5 rounded-[14px] bg-warning/10 p-4 text-sm text-warning">Não foi possível identificar o treino no texto deste PDF. Seu plano atual foi mantido. Use o cadastro manual abaixo.</p> : null}
+      <Stack>
+        <Hero aria-label="Performance do treino">
+          <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex items-start gap-3">
+              <IconTile icon={TrendingUp} colour={performanceTone === "danger" ? "red" : performanceTone === "good" ? "green" : "gray"} />
+              <div>
+                <h2>Performance do treino</h2>
+                <p className="mt-0.5 text-sm text-text-muted">Confiança {confidenceLabel(performance.confidence)}{activePlan ? ` · ${activePlan.name}: ${activePlan.days.length} ${activePlan.days.length === 1 ? "dia" : "dias"}, ${activePlan.days.reduce((sum, day) => sum + day.exercises.length, 0)} exercícios` : ""}</p>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">{performance.primaryMessage}</p>
               </div>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">{performance.primaryMessage}</p>
+            </div>
+            <div className="text-center lg:pr-2">
+              <p className="text-[40px] font-bold leading-[44px] tracking-[-0.03em] tabular-nums">{performance.score}</p>
+              <p className="text-xs text-text-muted">pontuação</p>
             </div>
           </div>
-          <div className="rounded-[28px] bg-black/30 px-6 py-5 text-center">
-            <p className="text-4xl font-semibold tracking-tight">{performance.score}</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-zinc-500">score</p>
+          <div className="mt-5 grid grid-cols-2 overflow-hidden rounded-[14px] bg-surface-tertiary lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
+            <Summary label="Tendência" value={trendLabel(performance.trend)} />
+            <Summary label="Dias registrados" value={String(performance.trainedDays)} />
+            <Summary label="Comparáveis" value={String(performance.comparableExercises)} />
+            <Summary label="Subiram" value={String(performance.improvedExercises)} />
+            <Summary label="Caíram" value={String(performance.declinedExercises)} />
           </div>
-        </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          <Summary label="Tendencia" value={trendLabel(performance.trend)} />
-          <Summary label="Dias registrados" value={String(performance.trainedDays)} />
-          <Summary label="Comparaveis" value={String(performance.comparableExercises)} />
-          <Summary label="Subiram" value={String(performance.improvedExercises)} />
-          <Summary label="Cairam" value={String(performance.declinedExercises)} />
-        </div>
-        {performance.alerts.length ? (
-          <div className="mt-5 grid gap-2 lg:grid-cols-2">
-            {performance.alerts.slice(0, 2).map((alert) => (
-              <div key={alert.message} className="flex gap-3 rounded-3xl border border-white/10 bg-black/25 p-4">
-                <div className="mt-0.5 text-lime-300">{alert.type === "drop" || alert.type === "fatigue" ? <ShieldAlert size={18} /> : <Activity size={18} />}</div>
-                <p className="text-sm leading-6 text-zinc-300">{alert.message}</p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </GlassCard>
-
-      <GlassCard className="mt-5 border-white/10">
-        <div className="flex items-start gap-3">
-          <div className="grid size-12 place-items-center rounded-2xl bg-white/10 text-lime-300">
-            <Dumbbell size={22} />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">Cadastrar manualmente</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500">
-              Cole seu treino em texto. Use linhas por dia e exercicios abaixo. Exemplo: Segunda - Pull; depois 1. Pulley frente - 3x | 6-10 | RPE 8.
-            </p>
-          </div>
-        </div>
-        <form action={createManualTrainingPlanAction} className="mt-5 grid gap-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <input name="name" className={inputClass} placeholder="Nome do treino. Ex: Pull Lower Push" />
-            <input name="notes" className={inputClass} placeholder="Observacao opcional" />
-          </div>
-          <textarea
-            name="trainingText"
-            required
-            className="min-h-72 rounded-3xl border border-white/10 bg-black/30 px-4 py-4 text-sm leading-6 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-lime-300/50"
-            placeholder={`TREINO NOVO
-SEGUNDA - PULL (Costas + Biceps)
-1. Pulley frente - 3x | 6-10 | RPE 7-8
-2. Remada maquina - 3x | 8-12
-
-TERCA - LOWER (Quadriceps)
-1. Agachamento Hack - 3x | 6-10
-2. Leg press - 3x | 8-12`}
-          />
-          <button className="rounded-full bg-white/10 px-5 py-3 font-semibold text-zinc-100 transition hover:bg-white/15">
-            Salvar treino manual
-          </button>
-        </form>
-      </GlassCard>
-
-      <div className="mt-5 grid gap-4">
+          {performance.alerts.length ? (
+            <div className="mt-4 grid lg:grid-cols-2 lg:gap-x-6">
+              {performance.alerts.slice(0, 2).map((alert) => (
+                <div key={alert.message} className="flex gap-3 border-b border-hairline py-3 last:border-b-0 lg:border-b-0">
+                  <div className={`mt-0.5 ${alert.type === "drop" || alert.type === "fatigue" ? "text-warning" : "text-text-muted"}`}>{alert.type === "drop" || alert.type === "fatigue" ? <ShieldAlert size={18} /> : <Activity size={18} />}</div>
+                  <p className="text-sm leading-6 text-text-secondary">{alert.message}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </Hero>
+        <Section title="Seus planos">
+          {plans.length ? null : <GlassCard><p className="text-sm leading-6 text-text-muted">Nenhum treino ainda. Importe um PDF ou monte o treino em texto logo abaixo para começar a registrar as séries.</p></GlassCard>}
         {plans.map((plan) => (
-          <GlassCard key={plan.id} className={plan.isActive ? "border-lime-300/30" : ""}>
+          <GlassCard key={plan.id}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-semibold tracking-tight">{plan.name}</h2>
-                  {plan.isActive ? <span className="rounded-full bg-lime-300/15 px-3 py-1 text-xs font-semibold text-lime-100">ativo</span> : null}
+                  <h2>{plan.name}</h2>
+                  {plan.isActive ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-success"><Check size={13} aria-hidden="true" />Ativo</span> : null}
                 </div>
-                <p className="mt-2 text-sm text-zinc-500">
-                  {plan.sourceFileName ? `Importado de ${plan.sourceFileName}` : "Plano sem PDF anexado"} - {plan.createdAt.toLocaleDateString("pt-BR")}
+                <p className="mt-1 text-sm text-text-muted">
+                  {plan.sourceFileName ? `Importado de ${plan.sourceFileName}` : "Plano sem PDF anexado"} · {plan.createdAt.toLocaleDateString("pt-BR")}
                 </p>
-                {plan.notes ? <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">{plan.notes}</p> : null}
+                {plan.notes ? <p className="mt-3 max-w-3xl text-sm leading-6 text-text-secondary">{plan.notes}</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 {!plan.isActive ? (
                   <form action={setActiveTrainingPlanAction}>
                     <input type="hidden" name="planId" value={plan.id} />
-                    <button className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:bg-white/15">Ativar</button>
+                    <button className="min-h-10 rounded-full bg-primary/15 px-4 text-sm font-semibold text-primary hover:bg-primary/20">Ativar</button>
                   </form>
                 ) : null}
                 <form action={deleteTrainingPlanAction}>
                   <input type="hidden" name="planId" value={plan.id} />
-                  <button className="inline-flex items-center gap-2 rounded-full bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-400/20">
+                  <button className="inline-flex min-h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-semibold text-danger hover:bg-danger/15">
                     <Trash2 size={15} />
                     Excluir
                   </button>
@@ -200,51 +102,51 @@ TERCA - LOWER (Quadriceps)
 
             <div className="mt-5 grid gap-3 xl:grid-cols-2">
               {plan.days.map((day) => (
-                <div key={day.id} className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                <div key={day.id} className="rounded-[14px] bg-surface-tertiary p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold">{day.name}</h3>
-                      <p className="mt-1 text-sm text-zinc-500">{day.focus ?? "Foco nao identificado"}</p>
+                      <h3>{day.name}</h3>
+                      <p className="mt-0.5 text-sm text-text-muted">{day.focus ?? "Foco não identificado"}</p>
                     </div>
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-zinc-400">{day.exercises.length} exercicios</span>
+                    <span className="text-xs text-text-muted">{day.exercises.length} exercícios</span>
                   </div>
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-2">
                     {day.exercises.map((exercise) => (
-                      <div key={exercise.id} className="rounded-2xl bg-white/[0.04] p-3">
+                      <div key={exercise.id} className="border-t border-hairline py-3 first:border-t-0">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
-                            <p className="font-semibold text-zinc-100">{exercise.name}</p>
-                            <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup ?? "grupo nao definido"}</p>
+                            <p className="font-semibold">{exercise.name}</p>
+                            <p className="mt-0.5 text-xs text-text-muted">{exercise.muscleGroup ?? "grupo não definido"}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-semibold text-lime-200">{exercise.sets ?? "-"} x {exercise.reps ?? "-"}</p>
-                            <p className="mt-1 text-xs text-zinc-500">{exercise.logs[0]?.loadKg ? `ultimo ${formatNumber(exercise.logs[0].loadKg)} kg` : "sem carga registrada"}</p>
+                            <p className="text-sm font-semibold tabular-nums">{exercise.sets ?? "-"} × {exercise.reps ?? "-"}</p>
+                            <p className="mt-0.5 text-xs text-text-muted">{exercise.logs[0]?.loadKg ? `último ${formatNumber(exercise.logs[0].loadKg)} kg` : "sem carga registrada"}</p>
                           </div>
                         </div>
-                        <p className="mt-2 text-xs leading-5 text-zinc-500">
+                        <p className="mt-1 text-xs leading-5 text-text-muted">
                           {exercise.restSeconds ? `Descanso ${exercise.restSeconds}s. ` : ""}
                           {exercise.loadInstruction ?? ""}
                           {exercise.notes ? ` ${exercise.notes}` : ""}
                         </p>
-                        <form action={logTrainingExerciseAction} className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-[1.1fr_.7fr_.7fr_.7fr_.7fr_auto]">
+                        <form action={logTrainingExerciseAction} className="mt-3 grid gap-2 md:grid-cols-[1.1fr_.7fr_.7fr_.7fr_.7fr_auto]">
                           <input type="hidden" name="exerciseId" value={exercise.id} />
                           <input name="date" type="date" defaultValue={todayInput()} className={smallInputClass} />
-                          <input name="setsDone" inputMode="numeric" placeholder="series" className={smallInputClass} />
+                          <input name="setsDone" inputMode="numeric" placeholder="séries" className={smallInputClass} />
                           <input name="repsDone" placeholder="reps ex: 10/9/8" className={smallInputClass} />
                           <input name="loadKg" inputMode="decimal" placeholder="kg" className={smallInputClass} />
                           <input name="rpe" inputMode="decimal" placeholder="RPE" className={smallInputClass} />
-                          <button className="rounded-full bg-lime-300 px-4 py-2 text-xs font-semibold text-black">Registrar</button>
+                          <button className="min-h-10 rounded-full bg-primary/15 px-4 text-sm font-semibold text-primary hover:bg-primary/20">Registrar</button>
                         </form>
                         {exercise.logs.length ? (
-                          <div className="mt-3 grid gap-2">
+                          <div className="mt-2 grid">
                             {exercise.logs.map((log) => (
-                              <div key={log.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/20 px-3 py-2 text-xs text-zinc-400">
-                                <span>
-                                  {log.date.toLocaleDateString("pt-BR")} - {log.setsDone ? `${log.setsDone} series` : "series -"} - {log.repsDone ?? "reps -"} - {log.loadKg ? `${formatNumber(log.loadKg)} kg` : "kg -"} {log.rpe ? `- RPE ${formatNumber(log.rpe)}` : ""}
+                              <div key={log.id} className="flex flex-wrap items-center justify-between gap-2 py-1 text-xs text-text-muted">
+                                <span className="tabular-nums">
+                                  {log.date.toLocaleDateString("pt-BR")} · {log.setsDone ? `${log.setsDone} séries` : "séries -"} · {log.repsDone ?? "reps -"} · {log.loadKg ? `${formatNumber(log.loadKg)} kg` : "kg -"} {log.rpe ? `· RPE ${formatNumber(log.rpe)}` : ""}
                                 </span>
                                 <form action={deleteTrainingExerciseLogAction}>
                                   <input type="hidden" name="logId" value={log.id} />
-                                  <button className="rounded-full bg-red-400/10 px-2 py-1 text-red-100 transition hover:bg-red-400/20">Apagar</button>
+                                  <button className="min-h-8 rounded-full px-2.5 text-xs text-danger hover:bg-danger/15">Apagar</button>
                                 </form>
                               </div>
                             ))}
@@ -258,46 +160,93 @@ TERCA - LOWER (Quadriceps)
             </div>
           </GlassCard>
         ))}
-      </div>
+        </Section>
+        <Section title="Adicionar treino" columns={2}>
+        <GlassCard>
+          <div className="flex items-center gap-3">
+            <IconTile icon={FileUp} colour="blue" />
+            <div>
+              <h2>Importar PDF</h2>
+              <p className="mt-0.5 text-sm text-text-muted">PDF com texto selecionável, até 8 MB. Revise os exercícios após importar.</p>
+            </div>
+          </div>
+          <form action={importTrainingPdfAction} className="mt-6 grid gap-4">
+            <input
+              name="trainingPdf"
+              type="file"
+              accept="application/pdf"
+              required
+              className="w-full rounded-[14px] bg-surface-tertiary px-4 py-5 text-sm text-text-secondary"
+            />
+            <button className="min-h-11 rounded-full bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary-light">
+              Importar texto do PDF
+            </button>
+          </form>
+          <p className="mt-4 text-xs leading-5 text-text-muted">
+            A leitura reconhece dias da semana e exercícios numerados. Para PDFs digitalizados ou com outra estrutura, cadastre o treino manualmente.
+          </p>
+        </GlassCard>
+      <GlassCard className="">
+        <div className="flex items-start gap-3">
+          <IconTile icon={Dumbbell} colour="red" />
+          <div>
+            <h2>Montar treino</h2>
+            <p className="mt-0.5 max-w-3xl text-sm leading-6 text-text-muted">
+              Cole seu treino em texto. Use linhas por dia e exercícios abaixo. Exemplo: Segunda - Pull; depois 1. Pulley frente - 3x | 6-10 | RPE 8.
+            </p>
+          </div>
+        </div>
+        <form action={createManualTrainingPlanAction} className="mt-5 grid gap-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <input name="name" className={inputClass} placeholder="Nome do treino. Ex: Pull Lower Push" />
+            <input name="notes" className={inputClass} placeholder="Observação opcional" />
+          </div>
+          <textarea
+            name="trainingText"
+            required
+            className="min-h-72 rounded-[14px] px-4 py-4 text-sm leading-6 outline-none"
+            placeholder={`TREINO NOVO
+SEGUNDA - PULL (Costas + Bíceps)
+1. Pulley frente - 3x | 6-10 | RPE 7-8
+2. Remada máquina - 3x | 8-12
+
+TERÇA - LOWER (Quadríceps)
+1. Agachamento Hack - 3x | 6-10
+2. Leg press - 3x | 8-12`}
+          />
+          <button className="min-h-11 rounded-full bg-fill px-5 font-semibold hover:bg-fill-strong">
+            Salvar treino manual
+          </button>
+        </form>
+      </GlassCard>
+        </Section>
+      </Stack>
     </AppShell>
   );
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">{label}</p>
-      <p className="mt-2 truncate text-lg font-semibold text-zinc-100">{value}</p>
+    <div className="min-w-0 px-4 py-3 shadow-[-1px_0_0_var(--hairline),0_-1px_0_var(--hairline)]">
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className="mt-1 truncate text-[17px] font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
 
-const inputClass = "h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm outline-none placeholder:text-zinc-600 focus:border-lime-300/50";
-const smallInputClass = "h-10 min-w-0 rounded-2xl border border-white/10 bg-black/30 px-3 text-xs outline-none placeholder:text-zinc-600 focus:border-lime-300/50";
+const inputClass = "h-12 rounded-[14px] px-4 text-sm outline-none";
+const smallInputClass = "h-10 min-w-0 rounded-[14px] px-3 text-sm outline-none";
 
 function todayInput() {
   return appDateInputValue();
 }
 
-function formatNumber(value: number) {
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-}
-
 function trendLabel(value: string) {
   const labels: Record<string, string> = {
     improving: "subindo",
-    stable: "estavel",
+    stable: "estável",
     declining: "queda",
     insufficient: "poucos dados",
-  };
-  return labels[value] ?? value;
-}
-
-function confidenceLabel(value: string) {
-  const labels: Record<string, string> = {
-    high: "alta",
-    medium: "media",
-    low: "baixa",
   };
   return labels[value] ?? value;
 }

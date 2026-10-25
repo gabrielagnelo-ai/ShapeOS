@@ -1,0 +1,21 @@
+.goal { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--hairline); }
+.header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.header h3 { font-size: 16px; line-height: 22px; font-weight: 600; color: var(--text-primary); }
+.header p { margin-top: 2px; color: var(--text-muted); font-size: 13px; }
+.header a { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 8px 14px; flex-shrink: 0; background: var(--fill); color: var(--text-primary); border-radius: 999px; font-size: 13px; font-weight: 600; }
+.header a:hover { background: var(--fill-strong); }
+.empty { margin-top: 12px; max-width: 58ch; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.comparison { width: 100%; border-collapse: collapse; margin-top: 20px; font-variant-numeric: tabular-nums; }
+.comparison thead th { color: var(--text-muted); font-size: 12px; font-weight: 400; padding-block: 8px; }
+.comparison th { text-align: left; font-weight: 400; font-size: 13px; }
+.comparison td, .comparison th:not(:first-child) { text-align: right; }
+.comparison tbody tr { border-top: 1px solid var(--hairline); }
+.comparison td { font-size: 15px; padding-block: 12px; }
+.comparison td:last-child { color: var(--text-primary); font-weight: 600; }
+.estimates { margin-top: 16px; font-size: 13px; color: var(--text-muted); }
+.estimates summary { cursor: pointer; min-height: 32px; }
+.estimates dl { margin-top: 8px; }
+.estimates dl div { display: flex; justify-content: space-between; gap: 16px; padding-block: 6px; }
+.estimates dd { text-align: right; color: var(--text-secondary); }
+.estimates p { margin-top: 12px; line-height: 1.6; }
+@media(max-width:480px) { .header { align-items: start; flex-wrap: wrap; } }

@@ -1,3 +1,5 @@
+import { clamp, round1 } from "@/lib/common";
+
 export type SupplementType = "CREATINE" | "BETA_ALANINE" | "MULTIVITAMIN";
 export type SupplementProtocol = "LOADING" | "STEADY";
 
@@ -139,11 +141,11 @@ export function estimateSupplementProgress(input: SupplementPlanInput) {
     percent: pct,
     elapsedDays,
     daysRemaining,
-    loggedDoseG: round(loggedDose),
-    periodDoseG: round(periodDose),
-    totalDoseG: round(observedDose),
-    expectedDoseG: round(expectedDose),
-    targetDoseG: round(targetDose),
+    loggedDoseG: round1(loggedDose),
+    periodDoseG: round1(periodDose),
+    totalDoseG: round1(observedDose),
+    expectedDoseG: round1(expectedDose),
+    targetDoseG: round1(targetDose),
     adherencePct,
     status: statusLabel(input.type, pct),
     guidance: guidanceText(input.type, input.protocol, pct, daysRemaining),
@@ -181,7 +183,7 @@ export function sumSupplementMicronutrients(
     const doses = plan.logs.reduce((sum, log) => sum + Math.max(0, log.doseG), 0);
 
     for (const key of Object.keys(total) as Array<keyof SupplementMicronutrients>) {
-      total[key] = round(total[key] + perDose[key] * doses);
+      total[key] = round1(total[key] + perDose[key] * doses);
     }
     return total;
   }, { ...emptySupplementMicronutrients });
@@ -246,14 +248,6 @@ function daysInclusive(start: Date, end: Date) {
   startDay.setHours(0, 0, 0, 0);
   endDay.setHours(0, 0, 0, 0);
   return Math.floor((endDay.getTime() - startDay.getTime()) / dayMs) + 1;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function round(value: number) {
-  return Math.round(value * 10) / 10;
 }
 
 function nonNegativeNumber(value: unknown) {

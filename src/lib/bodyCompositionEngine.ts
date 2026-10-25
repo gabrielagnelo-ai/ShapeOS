@@ -1,3 +1,5 @@
+import { clamp, round1 } from "@/lib/common";
+
 export type CompositionCheckin = {
   averageWeightKg: number;
   waistCm?: number | null;
@@ -296,12 +298,4 @@ function confidenceLabel(score: number) {
 
 function average(values: number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function round1(value: number) {
-  return Math.round(value * 10) / 10;
 }

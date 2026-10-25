@@ -1,0 +1,14 @@
+/* One strip of figures split by hairlines, never a box per number. */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; background: var(--bg-secondary); border-radius: 22px; box-shadow: var(--panel-shadow); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); animation: var(--enter); animation-delay: var(--enter-delay); overflow: hidden; }
+.strip > div { padding: 18px 22px; }
+.strip > div + div { border-left: 1px solid var(--hairline); }
+.strip small { display: block; color: var(--text-muted); font-size: 13px; }
+.strip strong { display: block; margin-top: 4px; font-size: 22px; line-height: 28px; font-weight: 600; color: var(--text-primary); }
+.strip strong span { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+@media (max-width: 640px) {
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip > div { padding: 12px 16px; }
+  .strip > div:nth-child(3) { border-left: 0; }
+  .strip > div:nth-child(n+3) { border-top: 1px solid var(--hairline); }
+  .strip strong { font-size: 20px; }
+}

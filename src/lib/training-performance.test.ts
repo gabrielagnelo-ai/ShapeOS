@@ -54,6 +54,6 @@ describe("training performance", () => {
     expect(result.trainedDays).toBe(3);
     expect(result.comparableExercises).toBe(0);
     expect(result.confidence).toBe("medium");
-    expect(result.primaryMessage).toContain("varios treinos");
+    expect(result.primaryMessage).toContain("vários treinos");
   });
 });
