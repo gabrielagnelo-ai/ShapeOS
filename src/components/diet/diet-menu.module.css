@@ -20,7 +20,7 @@
 /* The centre text must fit the inner ring (about 70 px across at 200 px). */
 .rings { width: 200px; }
 .rings b { font-size: 21px; line-height: 24px; }
-.rings span { max-width: none; white-space: nowrap; }
+.rings span { max-width: none; white-space: nowrap; letter-spacing: -0.02em; }
 
 .listHead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 20px; }
 .listHead > :last-child { text-align: right; }

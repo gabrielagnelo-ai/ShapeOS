@@ -50,13 +50,13 @@ export function ShoppingListExport({ title, items }: { title: string; items: str
   return (
     <div className="mt-4 border-t border-hairline pt-4">
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={share} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-fill text-text-primary hover:bg-fill-strong px-4 text-sm font-semibold">
+        <button type="button" onClick={share} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-fill text-text-primary hover:bg-fill-strong px-4 text-sm font-semibold max-[420px]:gap-1.5 max-[420px]:px-3 max-[420px]:text-[13px]">
           <Share2 size={15} /> Compartilhar
         </button>
-        <button type="button" onClick={copy} className="inline-flex h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-medium text-text-primary transition hover:bg-fill-strong">
+        <button type="button" onClick={copy} className="inline-flex h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-medium text-text-primary transition hover:bg-fill-strong max-[420px]:gap-1.5 max-[420px]:px-3 max-[420px]:text-[13px]">
           <Copy size={15} /> Copiar
         </button>
-        <button type="button" onClick={download} className="inline-flex h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-medium text-text-primary transition hover:bg-fill-strong">
+        <button type="button" onClick={download} className="inline-flex h-10 items-center gap-2 rounded-full bg-fill px-4 text-sm font-medium text-text-primary transition hover:bg-fill-strong max-[420px]:gap-1.5 max-[420px]:px-3 max-[420px]:text-[13px]">
           <Download size={15} /> TXT
         </button>
       </div>

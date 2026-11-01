@@ -22,16 +22,34 @@ let pendingFocusId: string | null = null;
 
 type Flash = { ok: boolean; text: string; key: number } | null;
 
-/** A short status that clears itself; no tinted band, nothing kept in the URL. */
+/**
+ * A short status that clears itself; no tinted band, nothing kept in the URL.
+ * Browsers delay timers in hidden tabs (up to a minute), so the expiry time is also checked
+ * when the page becomes visible again.
+ */
 function useFlash() {
   const [flash, setFlash] = useState<Flash>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const expiresAt = useRef(0);
+  useEffect(() => {
+    const onVisible = () => {
+      if (!document.hidden && expiresAt.current && Date.now() >= expiresAt.current) {
+        expiresAt.current = 0;
+        setFlash(null);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
   function show(state: MenuActionState) {
     if (!state) return;
+    expiresAt.current = Date.now() + FLASH_MS;
     setFlash({ ok: state.ok, text: state.message, key: state.at });
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setFlash(null), FLASH_MS);
+    timer.current = setTimeout(() => { expiresAt.current = 0; setFlash(null); }, FLASH_MS);
   }
   return [flash, show] as const;
 }

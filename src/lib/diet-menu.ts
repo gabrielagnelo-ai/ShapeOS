@@ -6,6 +6,8 @@ export const MENU_DAYS_WARNING_THRESHOLD = 31;
 export const MENU_ENTRY_MIN_DAYS = 1;
 export const MENU_ENTRY_MAX_DAYS = 90;
 
+const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+
 export type ShoppingFood = {
   id: string;
   name: string;
@@ -33,7 +35,7 @@ export type ConsolidatedShoppingItem = {
 /**
  * Sums every plan item times the days of its entry into one shopping list, grouped by food
  * name (the same grouping the Compras tab always used). The active plan is a single entry.
- * Egg units are rounded only once, on the consolidated total.
+ * Egg units are rounded only once, on the consolidated total. Sorted by category, then name.
  */
 export function consolidateShoppingList(entries: ShoppingEntry[]) {
   const grouped = new Map<string, ConsolidatedShoppingItem>();
@@ -64,7 +66,7 @@ export function consolidateShoppingList(entries: ShoppingEntry[]) {
     }
   }
 
-  const items = [...grouped.values()];
+  const items = [...grouped.values()].sort((a, b) => collator.compare(a.category, b.category) || collator.compare(a.name, b.name));
   return {
     items,
     totalDays: totalMenuDays(entries),

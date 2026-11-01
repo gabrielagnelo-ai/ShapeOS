@@ -37,7 +37,7 @@ describe("consolidateShoppingList", () => {
     ]);
 
     expect(result.totalDays).toBe(29);
-    expect(result.items.map((item) => item.name)).toEqual([rice.name, chicken.name, banana.name]);
+    expect(result.items.map((item) => item.name)).toEqual([chicken.name, rice.name, banana.name]);
     expect(byName(result.items, rice.name).buyGrams).toBe(150 * 7 + 100 * 7);
     expect(byName(result.items, chicken.name).plannedReadyGrams).toBe(1400);
     expect(byName(result.items, chicken.name).buyGrams).toBeCloseTo(1400 / 0.75, 5);
@@ -103,6 +103,20 @@ describe("consolidateShoppingList", () => {
 
   it("returns an empty list for an empty menu", () => {
     expect(consolidateShoppingList([])).toEqual({ items: [], totalDays: 0, estimatedCost: 0, missingPriceCount: 0 });
+  });
+});
+
+describe("shopping list order", () => {
+  it("sorts by category, then by name, ignoring accents and case", () => {
+    const food = (id: string, name: string, category: string): ShoppingFood => ({ id, name, category, pricePerKg: null });
+    const result = consolidateShoppingList([{ days: 1, items: [
+      { grams: 1, food: food("1", "Uva", "Frutas") },
+      { grams: 1, food: food("2", "abacaxi", "Frutas") },
+      { grams: 1, food: food("3", "Óleo de oliva", "Gorduras") },
+      { grams: 1, food: food("4", "Arroz", "Cereais") },
+      { grams: 1, food: food("5", "Banana", "Frutas") },
+    ] }]);
+    expect(result.items.map((item) => item.name)).toEqual(["Arroz", "abacaxi", "Banana", "Uva", "Óleo de oliva"]);
   });
 });
 
