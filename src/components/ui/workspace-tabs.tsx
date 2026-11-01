@@ -21,7 +21,7 @@ export function WorkspaceTabs({ label, items, initial = 0 }: { label: string; it
     window.history.replaceState(null, "", `#${items[index].id}`);
   }
   return <div className={styles.root}>
-    <div className={styles.bar} role="tablist" aria-label={label} style={{ "--count": items.length, "--index": active } as CSSProperties}>
+    <div className={styles.bar} role="tablist" aria-label={label} data-count={items.length} style={{ "--count": items.length, "--index": active } as CSSProperties}>
       <span className={styles.selection} aria-hidden="true" />
       {items.map((item, index) => <button key={item.id} ref={(element) => { buttons.current[index] = element; }} type="button" role="tab" id={`${uid}-${item.id}-tab`} aria-controls={`${uid}-${item.id}-panel`} aria-selected={index === active} tabIndex={index === active ? 0 : -1} onClick={() => select(index)} onKeyDown={(event) => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;

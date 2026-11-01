@@ -12,6 +12,10 @@
 .panel:not([hidden]) { animation: reveal 180ms ease-out; }
 @keyframes reveal { from { opacity: .4; } to { opacity: 1; } }
 @media(max-width:600px) { .bar { width: 100%; min-width: 0; margin-bottom: 20px; }.bar button { padding: 7px 8px; } }
+/* Four or more tabs on a phone: tighter padding and type so the longest label fits at 320 px. */
+@media(max-width:600px) { .bar:not([data-count="2"]):not([data-count="3"]) button { padding: 7px 2px; font-size: 13px; letter-spacing: -.02em; } }
+@media(max-width:400px) { .bar:not([data-count="2"]):not([data-count="3"]) button { font-size: 12px; } }
+@media(max-width:350px) { .bar:not([data-count="2"]):not([data-count="3"]) button { font-size: 11px; letter-spacing: -.01em; } }
 @media(pointer:coarse) { .bar button { min-height: 40px; } }
 @media(prefers-reduced-motion:reduce) { .selection { transition: none; }.panel:not([hidden]) { animation: none; } }
 @media(prefers-contrast:more) { .selection { box-shadow: inset 0 0 0 2px var(--primary); }.bar button { color:#fff; } }

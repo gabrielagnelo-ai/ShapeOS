@@ -17,7 +17,8 @@ import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams, toFoodNutrients } from "@/lib/nutrition";
-import { shoppingListConversion, wholeEggUnitCount, wholeEggUnitPrice } from "@/lib/shopping-list";
+import { wholeEggUnitCount, wholeEggUnitPrice } from "@/lib/shopping-list";
+import { consolidateShoppingList, shoppingItemCost } from "@/lib/diet-menu";
 import {
   addManualDietItemAction,
   createProteinSwapDietPlanAction,
@@ -60,44 +61,16 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true, kcalPer100g: true },
   });
-  const shopping = new Map<string, {
-    category: string;
-    plannedReadyGrams: number;
-    buyGrams: number;
-    unitLabel: string;
-    pricePerKg: number | null;
-    isLeanCookedPorkLeg: boolean;
-    isWholeChickenEgg: boolean;
-  }>();
-  planMeals.forEach((meal) => meal.items.forEach((item) => {
-    const readyGrams = item.grams * days;
-    const conversion = shoppingListConversion({
-      foodId: item.food.id,
-      name: item.food.name,
-      category: item.food.category,
-      readyGrams,
-    });
-    const current = shopping.get(item.food.name) ?? {
-      category: item.food.category,
-      plannedReadyGrams: 0,
-      buyGrams: 0,
-      unitLabel: conversion.unitLabel,
-      pricePerKg: item.food.pricePerKg,
-      isLeanCookedPorkLeg: conversion.isLeanCookedPorkLeg,
-      isWholeChickenEgg: conversion.isWholeChickenEgg,
-    };
-    current.plannedReadyGrams += readyGrams;
-    current.buyGrams += conversion.buyGrams;
-    shopping.set(item.food.name, current);
-  }));
+  const shoppingList = consolidateShoppingList([{ items: planMeals.flatMap((meal) => meal.items), days }]);
+  const shopping = new Map(shoppingList.items.map((item) => [item.name, item]));
   const shoppingExportItems = [...shopping.entries()].map(([name, item]) => {
     const quantity = item.isWholeChickenEgg
       ? formatEggUnits(item.buyGrams)
       : `${item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}${formatShoppingWeight(item.buyGrams)}`;
     return `${name} - ${quantity}`;
   });
-  const estimatedCost = [...shopping.values()].reduce((total, item) => total + shoppingItemCost(item), 0);
-  const missingPriceCount = [...shopping.values()].filter((item) => item.pricePerKg == null).length;
+  const estimatedCost = shoppingList.estimatedCost;
+  const missingPriceCount = shoppingList.missingPriceCount;
   const monthlyBudget = buildFluxaShoppingBudget(planMeals.flatMap((meal) => meal.items), 30);
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
@@ -385,6 +358,12 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
             )}
           </div>
         </section>);
+  // Fase 1: aba reservada. A lista de planos, os dias e a lista consolidada entram na fase 2,
+  // depois que a migração diet_menus for aplicada no banco.
+  const menuView = <section className={sections.section}>
+    <div className={sections.heading}><h2>Cardápio</h2></div>
+    <p className="text-sm leading-6 text-text-muted">Junte dois ou mais planos, cada um por alguns dias, para ter a lista de compras do mês inteiro com refeições variadas. Crie seus planos em <a href="#planos" className="font-semibold text-text-primary underline-offset-4 hover:underline">Meus planos</a>.</p>
+  </section>;
   const plannedMacros = [
     { label: "Calorias", value: totals.kcal, target: metrics.targets.calories, unit: "kcal", color: "#eef0eb" },
     { label: "Proteínas", value: totals.protein, target: metrics.targets.proteinG, unit: "g", color: "#77cce9" },
@@ -414,6 +393,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
       { id:"refeicoes", label:"Refeições", content:mealView },
       { id:"compras", label:"Compras", content:shoppingView },
       { id:"planos", label:"Meus planos", content:management },
+      { id:"cardapio", label:"Cardápio", content:menuView },
     ]} />
     </Stack>
   </AppShell>;
@@ -443,12 +423,6 @@ function formatShoppingWeight(grams: number) {
 function formatEggUnits(grams: number) {
   const units = wholeEggUnitCount(grams);
   return `${units} ${units === 1 ? "ovo" : "ovos"}`;
-}
-
-function shoppingItemCost(item: { buyGrams: number; pricePerKg: number | null; isWholeChickenEgg: boolean }) {
-  if (!item.pricePerKg) return 0;
-  if (item.isWholeChickenEgg) return wholeEggUnitCount(item.buyGrams) * wholeEggUnitPrice(item.pricePerKg);
-  return (item.buyGrams / 1000) * item.pricePerKg;
 }
 
 function dietStatus(planned: number, target: number) {

@@ -74,6 +74,7 @@ model User {
 
   profile                  Profile?
   dietPlans                DietPlan[]
+  dietMenu                 DietMenu?
   foodLogs                 FoodLog[]
   waterLogs                WaterLog[]
   healthDailySummaries     HealthDailySummary[]
@@ -228,10 +229,38 @@ model DietPlan {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  meals DietMeal[]
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals       DietMeal[]
+  menuEntries DietMenuEntry[]
 
   @@map("diet_plans")
+}
+
+model DietMenu {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries DietMenuEntry[]
+
+  @@map("diet_menus")
+}
+
+model DietMenuEntry {
+  id         String @id @default(cuid())
+  menuId     String @map("menu_id")
+  dietPlanId String @map("diet_plan_id")
+  days       Int
+  order      Int
+
+  menu     DietMenu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  dietPlan DietPlan @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+
+  @@index([menuId, order])
+  @@index([dietPlanId])
+  @@map("diet_menu_entries")
 }
 
 model DietMeal {
