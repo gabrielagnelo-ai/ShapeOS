@@ -1,16 +1,30 @@
 /* Cardápio tab: plans in sequence, the daily average and the consolidated shopping list.
    Same language as the Dieta tabs: solid section, hairline rows, one filled action. */
-.stack { display: grid; gap: 20px; max-width: 1000px; }
+.stack { display: grid; gap: 20px; min-width: 0; }
 
 .head { display: flex; align-items: center; gap: 12px; }
 .headNote { margin-top: 2px; font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.monthWarning { margin-top: 12px; font-size: 13px; color: var(--warning); }
-.status { margin-top: 14px; border-radius: 14px; padding: 12px 16px; font-size: 14px; }
-.status[data-tone="ok"] { background: color-mix(in srgb, var(--success, #30d158) 12%, transparent); color: var(--success, #30d158); }
-.status[data-tone="warn"] { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+.monthWarning { margin-top: 2px; font-size: 13px; color: var(--warning); }
 
-.average { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: center; gap: 20px 32px; margin-top: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--hairline); }
-.rings { width: 180px; }
+/* Short status next to the control that caused it; clears itself after a few seconds. */
+.flash { min-height: 0; font-size: 13px; line-height: 18px; }
+.flash:empty { display: none; }
+.flash[data-tone="ok"] { color: var(--success); }
+.flash[data-tone="error"] { color: var(--danger); }
+.flash > span { display: block; margin-top: 4px; animation: flash-in 160ms cubic-bezier(.23, 1, .32, 1); }
+.listFlash > span { margin-top: 12px; }
+@keyframes flash-in { from { opacity: 0; transform: translateY(-2px); } }
+
+.average { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 20px 32px; margin-top: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--hairline); }
+.averageTitle { margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+/* The centre text must fit the inner ring (about 70 px across at 200 px). */
+.rings { width: 200px; }
+.rings b { font-size: 21px; line-height: 24px; }
+.rings span { max-width: none; white-space: nowrap; }
+
+.listHead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 20px; }
+.listHead > :last-child { text-align: right; }
+.listNote { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
 
 .entries { list-style: none; margin: 8px 0 0; padding: 0; }
 .entry {
@@ -73,7 +87,7 @@
 @media (max-width: 600px) {
   .average { grid-template-columns: 1fr; justify-items: center; }
   .average > :last-child { width: 100%; }
-  .rings { width: 168px; }
+  .listHead > :last-child { text-align: left; }
   .entry { grid-template-columns: 28px minmax(0, 1fr); }
   .entryControls { grid-column: 2; justify-content: space-between; margin-top: 6px; }
   .fieldError { right: auto; left: 0; }
@@ -82,6 +96,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .entry { transition: opacity 160ms ease; }
+  .flash > span { animation: none; }
   @starting-style { .entry { transform: none; } }
   .iconButton, .confirmRemove, .saveDays, .addButton { transition: none; }
   :is(.iconButton, .confirmRemove, .saveDays, .addButton):active { transform: none; }

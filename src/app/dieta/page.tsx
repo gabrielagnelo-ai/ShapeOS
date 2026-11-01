@@ -19,7 +19,7 @@ import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile"
 import { nutrientsForGrams, toFoodNutrients } from "@/lib/nutrition";
 import { averageDailyMenuNutrition, consolidateShoppingList, menuDaysSummary } from "@/lib/diet-menu";
 import { DietMenuView } from "@/components/diet/diet-menu";
-import { ShoppingItems, shoppingExportLines } from "@/components/diet/shopping-items";
+import { ShoppingItems, itemsLabel, shoppingExportLines } from "@/components/diet/shopping-items";
 import {
   addManualDietItemAction,
   createProteinSwapDietPlanAction,
@@ -38,10 +38,10 @@ import { Stack } from "@/components/ui/screen";
 import buttons from "@/components/ui/buttons.module.css";
 import sections from "@/components/ui/sections.module.css";
 
-type SearchParams = Promise<{ periodo?: string; fluxa?: string; dietStatus?: string; cardapio?: string }>;
+type SearchParams = Promise<{ periodo?: string; fluxa?: string; dietStatus?: string }>;
 
 export default async function DietaPage({ searchParams }: { searchParams: SearchParams }) {
-  const { periodo, fluxa, dietStatus: actionStatus, cardapio: menuStatus } = await searchParams;
+  const { periodo, fluxa, dietStatus: actionStatus } = await searchParams;
   const { user, profile } = await requireUserProfile();
   const reviewIssue = dietaryReviewIssue(profile);
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
@@ -308,9 +308,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               <p className="mt-1 text-xs text-text-muted">{useMenu ? `Atualiza a meta mensal de Mercado com o total do cardápio de ${monthlyBudget.days} dias, sem registrar uma compra paga.` : "Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga."}</p>
             </div>
             <form action={syncShoppingBudgetToFluxaAction} className="grid w-full gap-3">
-              <p className="text-sm">{budgetLabel}: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {monthlyBudget.items.length} itens com preço.</p>
+              <p className="text-sm">{budgetLabel}: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {itemsLabel(monthlyBudget.items.length)} com preço.</p>
+              {useMenu && monthlyBudget.days > 31 ? <p className="text-xs leading-5 text-warning">O cardápio tem {monthlyBudget.days} dias: a meta mensal de Mercado vai ficar com o valor de mais de um mês.</p> : null}
               <p className="text-xs leading-5 text-text-muted">Ao confirmar, a meta mensal de Mercado será substituída por este valor. Uma meta ajustada manualmente no Fluxa também será substituída.</p>
-              {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-warning"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1" />Estou ciente de que {monthlyBudget.summary.missingPriceCount} itens estão sem preço e quero enviar apenas a estimativa parcial.</label> : null}
+              {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-warning"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1" />Estou ciente de que {itemsLabel(monthlyBudget.summary.missingPriceCount)} {monthlyBudget.summary.missingPriceCount === 1 ? "está" : "estão"} sem preço e quero enviar apenas a estimativa parcial.</label> : null}
               <input type="hidden" name="periodo" value={useMenu ? "cardapio" : periodo && periodo !== "cardapio" ? periodo : "quinzenal"} />
               <SubmitButton disabled={(useMenu ? !hasMenu : !plan?.isActive) || monthlyBudget.summary.estimatedTotal <= 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong disabled:opacity-40">
                 <Send size={15} />
@@ -343,7 +344,6 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     totalDays={menuDays.totalDays}
     exceedsMonth={menuDays.exceedsMonth}
     shopping={menuShopping}
-    status={menuStatus}
   />;
   const plannedMacros = [
     { label: "Calorias", value: totals.kcal, target: metrics.targets.calories, unit: "kcal", color: "#eef0eb" },
@@ -370,7 +370,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
       <div className={styles.macros}>{plannedMacros.map((macro) => <div key={macro.label}><div><span>{macro.label}</span><strong>{Math.round(macro.value).toLocaleString("pt-BR")} <small>/ {macro.target.toLocaleString("pt-BR")} {macro.unit}</small></strong></div><progress max={Math.max(1,macro.target)} value={macro.value} aria-label={`${macro.label}: ${Math.round(macro.value)} de ${macro.target} ${macro.unit} planejados`} /></div>)}</div>
       <footer><span>{planStatus.label}</span><p>{planStatus.diffLabel}. Ajuste as porções nas refeições abaixo.</p></footer>
     </section>}
-    <WorkspaceTabs label="Organizar dieta" initial={menuStatus ? 3 : !plan ? 2 : 0} items={[
+    <WorkspaceTabs label="Organizar dieta" initial={!plan ? 2 : 0} items={[
       { id:"refeicoes", label:"Refeições", content:mealView },
       { id:"compras", label:"Compras", content:shoppingView },
       { id:"planos", label:"Meus planos", content:management },

@@ -79,3 +79,32 @@ describe("shopping list conversion", () => {
     expect(wholeEggUnitPrice(wholeEggPricePerKg(0.75))).toBeCloseTo(0.75, 5);
   });
 });
+
+describe("canned and preserved food", () => {
+  it("buys canned tuna and sardines as they are, not raw", () => {
+    for (const food of [
+      { foodId: "taco-tuna", name: "Atum, conserva em óleo", category: "Pescados e frutos do mar" },
+      { foodId: "custom-tuna", name: "Atum enlatado ralado", category: "Peixes" },
+      { foodId: "custom-sardine", name: "Sardinha em lata", category: "Peixe" },
+      { foodId: "cmshfq5me000004ju9m44uw09", name: "Atum ralado ao natural Gomes da costa", category: "Peixes" },
+      { foodId: "plain-tuna", name: "Atum sólido", category: "Peixes" },
+      { foodId: "sardine-oil", name: "Sardinha em óleo", category: "Peixes" },
+    ]) {
+      const result = shoppingListConversion({ ...food, readyGrams: 1000 });
+      expect(result.buyGrams).toBe(1000);
+      expect(result.unitLabel).toBe("total");
+    }
+  });
+
+  it("keeps chicken in sauce on the cooked conversion", () => {
+    expect(shoppingListConversion({ foodId: "c", name: "Frango em molho", category: "Carnes", readyGrams: 750 }).buyGrams).toBe(1000);
+  });
+
+  it("keeps the raw conversion for fresh fish, fresh tuna included", () => {
+    for (const name of ["Tilápia grelhada", "Atum fresco grelhado", "Posta de atum assada", "Peixe em molho assado"]) {
+      const result = shoppingListConversion({ foodId: "fish", name, category: "Peixes", readyGrams: 800 });
+      expect(result.buyGrams).toBe(1000);
+      expect(result.unitLabel).toBe("cru");
+    }
+  });
+});
