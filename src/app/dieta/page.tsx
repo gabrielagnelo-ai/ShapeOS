@@ -295,10 +295,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
                 <p className="text-sm text-text-muted">{periodLabel} · {days} dias</p>
               </div>
             </div>
-            <div role="group" aria-label="Período da lista" className="inline-flex rounded-full bg-fill p-[3px] text-sm">
+            <div role="group" aria-label="Período da lista" data-count={hasMenu ? 4 : 3} className={`inline-flex rounded-full bg-fill p-[3px] text-sm ${styles.periodSelector}`}>
               {([[7, "semanal", "7 dias"], [15, "quinzenal", "15 dias"], [30, "mensal", "30 dias"], ...(hasMenu ? [[0, "cardapio", "Cardápio"] as const] : [])] as const).map(([count, slug, label]) => {
                 const selected = slug === "cardapio" ? useMenu : !useMenu && days === count;
-                return <Link key={slug} href={`/dieta?periodo=${slug}#compras`} aria-current={selected ? "true" : undefined} className={`inline-flex min-h-[34px] items-center rounded-full px-3.5 ${selected ? "bg-[var(--glass-selected)] font-semibold text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-text-secondary hover:text-text-primary"}`}>{label}</Link>;
+                return <Link key={slug} href={`/dieta?periodo=${slug}#compras`} aria-current={selected ? "true" : undefined} className={`inline-flex min-h-[34px] items-center justify-center whitespace-nowrap rounded-full px-3.5 ${selected ? "bg-[var(--glass-selected)] font-semibold text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-text-secondary hover:text-text-primary"}`}>{label}</Link>;
               })}
             </div>
           </div>
