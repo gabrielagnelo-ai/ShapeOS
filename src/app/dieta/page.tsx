@@ -3,7 +3,7 @@ import { PageHeading } from "@/components/ui/page-heading";
 import { ReliabilityNotice, SafetyReview } from "@/components/diet/reliability-notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { dietaryReviewIssue } from "@/lib/food-reliability";
-import { buildFluxaShoppingBudget } from "@/lib/fluxa-integration";
+import { buildFluxaMenuShoppingBudget, buildFluxaShoppingBudget } from "@/lib/fluxa-integration";
 import { Check, Plus, Send, ShoppingBag, Trash2, Sunrise, Sun, Moon, Dumbbell, ChevronDown } from "lucide-react";
 import { IconTile } from "@/components/ui/group";
 import Link from "next/link";
@@ -17,8 +17,9 @@ import { mealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, requireUserProfile } from "@/lib/profile";
 import { nutrientsForGrams, toFoodNutrients } from "@/lib/nutrition";
-import { wholeEggUnitCount, wholeEggUnitPrice } from "@/lib/shopping-list";
-import { consolidateShoppingList, shoppingItemCost } from "@/lib/diet-menu";
+import { averageDailyMenuNutrition, consolidateShoppingList, menuDaysSummary } from "@/lib/diet-menu";
+import { DietMenuView } from "@/components/diet/diet-menu";
+import { ShoppingItems, shoppingExportLines } from "@/components/diet/shopping-items";
 import {
   addManualDietItemAction,
   createProteinSwapDietPlanAction,
@@ -37,12 +38,10 @@ import { Stack } from "@/components/ui/screen";
 import buttons from "@/components/ui/buttons.module.css";
 import sections from "@/components/ui/sections.module.css";
 
-type SearchParams = Promise<{ periodo?: string; fluxa?: string; dietStatus?: string }>;
+type SearchParams = Promise<{ periodo?: string; fluxa?: string; dietStatus?: string; cardapio?: string }>;
 
 export default async function DietaPage({ searchParams }: { searchParams: SearchParams }) {
-  const { periodo, fluxa, dietStatus: actionStatus } = await searchParams;
-  const days = periodo === "semanal" ? 7 : periodo === "mensal" ? 30 : 15;
-  const periodLabel = days === 7 ? "Semanal" : days === 30 ? "Mensal" : "Quinzenal";
+  const { periodo, fluxa, dietStatus: actionStatus, cardapio: menuStatus } = await searchParams;
   const { user, profile } = await requireUserProfile();
   const reviewIssue = dietaryReviewIssue(profile);
   const { metrics } = await computeCurrentProfileMetrics(user.id, profile);
@@ -53,6 +52,18 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     take: 12,
   });
   const plan = dietPlans.find((dietPlan) => dietPlan.isActive) ?? null;
+  const dietMenu = await prisma.dietMenu.findUnique({
+    where: { userId: user.id },
+    include: { entries: { orderBy: [{ order: "asc" }, { id: "asc" }], include: { dietPlan: { include: { meals: { include: { items: { include: { food: true } } } } } } } } },
+  });
+  const menuEntries = (dietMenu?.entries ?? []).map((entry) => ({ entry, items: entry.dietPlan.meals.flatMap((meal) => meal.items), days: entry.days }));
+  const menuShopping = consolidateShoppingList(menuEntries);
+  const menuAverage = averageDailyMenuNutrition(menuEntries);
+  const menuDays = menuDaysSummary(menuEntries);
+  const hasMenu = menuEntries.length > 0;
+  const useMenu = periodo === "cardapio" && hasMenu;
+  const days = useMenu ? menuDays.totalDays : periodo === "semanal" ? 7 : periodo === "mensal" ? 30 : 15;
+  const periodLabel = useMenu ? "Cardápio" : days === 7 ? "Semanal" : days === 30 ? "Mensal" : "Quinzenal";
   const planMeals = plan ? sortMeals(plan.meals) : [];
   const mealChoices = uniqueMeals([...mealNames, ...planMeals.map((meal) => normalizeMealName(meal.name))]);
   const activeMealNames = new Set(planMeals.map((meal) => normalizeMealName(meal.name)));
@@ -61,17 +72,11 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
     orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { id: true, name: true, category: true, kcalPer100g: true },
   });
-  const shoppingList = consolidateShoppingList([{ items: planMeals.flatMap((meal) => meal.items), days }]);
-  const shopping = new Map(shoppingList.items.map((item) => [item.name, item]));
-  const shoppingExportItems = [...shopping.entries()].map(([name, item]) => {
-    const quantity = item.isWholeChickenEgg
-      ? formatEggUnits(item.buyGrams)
-      : `${item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}${formatShoppingWeight(item.buyGrams)}`;
-    return `${name} - ${quantity}`;
-  });
-  const estimatedCost = shoppingList.estimatedCost;
-  const missingPriceCount = shoppingList.missingPriceCount;
-  const monthlyBudget = buildFluxaShoppingBudget(planMeals.flatMap((meal) => meal.items), 30);
+  const shoppingList = useMenu ? menuShopping : consolidateShoppingList([{ items: planMeals.flatMap((meal) => meal.items), days }]);
+  const monthlyBudget = useMenu
+    ? buildFluxaMenuShoppingBudget(menuEntries)
+    : buildFluxaShoppingBudget(planMeals.flatMap((meal) => meal.items), 30);
+  const budgetLabel = useMenu ? `Cardápio de ${monthlyBudget.days} dias` : "Valor para 30 dias";
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
       const n = nutrientsForGrams(toFoodNutrients(item.food), item.grams);
@@ -291,22 +296,23 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
               </div>
             </div>
             <div role="group" aria-label="Período da lista" className="inline-flex rounded-full bg-fill p-[3px] text-sm">
-              {([[7, "semanal"], [15, "quinzenal"], [30, "mensal"]] as const).map(([count, slug]) => (
-                <Link key={slug} href={`/dieta?periodo=${slug}#compras`} aria-current={days === count ? "true" : undefined} className={`inline-flex min-h-[34px] items-center rounded-full px-3.5 ${days === count ? "bg-[var(--glass-selected)] font-semibold text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-text-secondary hover:text-text-primary"}`}>{count} dias</Link>
-              ))}
+              {([[7, "semanal", "7 dias"], [15, "quinzenal", "15 dias"], [30, "mensal", "30 dias"], ...(hasMenu ? [[0, "cardapio", "Cardápio"] as const] : [])] as const).map(([count, slug, label]) => {
+                const selected = slug === "cardapio" ? useMenu : !useMenu && days === count;
+                return <Link key={slug} href={`/dieta?periodo=${slug}#compras`} aria-current={selected ? "true" : undefined} className={`inline-flex min-h-[34px] items-center rounded-full px-3.5 ${selected ? "bg-[var(--glass-selected)] font-semibold text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]" : "text-text-secondary hover:text-text-primary"}`}>{label}</Link>;
+              })}
             </div>
           </div>
           <details className={styles.planManagement}><summary>Enviar estimativa ao Fluxa</summary><div className="grid gap-3 py-3">
             <div>
               <p className="text-sm font-medium">Meta de mercado no Fluxa</p>
-              <p className="mt-1 text-xs text-text-muted">Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga.</p>
+              <p className="mt-1 text-xs text-text-muted">{useMenu ? `Atualiza a meta mensal de Mercado com o total do cardápio de ${monthlyBudget.days} dias, sem registrar uma compra paga.` : "Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga."}</p>
             </div>
             <form action={syncShoppingBudgetToFluxaAction} className="grid w-full gap-3">
-              <p className="text-sm">Valor para 30 dias: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {monthlyBudget.items.length} itens com preço.</p>
+              <p className="text-sm">{budgetLabel}: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {monthlyBudget.items.length} itens com preço.</p>
               <p className="text-xs leading-5 text-text-muted">Ao confirmar, a meta mensal de Mercado será substituída por este valor. Uma meta ajustada manualmente no Fluxa também será substituída.</p>
               {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-warning"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1" />Estou ciente de que {monthlyBudget.summary.missingPriceCount} itens estão sem preço e quero enviar apenas a estimativa parcial.</label> : null}
-              <input type="hidden" name="periodo" value={periodo ?? "quinzenal"} />
-              <SubmitButton disabled={!plan?.isActive || monthlyBudget.summary.estimatedTotal <= 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong disabled:opacity-40">
+              <input type="hidden" name="periodo" value={useMenu ? "cardapio" : periodo && periodo !== "cardapio" ? periodo : "quinzenal"} />
+              <SubmitButton disabled={(useMenu ? !hasMenu : !plan?.isActive) || monthlyBudget.summary.estimatedTotal <= 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-fill px-4 text-sm font-semibold hover:bg-fill-strong disabled:opacity-40">
                 <Send size={15} />
                 Confirmar atualização da meta
               </SubmitButton>
@@ -314,56 +320,31 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
           </div>
           </details>
           {fluxa ? <FluxaSyncStatus status={fluxa} /> : null}
-          <ShoppingListExport title={`Lista de compras ShapeOS - ${days} dias`} items={shoppingExportItems} />
-          <div className={styles.shoppingItems}>
-            {[...shopping.entries()].map(([name, item]) => (
-              <div key={name} className="rounded-2xl bg-surface-tertiary px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span>{name}</span>
-                  <span className="font-medium tabular-nums">
-                    {item.isWholeChickenEgg
-                      ? formatEggUnits(item.buyGrams)
-                      : <>{item.isLeanCookedPorkLeg ? "Comprar cru: " : ""}{formatShoppingWeight(item.buyGrams)}</>}
-                  </span>
-                </div>
-                {item.isLeanCookedPorkLeg ? (
-                  <div className="mt-1 space-y-1 text-xs text-text-muted">
-                    <p>Necessário pronto: {formatShoppingWeight(item.plannedReadyGrams)}</p>
-                    <p>Quantidade ajustada considerando osso, gordura removida e perda no cozimento.</p>
-                  </div>
-                ) : item.unitLabel === "cru" ? (
-                  <p className="mt-1 text-xs text-text-muted">
-                    Comprar cru. O plano mostra {formatShoppingWeight(item.plannedReadyGrams)} já pronto para comer.
-                  </p>
-                ) : null}
-                {item.isWholeChickenEgg ? (
-                  <p className="mt-1 text-xs text-text-muted">Conversão: 1 ovo = aproximadamente 53 g.</p>
-                ) : null}
-                {item.pricePerKg != null ? (
-                  <p className="mt-1 text-xs text-text-muted">
-                    {item.isWholeChickenEgg ? `R$ ${wholeEggUnitPrice(item.pricePerKg).toFixed(2).replace(".", ",")}/unidade - ` : ""}
-                    Estimado: R$ {shoppingItemCost(item).toFixed(2).replace(".", ",")}
-                  </p>
-                ) : <p className="mt-1 text-xs text-warning">Sem preço · fora da estimativa</p>}
-              </div>
-            ))}
-            {!shopping.size ? <p className="text-text-muted">Gere um plano para ver a lista.</p> : null}
-            {estimatedCost > 0 ? (
-              <div className="font-semibold">
-                {missingPriceCount > 0 ? "Estimativa parcial" : "Custo estimado do período"}: {estimatedCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                <p className="mt-1 text-xs font-normal text-text-muted">{shopping.size - missingPriceCount} de {shopping.size} itens com preço.{missingPriceCount > 0 ? " O total da compra será maior ao incluir os itens faltantes." : " Valores podem variar por marca e mercado."}</p>
-              </div>
-            ) : (
-              shopping.size ? <p className="text-xs leading-5 text-text-muted">Preencha os preços dos alimentos para estimar o custo da lista.</p> : null
-            )}
-          </div>
+          <ShoppingListExport title={useMenu ? `Lista de compras ShapeOS - Cardápio (${days} dias)` : `Lista de compras ShapeOS - ${days} dias`} items={shoppingExportLines(shoppingList.items)} />
+          <ShoppingItems
+            items={shoppingList.items}
+            estimatedCost={shoppingList.estimatedCost}
+            missingPriceCount={shoppingList.missingPriceCount}
+            costLabel={useMenu ? "Custo estimado do cardápio" : "Custo estimado do período"}
+            emptyText="Gere um plano para ver a lista."
+          />
         </section>);
-  // Fase 1: aba reservada. A lista de planos, os dias e a lista consolidada entram na fase 2,
-  // depois que a migração diet_menus for aplicada no banco.
-  const menuView = <section className={sections.section}>
-    <div className={sections.heading}><h2>Cardápio</h2></div>
-    <p className="text-sm leading-6 text-text-muted">Junte dois ou mais planos, cada um por alguns dias, para ter a lista de compras do mês inteiro com refeições variadas. Crie seus planos em <a href="#planos" className="font-semibold text-text-primary underline-offset-4 hover:underline">Meus planos</a>.</p>
-  </section>;
+  const menuView = <DietMenuView
+    entries={menuEntries.map(({ entry, items }) => ({
+      id: entry.id,
+      planName: entry.dietPlan.name,
+      days: entry.days,
+      kcalPerDay: averageDailyMenuNutrition([{ items, days: 1 }]).kcal,
+      isActivePlan: entry.dietPlan.isActive,
+    }))}
+    plans={dietPlans.map((dietPlan) => ({ id: dietPlan.id, name: dietPlan.name }))}
+    average={menuAverage}
+    targets={metrics.targets}
+    totalDays={menuDays.totalDays}
+    exceedsMonth={menuDays.exceedsMonth}
+    shopping={menuShopping}
+    status={menuStatus}
+  />;
   const plannedMacros = [
     { label: "Calorias", value: totals.kcal, target: metrics.targets.calories, unit: "kcal", color: "#eef0eb" },
     { label: "Proteínas", value: totals.protein, target: metrics.targets.proteinG, unit: "g", color: "#77cce9" },
@@ -389,7 +370,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
       <div className={styles.macros}>{plannedMacros.map((macro) => <div key={macro.label}><div><span>{macro.label}</span><strong>{Math.round(macro.value).toLocaleString("pt-BR")} <small>/ {macro.target.toLocaleString("pt-BR")} {macro.unit}</small></strong></div><progress max={Math.max(1,macro.target)} value={macro.value} aria-label={`${macro.label}: ${Math.round(macro.value)} de ${macro.target} ${macro.unit} planejados`} /></div>)}</div>
       <footer><span>{planStatus.label}</span><p>{planStatus.diffLabel}. Ajuste as porções nas refeições abaixo.</p></footer>
     </section>}
-    <WorkspaceTabs label="Organizar dieta" initial={!plan ? 2 : 0} items={[
+    <WorkspaceTabs label="Organizar dieta" initial={menuStatus ? 3 : !plan ? 2 : 0} items={[
       { id:"refeicoes", label:"Refeições", content:mealView },
       { id:"compras", label:"Compras", content:shoppingView },
       { id:"planos", label:"Meus planos", content:management },
@@ -404,6 +385,7 @@ function FluxaSyncStatus({ status }: { status: string }) {
     ok: { text: "Meta mensal de Mercado atualizada no Fluxa.", tone: "bg-success/10 text-success" },
     config: { text: "A conexão com o Fluxa ainda não está disponível. Tente novamente mais tarde.", tone: "bg-warning/10 text-warning" },
     "no-plan": { text: "Ative uma dieta antes de enviar ao Fluxa.", tone: "bg-warning/10 text-warning" },
+    "no-menu": { text: "Adicione planos ao cardápio antes de enviar ao Fluxa.", tone: "bg-warning/10 text-warning" },
     "no-prices": { text: "Cadastre preços nos alimentos antes de enviar o orçamento.", tone: "bg-warning/10 text-warning" },
     "partial-prices": { text: "Há itens sem preço. Confira o valor mensal e confirme o envio da estimativa parcial.", tone: "bg-warning/10 text-warning" },
     account: { text: "Não encontrei no Fluxa uma conta com o mesmo e-mail.", tone: "bg-warning/10 text-warning" },
@@ -413,16 +395,6 @@ function FluxaSyncStatus({ status }: { status: string }) {
   const message = messages[status];
   if (!message) return null;
   return <p className={`mt-3 rounded-[14px] px-4 py-3 text-sm ${message.tone}`}>{message.text}</p>;
-}
-
-function formatShoppingWeight(grams: number) {
-  if (grams >= 1000) return `${(grams / 1000).toFixed(2).replace(".", ",")} kg`;
-  return `${Math.round(grams)} g`;
-}
-
-function formatEggUnits(grams: number) {
-  const units = wholeEggUnitCount(grams);
-  return `${units} ${units === 1 ? "ovo" : "ovos"}`;
 }
 
 function dietStatus(planned: number, target: number) {

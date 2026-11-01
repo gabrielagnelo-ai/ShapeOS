@@ -126,3 +126,31 @@ export function averageDailyMenuNutrition(entries: NutritionEntry[]) {
     fat: sum.fat / totalDays,
   };
 }
+
+/** Most entries one menu can hold; keeps the form honest and the page light. */
+export const MAX_MENU_ENTRIES = 12;
+
+export type MenuDirection = "up" | "down";
+
+export function parseMenuDirection(value: unknown): MenuDirection | null {
+  return value === "up" || value === "down" ? value : null;
+}
+
+/** New order of entry ids after moving one up or down; null when the move is impossible. */
+export function reorderMenuEntryIds(ids: string[], id: string, direction: MenuDirection) {
+  const index = ids.indexOf(id);
+  if (index < 0) return null;
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (target < 0 || target >= ids.length) return null;
+  const next = [...ids];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+/**
+ * Flattens the menu into plan items whose grams already cover each entry's days, so a
+ * one-day budget (Fluxa) or any per-item consumer sees the whole menu.
+ */
+export function menuItemsForPeriod<Item extends { grams: number }>(entries: { items: Item[]; days: number }[]) {
+  return entries.flatMap((entry) => entry.items.map((item) => ({ ...item, grams: item.grams * entry.days })));
+}

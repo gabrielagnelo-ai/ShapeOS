@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   averageDailyMenuNutrition,
+  menuItemsForPeriod,
+  parseMenuDirection,
+  reorderMenuEntryIds,
   consolidateShoppingList,
   menuDaysSummary,
   parseMenuEntryDays,
@@ -158,5 +161,33 @@ describe("averageDailyMenuNutrition", () => {
 
   it("returns zeros for an empty menu", () => {
     expect(averageDailyMenuNutrition([])).toEqual({ totalDays: 0, kcal: 0, protein: 0, carbs: 0, fat: 0 });
+  });
+});
+
+describe("menu ordering", () => {
+  it("moves an entry up or down and refuses moves past the ends", () => {
+    expect(reorderMenuEntryIds(["a", "b", "c"], "b", "up")).toEqual(["b", "a", "c"]);
+    expect(reorderMenuEntryIds(["a", "b", "c"], "b", "down")).toEqual(["a", "c", "b"]);
+    expect(reorderMenuEntryIds(["a", "b", "c"], "a", "up")).toBeNull();
+    expect(reorderMenuEntryIds(["a", "b", "c"], "c", "down")).toBeNull();
+    expect(reorderMenuEntryIds(["a", "b", "c"], "x", "up")).toBeNull();
+  });
+
+  it("accepts only up and down", () => {
+    expect(parseMenuDirection("up")).toBe("up");
+    expect(parseMenuDirection("down")).toBe("down");
+    expect(parseMenuDirection("left")).toBeNull();
+    expect(parseMenuDirection(null)).toBeNull();
+  });
+});
+
+describe("menuItemsForPeriod", () => {
+  it("multiplies each item by the days of its entry", () => {
+    const items = menuItemsForPeriod([
+      { items: [{ grams: 100, food: rice }], days: 7 },
+      { items: [{ grams: 50, food: rice }, { grams: 200, food: chicken }], days: 15 },
+    ]);
+    expect(items.map((item) => item.grams)).toEqual([700, 750, 3000]);
+    expect(items[2].food).toBe(chicken);
   });
 });

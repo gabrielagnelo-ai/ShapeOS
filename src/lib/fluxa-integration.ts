@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { menuItemsForPeriod, totalMenuDays } from "./diet-menu";
 import { shoppingListConversion, wholeEggUnitCount, wholeEggUnitPrice } from "./shopping-list";
 
 type DietItemInput = {
@@ -90,6 +91,11 @@ export function buildFluxaShoppingBudget(items: DietItemInput[], days = 30) {
       missingPriceCount,
     },
   };
+}
+
+/** Budget for a whole menu (plan A for 7 days + plan B for 15 days...), reported with its total days. */
+export function buildFluxaMenuShoppingBudget(entries: { items: DietItemInput[]; days: number }[]) {
+  return { ...buildFluxaShoppingBudget(menuItemsForPeriod(entries), 1), days: totalMenuDays(entries) };
 }
 
 export function signFluxaPayload(secret: string, timestamp: string, rawBody: string) {
