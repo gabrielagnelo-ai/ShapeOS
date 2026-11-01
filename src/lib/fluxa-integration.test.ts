@@ -35,27 +35,39 @@ describe("Fluxa integration", () => {
 describe("buildFluxaMenuShoppingBudget", () => {
   const egg = { id: "taco-488", name: "Ovo de galinha inteiro cozido", category: "Ovos e derivados", pricePerKg: 20 };
   const rice = { id: "rice", name: "Arroz branco cozido", category: "Cereais", pricePerKg: 10 };
+  const chicken = { id: "chicken", name: "Frango grelhado", category: "Carnes", pricePerKg: 30 };
+  const banana = { id: "banana", name: "Banana prata", category: "Frutas", pricePerKg: null };
+  const sumSubtotals = (items: { subtotal: number | null }[]) => Math.round(items.reduce((total, item) => total + (item.subtotal ?? 0), 0) * 100) / 100;
 
-  it("sums every entry, reports the menu days and rounds eggs once", () => {
-    const budget = buildFluxaMenuShoppingBudget([
-      { items: [{ grams: 100, food: egg }, { grams: 150, food: rice }], days: 7 },
-      { items: [{ grams: 100, food: egg }], days: 7 },
-      { items: [{ grams: 100, food: egg }, { grams: 100, food: rice }], days: 15 },
-    ]);
+  it.each([
+    { n: 29, entries: [7, 7, 15] },
+    { n: 34, entries: [7, 20, 7] },
+  ])("normalizes a $n-day menu to 30 days with a consistent total", ({ n, entries }) => {
+    const plans = [
+      [{ grams: 100, food: egg }, { grams: 150, food: rice }],
+      [{ grams: 200, food: chicken }, { grams: 120, food: banana }],
+      [{ grams: 100, food: egg }, { grams: 100, food: rice }],
+    ];
+    const budget = buildFluxaMenuShoppingBudget(entries.map((days, index) => ({ items: plans[index], days })));
 
-    expect(budget.days).toBe(29);
-    const eggs = budget.items.find((item) => item.foodId === egg.id);
-    expect(eggs?.unit).toBe("unit");
-    expect(eggs?.quantity).toBe(55);
-    const riceItem = budget.items.find((item) => item.foodId === rice.id);
-    expect(riceItem?.unit).toBe("kg");
-    expect(riceItem?.quantity).toBeCloseTo(2.55, 3);
+    expect(budget.days).toBe(30);
+    expect(Math.abs(sumSubtotals(budget.items) - budget.summary.estimatedTotal)).toBeLessThanOrEqual(0.05);
+    expect(budget.summary.missingPriceCount).toBe(1);
+
+    const scale = 30 / n;
+    const eggGrams = 100 * (entries[0] + entries[2]) * scale;
+    expect(budget.items.find((item) => item.foodId === egg.id)?.quantity).toBe(Math.ceil(eggGrams / 53));
+    const riceGrams = (150 * entries[0] + 100 * entries[2]) * scale;
+    expect(budget.items.find((item) => item.foodId === rice.id)?.subtotal).toBeCloseTo(Math.round(riceGrams / 1000 * 10 * 100) / 100, 2);
   });
 
   it("matches the active plan budget for a single 30-day entry", () => {
     const items = [{ grams: 100, food: egg }, { grams: 150, food: rice }];
-    const menu = buildFluxaMenuShoppingBudget([{ items, days: 30 }]);
-    const plan = buildFluxaShoppingBudget(items, 30);
-    expect(menu).toEqual(plan);
+    expect(buildFluxaMenuShoppingBudget([{ items, days: 30 }])).toEqual(buildFluxaShoppingBudget(items, 30));
+  });
+
+  it("scales a 15-day plan up to 30 days", () => {
+    const items = [{ grams: 150, food: rice }];
+    expect(buildFluxaMenuShoppingBudget([{ items, days: 15 }])).toEqual(buildFluxaShoppingBudget(items, 30));
   });
 });

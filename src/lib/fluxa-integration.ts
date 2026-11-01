@@ -93,9 +93,18 @@ export function buildFluxaShoppingBudget(items: DietItemInput[], days = 30) {
   };
 }
 
-/** Budget for a whole menu (plan A for 7 days + plan B for 15 days...), reported with its total days. */
+export const FLUXA_BUDGET_DAYS = 30;
+
+/**
+ * Budget for a whole menu (plan A for 7 days + plan B for 15 days...), normalized to the 30 days
+ * Fluxa's monthly Mercado goal expects: every item's grams times 30/N, so egg units, subtotals
+ * and the total come out of the same rules as the active plan budget.
+ */
 export function buildFluxaMenuShoppingBudget(entries: { items: DietItemInput[]; days: number }[]) {
-  return { ...buildFluxaShoppingBudget(menuItemsForPeriod(entries), 1), days: totalMenuDays(entries) };
+  const menuDays = totalMenuDays(entries);
+  const scale = menuDays > 0 ? FLUXA_BUDGET_DAYS / menuDays : 0;
+  const items = menuItemsForPeriod(entries).map((item) => ({ ...item, grams: item.grams * scale }));
+  return { ...buildFluxaShoppingBudget(items, 1), days: FLUXA_BUDGET_DAYS };
 }
 
 export function signFluxaPayload(secret: string, timestamp: string, rawBody: string) {

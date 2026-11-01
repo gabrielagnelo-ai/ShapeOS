@@ -76,7 +76,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   const monthlyBudget = useMenu
     ? buildFluxaMenuShoppingBudget(menuEntries)
     : buildFluxaShoppingBudget(planMeals.flatMap((meal) => meal.items), 30);
-  const budgetLabel = useMenu ? `Cardápio de ${monthlyBudget.days} dias` : "Valor para 30 dias";
+  const budgetLabel = useMenu ? `Cardápio de ${menuDays.totalDays} dias, estimado para 30 dias` : "Valor para 30 dias";
   const totals = planMeals.flatMap((meal) => meal.items).reduce(
     (acc, item) => {
       const n = nutrientsForGrams(toFoodNutrients(item.food), item.grams);
@@ -305,11 +305,10 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
           <details className={styles.planManagement}><summary>Enviar estimativa ao Fluxa</summary><div className="grid gap-3 py-3">
             <div>
               <p className="text-sm font-medium">Meta de mercado no Fluxa</p>
-              <p className="mt-1 text-xs text-text-muted">{useMenu ? `Atualiza a meta mensal de Mercado com o total do cardápio de ${monthlyBudget.days} dias, sem registrar uma compra paga.` : "Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga."}</p>
+              <p className="mt-1 text-xs text-text-muted">{useMenu ? `Atualiza a meta mensal de Mercado com o cardápio de ${menuDays.totalDays} dias proporcional a 30 dias, sem registrar uma compra paga.` : "Atualiza a meta mensal de Mercado com a estimativa de 30 dias, sem registrar uma compra paga."}</p>
             </div>
             <form action={syncShoppingBudgetToFluxaAction} className="grid w-full gap-3">
               <p className="text-sm">{budgetLabel}: <strong>{monthlyBudget.summary.estimatedTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong> · {monthlyBudget.summary.pricedItemCount} de {itemsLabel(monthlyBudget.items.length)} com preço.</p>
-              {useMenu && monthlyBudget.days > 31 ? <p className="text-xs leading-5 text-warning">O cardápio tem {monthlyBudget.days} dias: a meta mensal de Mercado vai ficar com o valor de mais de um mês.</p> : null}
               <p className="text-xs leading-5 text-text-muted">Ao confirmar, a meta mensal de Mercado será substituída por este valor. Uma meta ajustada manualmente no Fluxa também será substituída.</p>
               {monthlyBudget.summary.missingPriceCount > 0 ? <label className="flex items-start gap-2 text-xs leading-5 text-warning"><input type="checkbox" name="confirmPartialEstimate" required className="mt-1" />Estou ciente de que {itemsLabel(monthlyBudget.summary.missingPriceCount)} {monthlyBudget.summary.missingPriceCount === 1 ? "está" : "estão"} sem preço e quero enviar apenas a estimativa parcial.</label> : null}
               <input type="hidden" name="periodo" value={useMenu ? "cardapio" : periodo && periodo !== "cardapio" ? periodo : "quinzenal"} />

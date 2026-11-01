@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { appDateParts } from "@/lib/date-time";
+import { totalMenuDays } from "@/lib/diet-menu";
 import { buildFluxaMenuShoppingBudget, buildFluxaShoppingBudget, signFluxaPayload } from "@/lib/fluxa-integration";
 import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
@@ -29,8 +30,9 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
     });
     if (!menu?.entries.length) redirect(`${returnUrl}&fluxa=no-menu`);
     if (!secret || secret.length < 32) redirect(`${returnUrl}&fluxa=config`);
-    budget = buildFluxaMenuShoppingBudget(menu.entries.map((entry) => ({ items: entry.dietPlan.meals.flatMap((meal) => meal.items), days: entry.days })));
-    source = { id: menu.id, name: `Cardápio de ${budget.days} dias` };
+    const menuEntries = menu.entries.map((entry) => ({ items: entry.dietPlan.meals.flatMap((meal) => meal.items), days: entry.days }));
+    budget = buildFluxaMenuShoppingBudget(menuEntries);
+    source = { id: `cardapio-${menu.id}`, name: `Cardápio (${totalMenuDays(menuEntries)} dias)` };
   } else {
     const plan = await prisma.dietPlan.findFirst({
       where: { userId: user.id, isActive: true },
