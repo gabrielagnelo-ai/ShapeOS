@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * In-memory Prisma for the Cardápio actions. `$queryRaw` (the SELECT ... FOR UPDATE on the
- * menu row) takes a real lock that is held until the transaction ends, and every read yields
- * to the event loop, so concurrent actions interleave the way they would against Postgres.
+ * menu row) takes a lock held until the transaction ends, a failed transaction restores the
+ * entries, and every read yields to the event loop so concurrent actions interleave. It models
+ * the lock and rollback contract the actions rely on; it is not PostgreSQL.
  */
 const mocks = vi.hoisted(() => {
   type Entry = { id: string; menuId: string; dietPlanId: string; days: number; order: number };
@@ -13,13 +14,15 @@ const mocks = vi.hoisted(() => {
     menuId: "menu-1" as string | null,
     lock: Promise.resolve(),
     nextId: 1,
-    failNextUpdate: false,
+    failNextUpdate: null as string | null, // error code thrown by the next entry update
+    upsertConflict: false,
   };
   const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
   const visible = (where: { menuId?: string; dietPlan?: { userId: string } }) => state.entries.filter((entry) =>
     (!where.menuId || entry.menuId === where.menuId) && (!where.dietPlan || state.plans.get(entry.dietPlanId) === where.dietPlan.userId));
 
-  function client(release?: { fn: () => void }) {
+  type Tx = { fn: () => void; snapshot: Entry[] | null };
+  function client(release?: Tx) {
     return {
       $queryRaw: async () => {
         if (release) {
@@ -28,6 +31,8 @@ const mocks = vi.hoisted(() => {
           state.lock = new Promise<void>((resolve) => { unlock = resolve; });
           await previous;
           release.fn = unlock;
+          // Writes only happen under the lock, so this is what a rollback must restore.
+          release.snapshot = state.entries.map((entry) => ({ ...entry }));
         }
         await pause();
         return state.menuId ? [{ id: state.menuId }] : [];
@@ -39,7 +44,16 @@ const mocks = vi.hoisted(() => {
         },
       },
       dietMenu: {
-        upsert: async () => ({ id: state.menuId }),
+        upsert: async () => {
+          await pause();
+          if (state.upsertConflict) {
+            state.upsertConflict = false;
+            state.menuId = "menu-1"; // the concurrent first add created it
+            throw Object.assign(new Error("Unique constraint failed on user_id"), { code: "P2002" });
+          }
+          state.menuId ??= "menu-1";
+          return { id: state.menuId };
+        },
         update: async () => ({}),
       },
       dietMenuEntry: {
@@ -57,14 +71,22 @@ const mocks = vi.hoisted(() => {
         update: async ({ where, data }: { where: { id: string }; data: { order: number } }) => {
           await pause();
           const entry = state.entries.find((current) => current.id === where.id);
-          if (!entry || state.failNextUpdate) {
-            state.failNextUpdate = false;
-            throw Object.assign(new Error("Record to update not found."), { code: "P2025" });
+          if (state.failNextUpdate) {
+            const code = state.failNextUpdate;
+            state.failNextUpdate = null;
+            throw Object.assign(new Error(`update failed (${code})`), { code });
           }
+          if (!entry) throw Object.assign(new Error("Record to update not found."), { code: "P2025" });
           entry.order = data.order;
           return entry;
         },
-        updateMany: async () => ({ count: 1 }),
+        updateMany: async ({ where, data }: { where: { id: string; menu: { userId: string }; dietPlan: { userId: string } }; data: { days: number } }) => {
+          await pause();
+          const matches = state.entries.filter((entry) => entry.id === where.id && entry.menuId === state.menuId
+            && where.menu.userId === "user-a" && state.plans.get(entry.dietPlanId) === where.dietPlan.userId);
+          matches.forEach((entry) => { entry.days = data.days; });
+          return { count: matches.length };
+        },
         delete: async ({ where }: { where: { id: string } }) => {
           await pause();
           const index = state.entries.findIndex((entry) => entry.id === where.id);
@@ -78,9 +100,12 @@ const mocks = vi.hoisted(() => {
   const database = {
     ...client(),
     $transaction: async <T,>(operation: (tx: ReturnType<typeof client>) => Promise<T>) => {
-      const release = { fn: () => {} };
+      const release: Tx = { fn: () => {}, snapshot: null };
       try {
         return await operation(client(release));
+      } catch (error) {
+        if (release.snapshot) state.entries = release.snapshot; // rollback of this transaction
+        throw error;
       } finally {
         release.fn();
       }
@@ -94,7 +119,7 @@ vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn(async () => ({ id: "user-a"
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { addDietMenuEntryAction, moveDietMenuEntryAction, removeDietMenuEntryAction } from "../app/dieta/menu-actions";
+import { addDietMenuEntryAction, moveDietMenuEntryAction, removeDietMenuEntryAction, updateDietMenuEntryDaysAction } from "../app/dieta/menu-actions";
 
 function form(values: Record<string, string>) {
   const data = new FormData();
@@ -114,7 +139,8 @@ beforeEach(() => {
   mocks.state.menuId = "menu-1";
   mocks.state.lock = Promise.resolve();
   mocks.state.nextId = 1;
-  mocks.state.failNextUpdate = false;
+  mocks.state.failNextUpdate = null;
+  mocks.state.upsertConflict = false;
   seed(0);
 });
 
@@ -172,10 +198,35 @@ describe("Cardápio actions under concurrency (in-memory Prisma, no database)", 
     expect(orders()).toEqual([0, 1]);
   });
 
-  it("turns a P2025 inside the transaction into a friendly message", async () => {
+  it("turns a P2025 inside the transaction into a friendly message and rolls back", async () => {
     seed(3);
-    mocks.state.failNextUpdate = true;
+    mocks.state.failNextUpdate = "P2025";
     await expect(moveDietMenuEntryAction(null, form({ entryId: "e2", direction: "up" }))).resolves.toMatchObject({ ok: false });
+    expect(idsInOrder()).toEqual(["e0", "e1", "e2"]);
+  });
+
+  it("propagates an unexpected error and keeps the removal undone", async () => {
+    seed(3);
+    mocks.state.failNextUpdate = "P1001";
+    await expect(removeDietMenuEntryAction(null, form({ entryId: "e0" }))).rejects.toMatchObject({ code: "P1001" });
+    expect(idsInOrder()).toEqual(["e0", "e1", "e2"]);
+    expect(orders()).toEqual([0, 1, 2]);
+  });
+
+  it("adds normally when a concurrent first add created the menu (P2002)", async () => {
+    mocks.state.menuId = null;
+    mocks.state.upsertConflict = true;
+    await expect(addDietMenuEntryAction(null, form({ planId: "plan-a", days: "7" }))).resolves.toMatchObject({ ok: true });
+    expect(mocks.state.entries).toHaveLength(1);
+  });
+
+  it("does not change the days of an entry whose plan belongs to someone else", async () => {
+    seed(1);
+    mocks.state.entries.push({ id: "foreign", menuId: "menu-1", dietPlanId: "plan-b", days: 7, order: 1 });
+    await expect(updateDietMenuEntryDaysAction(null, form({ entryId: "foreign", days: "30" }))).resolves.toMatchObject({ ok: false });
+    expect(mocks.state.entries.find((entry) => entry.id === "foreign")?.days).toBe(7);
+    await expect(updateDietMenuEntryDaysAction(null, form({ entryId: "e0", days: "30" }))).resolves.toMatchObject({ ok: true });
+    expect(mocks.state.entries.find((entry) => entry.id === "e0")?.days).toBe(30);
   });
 
   it("ignores entries whose plan belongs to someone else", async () => {

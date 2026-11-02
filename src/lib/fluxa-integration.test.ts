@@ -66,6 +66,20 @@ describe("buildFluxaMenuShoppingBudget", () => {
     expect(buildFluxaMenuShoppingBudget([{ items, days: 30 }])).toEqual(buildFluxaShoppingBudget(items, 30));
   });
 
+  it.each([
+    { label: "one 29-day entry", entries: [{ items: [{ grams: 265, food: egg }], days: 29 }] },
+    { label: "7 + 7 + 15", entries: [7, 7, 15].map((days) => ({ items: [{ grams: 265, food: egg }], days })) },
+    { label: "the same plan repeated", entries: [14, 15].map((days) => ({ items: [{ grams: 265, food: egg }], days })) },
+    { label: "the egg split across meals", entries: [{ items: [{ grams: 100, food: egg }, { grams: 165, food: egg }], days: 29 }] },
+    { label: "split across meals and entries", entries: [7, 7, 15].map((days) => ({ items: [{ grams: 53, food: egg }, { grams: 212, food: egg }], days })) },
+  ])("gives 150 eggs and R$ 159,00 for 265 g a day over 29 days: $label", ({ entries }) => {
+    const budget = buildFluxaMenuShoppingBudget(entries);
+    expect(budget.days).toBe(30);
+    expect(budget.items).toHaveLength(1);
+    expect(budget.items[0]).toMatchObject({ quantity: 150, unit: "unit", subtotal: 159 });
+    expect(budget.summary.estimatedTotal).toBe(159);
+  });
+
   it("keeps whole eggs exact at the 265 g x 29 days boundary", () => {
     const budget = buildFluxaMenuShoppingBudget([{ items: [{ grams: 265, food: egg }], days: 29 }]);
     const eggs = budget.items.find((item) => item.foodId === egg.id);

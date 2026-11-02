@@ -45,6 +45,10 @@ export function buildFluxaShoppingBudget(items: DietItemInput[], days = 30) {
     grouped.set(item.food.id, current);
   }
 
+  // Float noise from scaling and summing (7950.000000000001 g) must not add an egg: round the
+  // aggregated grams of each food to 3 decimals before any unit is counted.
+  for (const item of grouped.values()) item.buyGrams = Math.round(item.buyGrams * 1000) / 1000;
+
   const budgetItems: FluxaShoppingItem[] = [...grouped.values()].map((item) => {
     if (item.isWholeChickenEgg) {
       const quantity = wholeEggUnitCount(item.buyGrams);
@@ -103,8 +107,8 @@ export const FLUXA_BUDGET_DAYS = 30;
 export function buildFluxaMenuShoppingBudget(entries: { items: DietItemInput[]; days: number }[]) {
   const menuDays = totalMenuDays(entries);
   const scale = menuDays > 0 ? FLUXA_BUDGET_DAYS / menuDays : 0;
-  // Rounded to 3 decimals: 265 g x 29 days x 30/29 must be 7950 g (150 eggs), not 7950.000000000001 (151).
-  const items = menuItemsForPeriod(entries).map((item) => ({ ...item, grams: Math.round(item.grams * scale * 1000) / 1000 }));
+  // Parcels stay exact here; precision is handled once, on each food's aggregated total.
+  const items = menuItemsForPeriod(entries).map((item) => ({ ...item, grams: item.grams * scale }));
   return { ...buildFluxaShoppingBudget(items, 1), days: FLUXA_BUDGET_DAYS };
 }
 
