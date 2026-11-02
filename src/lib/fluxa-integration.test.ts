@@ -66,6 +66,16 @@ describe("buildFluxaMenuShoppingBudget", () => {
     expect(buildFluxaMenuShoppingBudget([{ items, days: 30 }])).toEqual(buildFluxaShoppingBudget(items, 30));
   });
 
+  it("keeps whole eggs exact at the 265 g x 29 days boundary", () => {
+    const budget = buildFluxaMenuShoppingBudget([{ items: [{ grams: 265, food: egg }], days: 29 }]);
+    const eggs = budget.items.find((item) => item.foodId === egg.id);
+    expect(budget.days).toBe(30);
+    expect(eggs?.quantity).toBe(150);
+    expect(eggs?.subtotal).toBe(159);
+    expect(budget.summary.estimatedTotal).toBe(159);
+    expect(budget).toEqual(buildFluxaShoppingBudget([{ grams: 265, food: egg }], 30));
+  });
+
   it("scales a 15-day plan up to 30 days", () => {
     const items = [{ grams: 150, food: rice }];
     expect(buildFluxaMenuShoppingBudget([{ items, days: 15 }])).toEqual(buildFluxaShoppingBudget(items, 30));

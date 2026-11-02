@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   averageDailyMenuNutrition,
+  menuIdsWithout,
   menuItemsForPeriod,
+  nextMenuEntryOrder,
   parseMenuDirection,
   reorderMenuEntryIds,
   consolidateShoppingList,
@@ -203,5 +205,21 @@ describe("menuItemsForPeriod", () => {
     ]);
     expect(items.map((item) => item.grams)).toEqual([700, 750, 3000]);
     expect(items[2].food).toBe(chicken);
+  });
+});
+
+describe("menu writes planned under the lock", () => {
+  it("gives the next order and refuses a thirteenth entry", () => {
+    expect(nextMenuEntryOrder([])).toBe(0);
+    expect(nextMenuEntryOrder([0, 1, 2])).toBe(3);
+    expect(nextMenuEntryOrder([0, 4, 2])).toBe(5);
+    expect(nextMenuEntryOrder(Array.from({ length: 11 }, (_, index) => index))).toBe(11);
+    expect(nextMenuEntryOrder(Array.from({ length: 12 }, (_, index) => index))).toBeNull();
+  });
+
+  it("removes one id and keeps the others in order", () => {
+    expect(menuIdsWithout(["a", "b", "c"], "b")).toEqual(["a", "c"]);
+    expect(menuIdsWithout(["a"], "a")).toEqual([]);
+    expect(menuIdsWithout(["a", "b"], "x")).toBeNull();
   });
 });

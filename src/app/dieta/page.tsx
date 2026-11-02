@@ -54,7 +54,7 @@ export default async function DietaPage({ searchParams }: { searchParams: Search
   const plan = dietPlans.find((dietPlan) => dietPlan.isActive) ?? null;
   const dietMenu = await prisma.dietMenu.findUnique({
     where: { userId: user.id },
-    include: { entries: { orderBy: [{ order: "asc" }, { id: "asc" }], include: { dietPlan: { include: { meals: { include: { items: { include: { food: true } } } } } } } } },
+    include: { entries: { where: { dietPlan: { userId: user.id } }, orderBy: [{ order: "asc" }, { id: "asc" }], include: { dietPlan: { include: { meals: { include: { items: { include: { food: true } } } } } } } } },
   });
   const menuEntries = (dietMenu?.entries ?? []).map((entry) => ({ entry, items: entry.dietPlan.meals.flatMap((meal) => meal.items), days: entry.days }));
   const menuShopping = consolidateShoppingList(menuEntries);

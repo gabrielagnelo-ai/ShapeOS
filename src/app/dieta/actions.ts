@@ -26,7 +26,7 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
   if (returnPeriod === "cardapio") {
     const menu = await prisma.dietMenu.findUnique({
       where: { userId: user.id },
-      include: { entries: { orderBy: { order: "asc" }, include: { dietPlan: { include: { meals: { include: { items: { include: { food: true } } } } } } } } },
+      include: { entries: { where: { dietPlan: { userId: user.id } }, orderBy: { order: "asc" }, include: { dietPlan: { include: { meals: { include: { items: { include: { food: true } } } } } } } } },
     });
     if (!menu?.entries.length) redirect(`${returnUrl}&fluxa=no-menu`);
     if (!secret || secret.length < 32) redirect(`${returnUrl}&fluxa=config`);

@@ -156,3 +156,14 @@ export function reorderMenuEntryIds(ids: string[], id: string, direction: MenuDi
 export function menuItemsForPeriod<Item extends { grams: number }>(entries: { items: Item[]; days: number }[]) {
   return entries.flatMap((entry) => entry.items.map((item) => ({ ...item, grams: item.grams * entry.days })));
 }
+
+/** Order for a new entry, or null when the menu is full. Reads the orders under the menu lock. */
+export function nextMenuEntryOrder(orders: number[], max = MAX_MENU_ENTRIES) {
+  if (orders.length >= max) return null;
+  return orders.length ? Math.max(...orders) + 1 : 0;
+}
+
+/** Remaining ids, in order, after removing one; null when the id is not in the menu. */
+export function menuIdsWithout(ids: string[], id: string) {
+  return ids.includes(id) ? ids.filter((current) => current !== id) : null;
+}
