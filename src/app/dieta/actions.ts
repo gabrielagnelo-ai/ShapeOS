@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { appDateParts } from "@/lib/date-time";
-import { buildFluxaShoppingBudget, signFluxaPayload } from "@/lib/fluxa-integration";
+import { totalMenuDays } from "@/lib/diet-menu";
+import { buildFluxaMenuShoppingBudget, buildFluxaShoppingBudget, signFluxaPayload } from "@/lib/fluxa-integration";
 import { baseMealNames, mealOrder, normalizeMealName } from "@/lib/meals";
 import { prisma } from "@/lib/prisma";
 import { computeCurrentProfileMetrics, computeProfileMetrics } from "@/lib/profile";
@@ -14,20 +15,35 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?erro=Sessão não encontrada. Entre novamente.");
   const period = String(formData.get("periodo") ?? "quinzenal");
-  const returnPeriod = ["semanal", "quinzenal", "mensal"].includes(period) ? period : "quinzenal";
+  const returnPeriod = ["semanal", "quinzenal", "mensal", "cardapio"].includes(period) ? period : "quinzenal";
   const returnUrl = `/dieta?periodo=${returnPeriod}`;
-
-  const plan = await prisma.dietPlan.findFirst({
-    where: { userId: user.id, isActive: true },
-    include: { meals: { include: { items: { include: { food: true } } } } },
-  });
-  if (!plan) redirect(`${returnUrl}&fluxa=no-plan`);
 
   const secret = process.env.FLUXA_INTEGRATION_SECRET;
   const baseUrl = process.env.FLUXA_API_URL ?? "https://fluxa-pi.vercel.app";
-  if (!secret || secret.length < 32) redirect(`${returnUrl}&fluxa=config`);
+  let budget: ReturnType<typeof buildFluxaShoppingBudget>;
+  let source: { id: string; name: string };
 
-  const budget = buildFluxaShoppingBudget(plan.meals.flatMap((meal) => meal.items), 30);
+  if (returnPeriod === "cardapio") {
+    const menu = await prisma.dietMenu.findUnique({
+      where: { userId: user.id },
+      include: { entries: { where: { dietPlan: { userId: user.id } }, orderBy: { order: "asc" }, include: { dietPlan: { include: { meals: { include: { items: { include: { food: true } } } } } } } } },
+    });
+    if (!menu?.entries.length) redirect(`${returnUrl}&fluxa=no-menu`);
+    if (!secret || secret.length < 32) redirect(`${returnUrl}&fluxa=config`);
+    const menuEntries = menu.entries.map((entry) => ({ items: entry.dietPlan.meals.flatMap((meal) => meal.items), days: entry.days }));
+    budget = buildFluxaMenuShoppingBudget(menuEntries);
+    source = { id: `cardapio-${menu.id}`, name: `Cardápio (${totalMenuDays(menuEntries)} dias)` };
+  } else {
+    const plan = await prisma.dietPlan.findFirst({
+      where: { userId: user.id, isActive: true },
+      include: { meals: { include: { items: { include: { food: true } } } } },
+    });
+    if (!plan) redirect(`${returnUrl}&fluxa=no-plan`);
+    if (!secret || secret.length < 32) redirect(`${returnUrl}&fluxa=config`);
+    budget = buildFluxaShoppingBudget(plan.meals.flatMap((meal) => meal.items), 30);
+    source = { id: plan.id, name: plan.name };
+  }
+
   if (budget.summary.estimatedTotal <= 0) redirect(`${returnUrl}&fluxa=no-prices`);
   if (budget.summary.missingPriceCount > 0 && formData.get("confirmPartialEstimate") !== "on") redirect(`${returnUrl}&fluxa=partial-prices`);
 
@@ -39,7 +55,7 @@ export async function syncShoppingBudgetToFluxaAction(formData: FormData) {
     month: currentDate.month,
     year: currentDate.year,
     generatedAt: now.toISOString(),
-    plan: { id: plan.id, name: plan.name },
+    plan: source,
     ...budget,
   });
   const timestamp = Math.floor(Date.now() / 1000).toString();

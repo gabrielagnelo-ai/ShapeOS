@@ -69,8 +69,22 @@ export function wholeEggPricePerKg(pricePerUnit: number) {
 }
 
 function cookingYieldFactor(name: string, category: string) {
-  const normalized = `${name} ${category}`.toLowerCase();
+  const normalized = `${name} ${category}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (isCannedOrPreserved(normalized)) return 1;
   if (normalized.includes("peixe") || normalized.includes("tilapia") || normalized.includes("sardinha")) return 0.8;
   if (normalized.includes("carne") || normalized.includes("frango") || normalized.includes("patinho") || normalized.includes("grelhado") || normalized.includes("assado")) return 0.75;
   return 1;
+}
+
+/**
+ * Canned or preserved food is bought ready to eat: there is no raw version to convert.
+ * Tuna is canned in Brazilian markets unless the name says it is fresh.
+ */
+function isCannedOrPreserved(normalized: string) {
+  if (/\b(conserva|enlatad[oa]s?|em lata)\b/.test(normalized)) return true;
+  if (/\b(atum|sardinha)\b.*\b(ralad[oa]|ao natural|em oleo|em molho)\b/.test(normalized)) return true;
+  return /\batum\b/.test(normalized) && !/\b(fresco|cru|posta|file|grelhad[oa]|assad[oa]|selad[oa])\b/.test(normalized);
 }
